@@ -1,0 +1,15 @@
+{
+  "dimension": "file_leak",
+  "should_report": [
+    { "file": "fileleak-test/sample_project/.env", "type": "env_file", "severity": "high" },
+    { "file": "fileleak-test/sample_project/.env.production", "type": "env_file", "severity": "high" },
+    { "file": "fileleak-test/sample_project/certs/server.pem", "type": "private_key_file", "severity": "high" },
+    { "file": "fileleak-test/sample_project/certs/api.key", "type": "private_key_file", "severity": "high" },
+    { "file": "fileleak-test/sample_project/.ssh/id_rsa", "type": "ssh_private_key_file", "severity": "critical" },
+    { "file": "source-test/full-test/.env", "type": "env_file", "severity": "high" }
+  ],
+  "should_not_report": [
+    { "file": "fileleak-test/sample_project/src/main.go", "reason": "normal source file" },
+    { "file": "fileleak-test/sample_project/config/app.yaml", "reason": "normal config fixture" }
+  ]
+}

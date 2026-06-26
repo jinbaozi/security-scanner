@@ -68,7 +68,7 @@
 
 ## 字段完整性说明
 
-- 所有 finding 记录必须包含 `id`、`dimension`、`file`、`line`、`check_item`、`status`、`severity`、`confidence`、`verdict`、`detail`、`suggestion`、`evidence`。
+- 所有 finding 记录必须包含 `id`、`dimension`、`file`、`line`、`check_item`、`status`、`severity`、`confidence`、`verdict`、`verdict_reasoning`、`detail`、`suggestion`、`evidence`。
 - 无行号或不适用字段必须填写“`不适用：{reason}`”，不得使用空值、`-`、`N/A` 或单独的“无”作为占位符。
 - 所有 `confirmed`、`suspected`、`needs_human`、`unverified` 记录必须在本报告或审计日志中可追溯到原始 evidence。
 

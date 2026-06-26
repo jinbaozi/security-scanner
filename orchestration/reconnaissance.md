@@ -69,8 +69,12 @@ if which file >/dev/null 2>&1; then
   done < /tmp/recon_scan_files.txt
 else
   while IFS= read -r filepath; do
-    if head -c 4 "$filepath" 2>/dev/null | xxd -p 2>/dev/null | grep -q "7f454c46"; then
-      echo "$filepath" >> /tmp/recon_elf_files.txt
+    if which xxd >/dev/null 2>&1; then
+      head -c 4 "$filepath" 2>/dev/null | xxd -p 2>/dev/null | grep -q "7f454c46" && echo "$filepath" >> /tmp/recon_elf_files.txt
+    elif which od >/dev/null 2>&1; then
+      head -c 4 "$filepath" 2>/dev/null | od -A n -t x1 2>/dev/null | grep -q "7f 45 4c 46" && echo "$filepath" >> /tmp/recon_elf_files.txt
+    else
+      head -c 4 "$filepath" 2>/dev/null | LC_ALL=C grep -q "$(printf '\177ELF')" && echo "$filepath" >> /tmp/recon_elf_files.txt
     fi
   done < /tmp/recon_scan_files.txt
 fi

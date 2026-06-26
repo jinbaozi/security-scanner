@@ -26,6 +26,7 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
   "severity": "high",
   "confidence": "high",
   "verdict": "confirmed",
+  "verdict_reasoning": "文件名命中高风险环境变量文件模式，且该类文件通常包含口令或访问密钥。",
   "detail": "交付包中包含环境变量文件，可能泄露数据库口令或访问密钥",
   "suggestion": "从交付包中移除该文件，改用部署环境注入配置",
   "evidence": "文件名匹配: .env"
@@ -44,6 +45,7 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
 | `confidence` | `high`、`medium`、`low` |
 | `verdict` | `confirmed`、`suspected`、`rejected`、`needs_human`、`unverified` |
+| `verdict_reasoning` | 简体中文裁决依据，说明文件名模式、内容轻量确认结果和是否需要移出交付包 |
 
 ## 检测规则
 
@@ -103,9 +105,24 @@ done
 
 对于 `.pem`、`.key`、`.env` 等高风险文件，可读取前 20 行确认是否包含私钥头、密码字段或 Token 字段。evidence 必须脱敏，不得输出完整密钥。
 
+`*.key` 文件需要额外确认，避免把普通源码或数据文件误判为私钥：
+
+- 包含 PEM 头（`-----BEGIN`）或二进制密钥特征：`confidence=high`，保持 `severity=high`。
+- 纯文本且无密钥特征：`confidence=medium`，降级为 `severity=medium`，交由 Verdict 复核。
+- 内容为空或仅含占位符：`confidence=low`，降级为 `severity=low` 或 `rejected`。
+
 ### Step 4: 生成 Finding
 
 每个匹配生成一个 finding。`detail` 说明文件类型、为何不应进入交付包；`suggestion` 通常为“从交付包中移除，并通过部署系统或安全渠道提供”。
+
+## 降级策略
+
+当扫描规模过大或工具不可用时，按以下路径降级：
+
+1. 文件列表过大导致超时：仅按文件名模式匹配，不做内容确认分析。
+2. 超大目录超过 5000 文件：跳过 MEDIUM/LOW/INFO 风险模式，仅检查 HIGH 风险模式。
+3. `find` 命令不可用：使用 `ls -R` 加 shell glob 匹配文件名。
+4. `find` 和 `ls` 均不可用：FileLeak 扫描维度跳过，在报告中标记为 `unverified`。
 
 ## 异常处理
 

@@ -1,0 +1,19 @@
+{
+  "dimension": "url",
+  "should_report": [
+    { "file": "url-test-samples.go", "value": "http://api.external-service.com/v1/data" },
+    { "file": "url-test-samples.go", "value": "https://103.45.67.89:8443/backup" },
+    { "file": "url-test-samples.go", "value": "admin@external-company.com" },
+    { "file": "url-test-samples.go", "value": "http://api.partner.com/data" },
+    { "file": "url-test-samples.py", "value": "http://db.external.com:5432/mydb" },
+    { "file": "url-test-samples.py", "value": "203.0.113.45" },
+    { "file": "url-test-samples.py", "value": "support@example.org" }
+  ],
+  "should_not_report": [
+    { "file": "url-test-samples.go", "value": "github.com/gin-gonic/gin", "reason": "Go import" },
+    { "file": "url-test-samples.go", "value": "http://schemas.xmlsoap.org", "reason": "SOAP namespace" },
+    { "file": "url-test-samples.go", "value": "http://www.w3.org", "reason": "W3C standard" },
+    { "file": "url-test-samples.py", "value": "http://127.0.0.1:8080", "reason": "loopback" },
+    { "file": "url-test-samples.py", "value": "http://192.168.1.100", "reason": "RFC 1918" }
+  ]
+}

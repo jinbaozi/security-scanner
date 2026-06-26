@@ -1,0 +1,13 @@
+{
+  "dimension": "elf",
+  "expected_findings": {
+    "test_full_secure": { "all_pass": true },
+    "test_no_secure": { "fail_items": ["stack_canary", "nx", "relro", "pie", "bind_now"] },
+    "test_partial": { "fail_items": ["bind_now"] },
+    "test_lib.so": { "all_pass_except_pie_dso": true },
+    "test_stripped": { "strip_pass": true },
+    "test_rpath": { "fail_items": ["rpath_runpath"] },
+    "test_no_fortify": { "fail_items": ["fortify_source"] },
+    "test_not_stripped": { "fail_items": ["strip"] }
+  }
+}

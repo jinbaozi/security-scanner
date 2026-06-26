@@ -28,6 +28,7 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
   "severity": "high",
   "confidence": "high",
   "verdict": "confirmed",
+  "verdict_reasoning": "checksec 明确输出 NX disabled，且该检查项为确定性二进制保护项。",
   "detail": "NX 位未设置，堆栈可执行，存在安全风险",
   "suggestion": "编译时添加 -Wl,-z,noexecstack 链接参数",
   "evidence": "checksec 输出: NX disabled"
@@ -47,6 +48,7 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
 | `confidence` | `high`、`medium`、`low` |
 | `verdict` | 初始高置信问题为 `confirmed`，不确定项为 `needs_human`，跳过或未验证项为 `unverified` |
+| `verdict_reasoning` | 简体中文裁决依据；PASS 项说明检查通过，FAIL/WARN 项说明命令输出和上下文依据 |
 | `detail` | 简体中文说明风险和实际状态 |
 | `suggestion` | 简体中文整改建议；PASS 项写“无需整改” |
 | `evidence` | checksec/readelf/file 命令输出片段 |

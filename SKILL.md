@@ -35,9 +35,54 @@ triggers:
 5. **敏感文件泄露**：`.env`、私钥、日志、临时文件等交付包污染。
 6. **文件权限**：setuid/setgid、world-writable、异常可执行权限。
 
+## 文件结构
+
+```text
+security-scanner/
+├── SKILL.md
+├── scanners/
+│   ├── elf-scanner.md
+│   ├── url-scanner.md
+│   ├── secret-scanner.md
+│   ├── comment-scanner.md
+│   ├── fileleak-scanner.md
+│   └── permission-scanner.md
+├── orchestration/
+│   ├── orchestrator.md
+│   ├── reconnaissance.md
+│   └── reporter.md
+├── references/
+│   ├── allowlists.md
+│   ├── checksec-guide.md
+│   ├── dependency-check.md
+│   └── verdict-rules.md
+└── templates/
+    ├── report-comprehensive.md
+    ├── report-安全编译.md
+    ├── report-公网地址.md
+    ├── report-口令硬编码.md
+    └── report-未公开接口.md
+```
+
 ## 执行流程
 
 严格按以下顺序执行。每个 Phase 只在需要时加载对应模块，保证渐进式披露。
+
+渐进式披露路径：
+
+```text
+SKILL.md
+├── Phase -1 -> references/dependency-check.md
+├── Phase 0  -> orchestration/reconnaissance.md
+├── Phase 1  -> scanners/*.md（仅加载适用维度）
+├── Phase 2  -> references/verdict-rules.md
+└── Phase 3  -> orchestration/reporter.md
+              -> templates/report-comprehensive.md
+              -> templates/report-安全编译.md
+              -> templates/report-公网地址.md
+              -> templates/report-口令硬编码.md
+              -> templates/report-未公开接口.md
+```
 
 ### Phase -1: 环境预检
 
@@ -91,8 +136,15 @@ Phase 0: 发现阶段 PASS
 2. **URL Scanner**：读取 `scanners/url-scanner.md` 和 `references/allowlists.md`，输入 `source_shards + config_files`。
 3. **Secret Scanner**：读取 `scanners/secret-scanner.md`，输入 `source_shards + config_files`。
 4. **Comment Scanner**：读取 `scanners/comment-scanner.md`，输入 `source_shards`。
-5. **FileLeak Scanner**：读取 `scanners/fileleak-scanner.md`，输入完整文件列表。
-6. **Permission Scanner**：读取 `scanners/permission-scanner.md`，输入完整文件列表。
+5. **FileLeak Scanner**：读取 `scanners/fileleak-scanner.md`，输入完整文件列表（`all_files`）。
+   - 按文件名模式匹配检测敏感文件泄露。
+   - 文件数量超过 5000 时仅按文件名匹配，不做内容确认分析。
+   - 降级时跳过 LOW/MEDIUM/INFO 风险模式，仅检查 HIGH 风险文件。
+
+6. **Permission Scanner**：读取 `scanners/permission-scanner.md`，输入完整文件列表（`all_files`）。
+   - 检查 setuid/setgid、world-writable、异常可执行权限。
+   - 自动排除虚拟文件系统、挂载点和特殊文件类型。
+   - `stat` 不可用时使用 `ls -la` 解析；大规模扫描时仅检查 ELF 和脚本文件。
 
 等待所有 Scanner 完成后执行审计点 A1。
 
@@ -136,17 +188,29 @@ Phase 0: 发现阶段 PASS
   "id": "{DIMENSION}-{SEQ}",
   "dimension": "elf|url|secret|comment|file_leak|permission",
   "file": "文件绝对路径",
-  "line": 1,
+  "line": "integer | string | null — 源码行号、注释范围或不适用",
   "check_item": "检查项名称",
   "status": "PASS|WARN|FAIL",
   "severity": "critical|high|medium|low|info",
   "confidence": "high|medium|low",
   "verdict": "confirmed|suspected|rejected|needs_human|unverified",
+  "verdict_reasoning": "裁决理由（简体中文，至少包含裁决依据和上下文判断）",
   "detail": "问题描述（简体中文）",
   "suggestion": "修复建议（简体中文）",
   "evidence": "证据（代码片段或命令输出）"
 }
 ```
+
+`line` 字段按维度解释：
+
+| 维度 | line 类型 | 示例 |
+|------|-----------|------|
+| ELF | `null` | `null` |
+| URL | `integer` | `45` |
+| Secret | `integer` | `32` |
+| Comment | `string` | `"36-50"` |
+| FileLeak | `null` 或 `integer` | `null` |
+| Permission | `null` | `null` |
 
 ## 异常处理总则
 

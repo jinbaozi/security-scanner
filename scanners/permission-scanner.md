@@ -26,6 +26,7 @@ Permission Scanner Agent 仅负责检查文件权限风险，包括 setuid/setgi
   "severity": "low",
   "confidence": "medium",
   "verdict": "needs_human",
+  "verdict_reasoning": "该 Python 文件具有可执行位，但文件名和位置无法确认其是否为入口脚本，需要人工复核。",
   "detail": "Python 脚本具有可执行权限，但未能确认其是否为入口脚本",
   "suggestion": "确认该脚本是否需要执行权限；如不需要，执行 chmod 644 移除可执行位",
   "evidence": "-rwxr-xr-x script.py"
@@ -44,6 +45,7 @@ Permission Scanner Agent 仅负责检查文件权限风险，包括 setuid/setgi
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
 | `confidence` | `high`、`medium`、`low` |
 | `verdict` | `confirmed`、`suspected`、`rejected`、`needs_human`、`unverified` |
+| `verdict_reasoning` | 简体中文裁决依据，说明权限位、文件类型、路径上下文和是否属于例外 |
 
 ## 检查规则
 
@@ -122,6 +124,15 @@ ls -la "{filepath}" | awk '{print $1, $3, $4, $9}'
 - setuid/setgid：通常 `severity=high`；若可执行文件来源不明或 world-writable，可升为 `critical`。
 - world-writable：通常 `severity=medium`；若是脚本、ELF 或配置文件，可升为 `high`。
 - unexpected executable：通常 `severity=low`、`confidence=medium`，交由 Verdict 阶段确认。
+
+## 降级策略
+
+当工具不可用或扫描规模过大时，按以下路径降级：
+
+1. `stat` 不可用：使用 `ls -la` 权限字符串解析。
+2. `find` 不可用：使用 `ls -R` 加 shell glob 检查已知脚本文件。
+3. 文件列表过大：仅检查 ELF 文件和脚本文件（`.sh`、`.py`、`.pl`、`.rb`），跳过其他文件类型。
+4. `stat`、`find`、`ls` 均不可用：Permission 扫描维度跳过，在报告中标记为 `unverified`。
 
 ## 异常处理
 

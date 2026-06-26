@@ -12,6 +12,10 @@ Phase -1: Pre-flight Check -> 审计 -> Phase 0: Recon -> 审计 A0
 
 ## Phase 调度规则
 
+## 终端摘要格式
+
+每个 Phase 完成后输出终端摘要，格式参见 `SKILL.md` 的执行流程示例。Phase 3 完成后输出完整扫描结果摘要，格式参见 `orchestration/reporter.md`。
+
 ### 顺序执行
 
 Phase -1 和 Phase 0 必须顺序执行，前一 Phase 完成后才能进入下一 Phase。
@@ -53,7 +57,7 @@ FAIL -> 进入修复循环（最多 2 次自动修复）-> 仍失败则降级
 
 ### A2（Verdict 审计）
 
-- 所有裁决包含 confidence 和 reasoning：PASS。
+- 所有裁决包含 `confidence` 和 `verdict_reasoning`：PASS。
 - 部分缺失：WARN，重新补充。
 - 大面积缺失：FAIL，标记为 `unverified`。
 

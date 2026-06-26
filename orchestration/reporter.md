@@ -46,11 +46,12 @@ JSON 必须包含以下顶层字段：
   "dimension": "elf",
   "file": "/path/to/binary",
   "line": null,
-  "check_item": "NX",
+  "check_item": "nx",
   "status": "FAIL",
   "severity": "high",
   "confidence": "high",
   "verdict": "confirmed",
+  "verdict_reasoning": "checksec 明确显示 NX disabled，属于确定性二进制安全编译问题。",
   "detail": "NX bit not set, stack is executable",
   "suggestion": "Add -Wl,-z,noexecstack to linker flags",
   "evidence": "RELRO: Partial RELRO\nStack: Canary found\nNX: NX disabled"

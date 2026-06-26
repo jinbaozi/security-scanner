@@ -1,0 +1,17 @@
+{
+  "dimension": "permission",
+  "should_report": [
+    { "file": "permission-test/sample_perms/world_writable.conf", "type": "world_writable", "severity": "medium" },
+    { "file": "permission-test/sample_perms/unexpected_exec.py", "type": "unexpected_executable", "severity": "low" },
+    { "file": "source-test/full-test/config/app.yaml", "type": "world_writable", "severity": "medium" },
+    { "file": "source-test/full-test/src/main.go", "type": "unexpected_executable", "severity": "low" }
+  ],
+  "conditional_report": [
+    { "file": "permission-test/sample_perms/suid_binary", "type": "setuid_setgid", "requires": "chmod u+s supported" },
+    { "file": "permission-test/sample_perms/sgid_binary", "type": "setuid_setgid", "requires": "chmod g+s supported" }
+  ],
+  "should_not_report": [
+    { "file": "permission-test/sample_perms/install.sh", "reason": "known entry script" },
+    { "file": "permission-test/sample_perms/normal.txt", "reason": "normal permissions" }
+  ]
+}

@@ -61,6 +61,21 @@ gcc -o test_rpath test_prog.c \
   -Wl,-z,noexecstack \
   -Wl,-rpath,/opt/custom/lib 2>/dev/null && echo "test_rpath 编译成功" || echo "test_rpath 编译失败"
 
+gcc -o test_no_fortify test_prog.c \
+  -fstack-protector-strong \
+  -Wl,-z,relro,-z,now \
+  -fPIE -pie \
+  -Wl,-z,noexecstack \
+  -U_FORTIFY_SOURCE 2>/dev/null && echo "test_no_fortify 编译成功" || echo "test_no_fortify 编译失败"
+
+gcc -o test_not_stripped test_prog.c \
+  -fstack-protector-strong \
+  -Wl,-z,relro,-z,now \
+  -fPIE -pie \
+  -Wl,-z,noexecstack \
+  -D_FORTIFY_SOURCE=2 \
+  -O2 2>/dev/null && echo "test_not_stripped 编译成功" || echo "test_not_stripped 编译失败"
+
 rm -f test_prog.c test_lib.c
 
 echo "测试 ELF 文件生成完毕"

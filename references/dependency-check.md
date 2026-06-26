@@ -40,7 +40,7 @@ for tool in file stat checksec; do
   fi
 done
 
-for tool in readelf objdump python3; do
+for tool in readelf objdump xxd od python3; do
   if ! which "$tool" >/dev/null 2>&1; then
     echo "MISSING: $tool (降级备选)"
   else
@@ -132,6 +132,7 @@ find 不可用:
 
 file 不可用:
   -> 降级到检查 ELF magic bytes（xxd/head -c4）
+  -> xxd 不可用时降级到 od
   -> 降级到按扩展名分类
 
 stat 不可用:
