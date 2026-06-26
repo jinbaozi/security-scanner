@@ -1,0 +1,14 @@
+database:
+  host: localhost
+  port: 5432
+  username: admin
+  password: "real_database_password_123"  # 应报告
+  name: production_db
+
+api:
+  key: "sk-prod-xyz789abc"  # 应报告
+  secret: ""  # 空值不应报告
+  token: "${API_TOKEN}"  # 环境变量引用不应报告
+
+redis:
+  password: "redis_pass_456"  # 应报告

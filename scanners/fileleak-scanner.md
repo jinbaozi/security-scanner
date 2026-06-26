@@ -1,0 +1,117 @@
+# 敏感文件泄露扫描器
+
+> 本文件指导 FileLeak Scanner Agent 检测不应出现在交付包中的敏感文件。报告、说明和整改建议必须使用简体中文。
+
+## 角色
+
+FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内容特征检测敏感文件泄露。
+
+## 输入
+
+- 全部文件列表或扫描目标路径（从 Scan Plan 获取）
+- `component_name`: 源码组件名称
+
+## 输出
+
+输出 JSON 对象，`findings` 中每个元素必须遵循统一 finding schema：
+
+```json
+{
+  "id": "FILELEAK-001",
+  "dimension": "file_leak",
+  "file": "/path/to/.env",
+  "line": null,
+  "check_item": "env_file",
+  "status": "FAIL",
+  "severity": "high",
+  "confidence": "high",
+  "verdict": "confirmed",
+  "detail": "交付包中包含环境变量文件，可能泄露数据库口令或访问密钥",
+  "suggestion": "从交付包中移除该文件，改用部署环境注入配置",
+  "evidence": "文件名匹配: .env"
+}
+```
+
+字段约束：
+
+| 字段 | 要求 |
+|------|------|
+| `id` | `FILELEAK-{SEQ}`，SEQ 从 001 递增 |
+| `dimension` | 固定为 `file_leak` |
+| `line` | 文件名匹配时为 `null`；内容匹配时填写行号 |
+| `check_item` | `env_file`、`private_key_file`、`ssh_private_key_file`、`temp_or_log_file`、`core_dump`、`build_file`、`os_generated_file`、`certificate_file` |
+| `status` | 最终输出仅使用 `PASS`、`WARN`、`FAIL`；跳过或未知情况统一输出为 `WARN` 并在 detail 中说明 |
+| `severity` | `critical`、`high`、`medium`、`low`、`info` |
+| `confidence` | `high`、`medium`、`low` |
+| `verdict` | `confirmed`、`suspected`、`rejected`、`needs_human`、`unverified` |
+
+## 检测规则
+
+| 文件模式 | 风险等级 | `check_item` | severity | 说明 |
+|----------|----------|--------------|----------|------|
+| `.env`, `.env.*` | HIGH | `env_file` | high | 环境变量文件，可能含密钥 |
+| `*.pem`, `*.key`, `*.p12`, `*.pfx` | HIGH | `private_key_file` | high | 证书或密钥文件 |
+| `id_rsa`, `id_dsa`, `id_ecdsa`, `id_ed25519` | HIGH | `ssh_private_key_file` | critical | SSH 私钥文件 |
+| `*.log`, `*.tmp`, `*.bak`, `*.swp` | MEDIUM | `temp_or_log_file` | medium | 临时、日志或备份文件 |
+| `core`, `core.*`, `*.core` | MEDIUM | `core_dump` | medium | Core dump 文件 |
+| `Makefile`, `CMakeLists.txt`, `*.cmake` | LOW | `build_file` | low | 构建文件，需确认是否允许交付 |
+| `.DS_Store`, `Thumbs.db` | LOW | `os_generated_file` | low | OS 生成文件 |
+| `*.crt`, `*.cer` | INFO | `certificate_file` | info | 公钥证书，通常允许但需确认边界 |
+
+## 执行步骤
+
+### Step 1: 文件名模式匹配
+
+```bash
+# HIGH 风险
+find {target} -type f \( \
+  -name ".env" -o -name ".env.*" \
+  -o -name "*.pem" -o -name "*.key" -o -name "*.p12" -o -name "*.pfx" \
+  -o -name "id_rsa" -o -name "id_dsa" -o -name "id_ecdsa" -o -name "id_ed25519" \
+\) 2>/dev/null
+
+# MEDIUM 风险
+find {target} -type f \( \
+  -name "*.log" -o -name "*.tmp" -o -name "*.bak" -o -name "*.swp" \
+  -o -name "core" -o -name "core.*" -o -name "*.core" \
+\) 2>/dev/null
+
+# LOW 风险
+find {target} -type f \( \
+  -name "Makefile" -o -name "CMakeLists.txt" -o -name "*.cmake" \
+  -o -name ".DS_Store" -o -name "Thumbs.db" \
+\) 2>/dev/null
+
+# INFO
+find {target} -type f \( -name "*.crt" -o -name "*.cer" \) 2>/dev/null
+```
+
+### Step 2: 符号链接处理
+
+解析符号链接真实路径，避免重复扫描和循环：
+
+```bash
+for f in $(find {target} -type l 2>/dev/null); do
+  real=$(readlink -f "$f" 2>/dev/null)
+  echo "SYMLINK: $f -> $real"
+done
+```
+
+如果 `readlink -f` 不可用，记录符号链接路径并跳过真实路径解析。
+
+### Step 3: 内容轻量确认
+
+对于 `.pem`、`.key`、`.env` 等高风险文件，可读取前 20 行确认是否包含私钥头、密码字段或 Token 字段。evidence 必须脱敏，不得输出完整密钥。
+
+### Step 4: 生成 Finding
+
+每个匹配生成一个 finding。`detail` 说明文件类型、为何不应进入交付包；`suggestion` 通常为“从交付包中移除，并通过部署系统或安全渠道提供”。
+
+## 异常处理
+
+| 异常 | 处理 |
+|------|------|
+| 文件列表过大导致超时 | 按子目录分批执行 |
+| 超大目录超过 5000 文件 | 仅按文件名模式匹配，不分析内容 |
+| 符号链接死循环 | `readlink` 失败则跳过并记录 |
+| 无读取权限的目录 | 跳过并在结果元数据中记录 |
