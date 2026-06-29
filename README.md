@@ -30,6 +30,9 @@
 | 4 | 未公开接口 | 大段注释中的隐藏调试能力、未公开接口、后门说明、敏感内部信息 |
 | 5 | 敏感文件泄露 | `.env`、私钥、证书密钥、日志、临时文件、备份文件、core dump |
 | 6 | 文件权限 | setuid/setgid、world-writable、异常可执行脚本 |
+| 7 | 密码学合规 | 对称/非对称/Hash 算法、伪加密、随机数 API、不安全协议、库版本知识库匹配 |
+| 8 | 网络协议与端口 | 通信协议（SSHv2/TLS1.2/TLS1.3）、监听端口、声明 vs 实际对账 |
+| 9 | 组件基础档案 | 架构类型、默认账号、个人数据处理、root 启动需求、声明 vs 实际对账 |
 
 ## 系统要求
 
@@ -117,6 +120,10 @@ Reporter 指令定义三类输出：
 | 公网地址专项报告 | `report-公网地址-{component_name}-{date}.md` |
 | 口令硬编码专项报告 | `report-口令硬编码-{component_name}-{date}.md` |
 | 未公开接口专项报告 | `report-未公开接口-{component_name}-{date}.md` |
+| 密码学专项报告 | `report-密码学-{component_name}-{date}.md` |
+| 网络专项报告 | `report-网络-{component_name}-{date}.md` |
+| 组件档案专项报告 | `report-组件档案-{component_name}-{date}.md` |
+| 组件档案 summary JSON | `component-info-summary-{component_name}-{date}.json` |
 
 具体落盘位置由执行扫描的 AI agent 和用户当前工作目录决定；当前 SKILL 不强制固定 `reports/` 目录。
 
@@ -165,7 +172,10 @@ security-scanner/
 │   ├── secret-scanner.md
 │   ├── comment-scanner.md
 │   ├── fileleak-scanner.md
-│   └── permission-scanner.md
+│   ├── permission-scanner.md
+│   ├── crypto-scanner.md
+│   ├── network-scanner.md
+│   └── component-info-scanner.md
 ├── orchestration/
 │   ├── orchestrator.md
 │   ├── reconnaissance.md
@@ -174,20 +184,33 @@ security-scanner/
 │   ├── allowlists.md
 │   ├── checksec-guide.md
 │   ├── dependency-check.md
-│   └── verdict-rules.md
+│   ├── verdict-rules.md
+│   ├── patterns-crypto.md
+│   ├── patterns-network.md
+│   ├── personal-data-patterns.md
+│   ├── library-vuln-caps.md
+│   └── red-line-rules.md
 ├── templates/
 │   ├── report-comprehensive.md
 │   ├── report-安全编译.md
 │   ├── report-公网地址.md
 │   ├── report-口令硬编码.md
-│   └── report-未公开接口.md
+│   ├── report-未公开接口.md
+│   ├── report-密码学.md
+│   ├── report-网络.md
+│   └── report-组件档案.md
 └── tests/
     └── fixtures/
         ├── elf-test/
         ├── source-test/
         ├── fileleak-test/
         ├── permission-test/
+        ├── crypto-test/
+        ├── network-test/
+        ├── component-info-test/
+        ├── full-test-component-info/
         └── expected/
+└── component-info.md
 ```
 
 ## 配置与自定义
@@ -260,6 +283,22 @@ python3 -m json.tool security-scanner/tests/fixtures/expected/url-expected.json 
 ### 低置信度发现如何处理？
 
 中低置信度 findings 进入 Verdict 阶段，最终标记为 `confirmed`、`suspected`、`rejected`、`needs_human` 或 `unverified`。`needs_human` 和 `unverified` 必须在报告中明确标注。
+
+### 9 个新维度和老的 6 个维度怎么协调？
+
+crypto / network / component_info 三个新维度是 6 维度的扩展，不是替代。crypto-scanner 与 secret-scanner 共享 `references/patterns-crypto.md`，verdict 阶段去重（同一 file:line:check_item 留高 severity）。新维度的 evidence 字段可包含库信息，老 6 维度不解析该格式。
+
+### 综合报告为什么有"组件档案概览"章节？
+
+为防止报告爆炸（中型项目可能有 200+ finding），综合报告顶部插入一个不带文件/行号的概览表，链接到 3 个详细子报告。审计员先看概览判断有无重大问题，再按需展开子报告。
+
+### 推断不出的字段怎么填？
+
+每字段都有 AUTO/INFERRED/MISSING 三种标签：
+- AUTO = 多源验证高置信度
+- INFERRED = 有信号但弱
+- MISSING = 机扫无信号，必须人工补全
+MISSING 字段在 summary JSON 中保留但 value 为空，在 Markdown 报告中以"不适用"或"待人工补全"展示。
 
 ## 说明
 
