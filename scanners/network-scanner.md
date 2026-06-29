@@ -99,7 +99,7 @@ grep -rnE "htons\([0-9]+\)" {c_cpp_files}
 # Go
 grep -rnE "net\.Listen\([^,]+,\s*\":\"[0-9]+\"\)" {go_files}
 grep -rnE "ListenAndServe\(\"[^\"]*:[0-9]+\"\)" {go_files}
-grep -rnE "Add":\"[0-9]+\"" {go_files}
+grep -rnE 'Addr:[[:space:]]*":[0-9]+"' {go_files}
 
 # Python
 grep -rnE "socket\.bind\(\(['\"][^'\"]*['\"],\s*[0-9]+\)\)" {py_files}
