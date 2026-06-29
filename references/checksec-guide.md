@@ -33,6 +33,9 @@ checksec --file=/path/to/binary --output=json
 
 ## 2. 各字段含义与判定规则
 
+> 标准 checksec.sh 覆盖以下 8 项检查：RELRO、Stack Canary、NX、PIE、BIND_NOW、RPATH/RUNPATH、Strip、FORTIFY_SOURCE。
+> `trapv`（整数溢出防护）和 `stack-check`（栈溢出检测）不在标准输出中，本扫描器不做检查。
+
 | 检查项 | PASS | WARN | FAIL | 建议参数 |
 |--------|------|------|------|----------|
 | RELRO（GOT 表保护） | `Full RELRO` | `Partial RELRO` | `No RELRO` | `-Wl,-z,relro,-z,now` |

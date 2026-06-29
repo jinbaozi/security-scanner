@@ -121,18 +121,28 @@ file "{filepath}" | grep -E "stripped|not stripped"
 
 对每个 ELF 文件的每个检查项生成 finding。PASS 项也生成 `status=PASS`、`severity=info` 的 finding，用于报告展示完整检查矩阵。
 
-| 检查项 | `check_item` | PASS | WARN | FAIL | 默认 severity |
-|--------|--------------|------|------|------|---------------|
-| 栈保护 | `stack_canary` | Canary found 或存在 `__stack_chk_fail` | 部分工具无法确认 | No canary | high |
-| 堆栈不可执行 | `nx` | NX enabled / GNU_STACK 无 E 权限 | - | NX disabled / GNU_STACK 含 E 权限 | high |
-| GOT 保护 | `relro` | Full RELRO | Partial RELRO | No RELRO | high |
-| 地址无关代码 | `pie` | PIE enabled 或 DSO | - | No PIE / EXEC | high |
-| 立即绑定 | `bind_now` | 存在 BIND_NOW | - | 不存在 BIND_NOW | medium |
-| Strip | `strip` | Stripped / No Symbols | - | Not stripped / Symbols | info |
-| RPATH/RUNPATH | `rpath_runpath` | 未设置 | - | 设置了 RPATH 或 RUNPATH | medium |
-| FORTIFY_SOURCE | `fortify_source` | Fortified > 0 或存在 `_chk@` | Fortified 部分覆盖 | 未启用 | medium |
+检查项分为两类：
+- **红线项**：发现问题时 `status=FAIL`，报告中标记为 **Error**，必须整改。包括：RELRO、Canary、NX、PIE、RPATH、BIND_NOW、Strip、FORTIFY_SOURCE。
+- **可选项**（Trapv、stack-check）：当前标准 checksec.sh 不覆盖，**不做检查**。如需启用，需使用支持扩展检查的 checksec 版本或通过构建脚本验证。
+
+| 类别 | 检查项 | `check_item` | PASS | WARN | FAIL | 默认 severity |
+|------|--------|--------------|------|------|------|---------------|
+| 红线项 | 栈保护 | `stack_canary` | Canary found 或存在 `__stack_chk_fail` | 部分工具无法确认 | No canary | high |
+| 红线项 | 堆栈不可执行 | `nx` | NX enabled / GNU_STACK 无 E 权限 | - | NX disabled / GNU_STACK 含 E 权限 | high |
+| 红线项 | GOT 保护 | `relro` | Full RELRO | Partial RELRO | No RELRO | high |
+| 红线项 | 地址无关代码 | `pie` | PIE enabled 或 DSO | - | No PIE / EXEC | high |
+| 红线项 | 立即绑定 | `bind_now` | 存在 BIND_NOW | - | 不存在 BIND_NOW | medium |
+| 红线项 | 符号剥离 | `strip` | Stripped / No Symbols | - | Not stripped / Symbols | info |
+| 红线项 | RPATH/RUNPATH | `rpath_runpath` | 未设置 | - | 设置了 RPATH 或 RUNPATH | medium |
+| 红线项 | FORTIFY_SOURCE | `fortify_source` | Fortified > 0 或存在 `_chk@` | Fortified 部分覆盖 | 未启用 | medium |
+| 不检查 | 整数溢出防护 | `trapv` | - | - | - | - |
+| 不检查 | 栈溢出检测 | `stack_check` | - | - | - | - |
+
+> trapv 和 stack-check 行仅用于完整性说明，实际不会生成 finding。报告不包含这两项。
 
 ### Step 4: 判定 severity、confidence、verdict
+
+红线项 FAIL 统一按 Error 级别上报，根据问题严重程度区分 severity：
 
 - `FAIL` 且属于 `stack_canary`、`nx`、`relro`、`pie`: `severity=high`、`confidence=high`、`verdict=confirmed`
 - `FAIL` 且属于 `bind_now`、`rpath_runpath`、`fortify_source`: `severity=medium`、`confidence=high`、`verdict=confirmed`
