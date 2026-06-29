@@ -1,0 +1,50 @@
+{
+  "scan_metadata": {"scanner": "network", "version": "1.0", "component": "network-test"},
+  "findings": [
+    {
+      "id": "NETWORK-001",
+      "dimension": "network",
+      "file": "tests/fixtures/network-test/server.go",
+      "line": 9,
+      "check_item": "legacy_protocol",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "MinVersion = VersionSSL30，启用 SSLv3，红线 RL-100",
+      "detail": "服务器配置启用了 SSLv3 协议",
+      "suggestion": "改用 TLSv1.2 或 TLSv1.3",
+      "evidence": "tls.Config{MinVersion: tls.VersionSSL30}"
+    },
+    {
+      "id": "NETWORK-002",
+      "dimension": "network",
+      "file": "tests/fixtures/network-test/server.go",
+      "line": 10,
+      "check_item": "port_listening",
+      "status": "PASS",
+      "severity": "info",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "通过 &http.Server{Addr: \":8080\"} 识别监听 8080/TCP",
+      "detail": "应用监听 8080/TCP 端口",
+      "suggestion": "无",
+      "evidence": "Addr: \":8080\""
+    },
+    {
+      "id": "NETWORK-003",
+      "dimension": "network",
+      "file": "tests/fixtures/network-test/config.yaml",
+      "line": 3,
+      "check_item": "port_privileged",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "23 端口为 Telnet 协议默认端口，红线 RL-104",
+      "detail": "应用监听 23/TCP（Telnet 默认端口）",
+      "suggestion": "改用 SSH（22 端口）",
+      "evidence": "port: 23"
+    }
+  ]
+}

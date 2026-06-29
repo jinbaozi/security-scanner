@@ -1,0 +1,3 @@
+server:
+  port: 23  # RL-104: Telnet port
+  protocol: telnet
