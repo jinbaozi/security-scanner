@@ -7,9 +7,15 @@ triggers:
   - 安全扫描
   - 合规检查
   - 安全审计
+  - 组件基础信息
+  - 组件档案
+  - 算法盘点
+  - 端口扫描
   - security scan
   - compliance check
   - checksec
+  - component info
+  - algorithm audit
 ---
 
 # 安全合规扫描器 (Security Compliance Scanner)
@@ -34,6 +40,9 @@ triggers:
 4. **未公开接口**：大段注释中隐藏的未文档化功能或接口。
 5. **敏感文件泄露**：`.env`、私钥、日志、临时文件等交付包污染。
 6. **文件权限**：setuid/setgid、world-writable、异常可执行权限。
+7. **密码学合规**（crypto）：对称/非对称/Hash 算法、伪加密、随机数 API、不安全协议。
+8. **网络协议与端口**（network）：通信协议（SSHv2/TLS1.2/TLS1.3 等）、监听端口。
+9. **组件基础档案**（component_info）：架构类型、默认账号、个人数据、root 启动需求。
 
 ## 文件结构
 
@@ -46,7 +55,10 @@ security-scanner/
 │   ├── secret-scanner.md
 │   ├── comment-scanner.md
 │   ├── fileleak-scanner.md
-│   └── permission-scanner.md
+│   ├── permission-scanner.md
+│   ├── crypto-scanner.md
+│   ├── network-scanner.md
+│   └── component-info-scanner.md
 ├── orchestration/
 │   ├── orchestrator.md
 │   ├── reconnaissance.md
@@ -75,6 +87,9 @@ SKILL.md
 ├── Phase -1 -> references/dependency-check.md
 ├── Phase 0  -> orchestration/reconnaissance.md
 ├── Phase 1  -> scanners/*.md（仅加载适用维度）
+   - 新增: scanners/crypto-scanner.md
+   - 新增: scanners/network-scanner.md
+   - 新增: scanners/component-info-scanner.md
 ├── Phase 2  -> references/verdict-rules.md
 └── Phase 3  -> orchestration/reporter.md
               -> templates/report-comprehensive.md
@@ -126,7 +141,7 @@ Phase 0: 发现阶段 PASS
   分片数: 3
 ```
 
-### Phase 1: 并行扫描（6 个维度）
+### Phase 1: 并行扫描（9 个维度）
 
 根据 Scan Plan 按需加载 scanner 模块并派发 subagent。
 
@@ -151,6 +166,9 @@ Phase 0: 发现阶段 PASS
    - 检查 setuid/setgid、world-writable、异常可执行权限。
    - 自动排除虚拟文件系统、挂载点和特殊文件类型。
    - `stat` 不可用时使用 `ls -la` 解析；大规模扫描时仅检查 ELF 和脚本文件。
+7. **Crypto Scanner**：读取 `scanners/crypto-scanner.md`、`references/patterns-crypto.md`、`references/red-line-rules.md`、`references/library-vuln-caps.md`，输入 `source_shards + config_files + dependency_files`。
+8. **Network Scanner**：读取 `scanners/network-scanner.md`、`references/patterns-network.md`，输入 `source_shards + config_files`。
+9. **Component-Info Scanner**：读取 `scanners/component-info-scanner.md`、`references/personal-data-patterns.md`，输入 `source_shards + config_files + docker_files`。
 
 等待所有 Scanner 完成后执行审计点 A1。
 
@@ -167,6 +185,8 @@ Phase 0: 发现阶段 PASS
 3. 高置信度 findings 直接通过。
 4. 对中/低置信度 findings 派发 Verdict subagent。
 5. 执行审计点 A2。
+
+去重说明：crypto-scanner 与 secret-scanner 共享同一份凭证字符串匹配结果时，secret-scanner 优先（其严重度模型更精细）；crypto-scanner 仅保留算法/协议相关的 finding，凭证泄露细节由 secret-scanner 报告。
 
 分批策略：
 
@@ -217,6 +237,10 @@ Phase 0: 发现阶段 PASS
 | Comment | `string` | `"36-50"` |
 | FileLeak | `null` 或 `integer` | `null` |
 | Permission | `null` | `null` |
+
+**新维度 evidence 扩展**：crypto / network / component_info 维度的 finding 的 `evidence` 字段可包含库信息，格式：
+`library=NAME@VERSION | library_version=VERSION | trigger=REASON | cve=CVE-XXXX-XXXXX`
+老 6 维度不解析此格式。
 
 ## 异常处理总则
 
