@@ -47,7 +47,37 @@ for tool in readelf objdump xxd od python3; do
     echo "OK: $tool -> $(which "$tool")"
   fi
 done
+
+for tool in jq xmllint; do
+    if ! which "$tool" >/dev/null 2>&1; then
+        echo "MISSING: $tool (新维度依赖 — 缺失时降级到 python3 -c 'import json/xml.etree')"
+    else
+        echo "OK: $tool -> $(which $tool)"
+    fi
+done
 ```
+
+### Step 4: 检查 NVD/OSV 可达性（可选）
+
+```bash
+# 检测 NVD 可达性（用于库版本知识库快照）
+if curl -sSf --max-time 5 https://nvd.nist.gov/ >/dev/null 2>&1; then
+    echo "OK: NVD 可达，将拉取最新快照"
+else
+    echo "DEGRADED: NVD 不可达，使用内置 library-vuln-caps.md 知识库"
+fi
+
+# 检测 OSV 可达性（备选）
+if curl -sSf --max-time 5 https://api.osv.dev/ >/dev/null 2>&1; then
+    echo "OK: OSV 可达"
+else
+    echo "DEGRADED: OSV 不可达"
+fi
+```
+
+失败时记录到 `degraded_dimensions`：
+- `crypto:library-vuln-caps` 标记为 degraded，回落内置知识库
+- 网络拉取失败不阻断扫描
 
 ### Step 3: 阻断通知（缺失依赖）
 
