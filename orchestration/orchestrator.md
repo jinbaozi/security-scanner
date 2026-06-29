@@ -29,7 +29,7 @@ Phase 1 中 6 个维度扫描并行执行。所有 Scanner 完成后设置 barri
 - `elf_files` 为空：跳过 ELF Scanner。
 - `source_shards` 为空：跳过 URL、Secret、Comment Scanner。
 - `scan_files` 为 0：跳过源码扫描维度。
-- 对应依赖不可用且无降级方案：跳过该维度，记录 degraded_dimensions。
+- 对应依赖不可用且无降级方案（或用户已拒绝降级）：跳过该维度，记录 degraded_dimensions。
 
 ## 审计检查点
 
@@ -88,7 +88,7 @@ FAIL -> 进入修复循环（最多 2 次自动修复）-> 仍失败则降级
 
 | Phase | 降级行为 |
 |-------|---------|
-| Phase -1 | 终止扫描，输出错误报告和安装指南 |
+| Phase -1 | 终止扫描，输出错误报告和安装指南（degraded 状态仅当用户明确同意时设置） |
 | Phase 0 | 终止扫描，输出错误报告和路径检查建议 |
 | Phase 1 | 收集已完成结果，跳过失败维度，输出部分报告 |
 | Phase 2 | 跳过验证，所有 findings 标记为 `unverified` |

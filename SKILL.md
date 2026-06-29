@@ -87,10 +87,16 @@ SKILL.md
 ### Phase -1: 环境预检
 
 1. 读取 `references/dependency-check.md`。
-2. 执行环境预检：检测运行时、检查依赖、安装或降级缺失工具。
-3. 生成依赖报告：`ready` / `degraded` / `blocked`。
-4. `blocked` 时终止扫描并输出安装指南。
-5. `ready` 或 `degraded` 时输出摘要并进入 Phase 0。
+2. 执行环境预检：检测运行时、检查依赖。
+3. 若检测到缺失工具：
+   a. **阻断执行**，使用 `question` 工具向用户展示缺失工具列表及安装方法。
+   b. 让用户选择：手动安装 / 自动安装 / 接受降级。
+   c. 用户选择自动安装时，尝试自动安装缺失依赖。
+   d. 安装失败时，使用 `question` 工具询问用户是否接受降级模式。
+   e. 用户拒绝降级 → `blocked`，终止扫描并输出安装指南。
+4. 生成依赖报告：`ready` / `degraded` / `blocked`。
+   - `degraded` 仅在用户明确同意降级后才设置。
+5. `ready` 或 `degraded`（用户已同意）时输出摘要并进入 Phase 0。
 
 终端摘要：
 
