@@ -1,0 +1,69 @@
+{
+  "scan_metadata": {
+    "scanner": "crypto",
+    "version": "1.0",
+    "component": "crypto-test"
+  },
+  "findings": [
+    {
+      "id": "CRYPTO-001",
+      "dimension": "crypto",
+      "file": "tests/fixtures/crypto-test/sample.c",
+      "line": 6,
+      "check_item": "insecure_hash",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "MD5 用于密码哈希，红线 RL-040",
+      "detail": "MD5 用于密码派生",
+      "suggestion": "改用 bcrypt/scrypt/Argon2",
+      "evidence": "MD5((unsigned char*)pwd, strlen(pwd), digest)"
+    },
+    {
+      "id": "CRYPTO-002",
+      "dimension": "crypto",
+      "file": "tests/fixtures/crypto-test/sample.c",
+      "line": 11,
+      "check_item": "insecure_symmetric",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "DES 使用，红线 RL-001",
+      "detail": "DES 加密算法已被认为不安全",
+      "suggestion": "改用 AES-128 或 SM4",
+      "evidence": "DES_set_key((DES_cblock*)\"12345678\", &ks)"
+    },
+    {
+      "id": "CRYPTO-003",
+      "dimension": "crypto",
+      "file": "tests/fixtures/crypto-test/sample.py",
+      "line": 5,
+      "check_item": "insecure_random",
+      "status": "FAIL",
+      "severity": "critical",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "Python random.random 用于 key 派生，红线 RL-080",
+      "detail": "使用密码学不安全的伪随机数派生密钥",
+      "suggestion": "改用 secrets 模块或 os.urandom",
+      "evidence": "return random.random()  # 上下文: derive_key"
+    },
+    {
+      "id": "CRYPTO-004",
+      "dimension": "crypto",
+      "file": "tests/fixtures/crypto-test/pom.xml",
+      "line": 7,
+      "check_item": "library_vuln",
+      "status": "WARN",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "Bouncy Castle 1.46 < 1.50，默认启用 MD5withRSA",
+      "detail": "Bouncy Castle 1.46 默认启用 MD5withRSA 签名",
+      "suggestion": "升级到 Bouncy Castle ≥ 1.70",
+      "evidence": "library=BouncyCastle@1.46 | library_version=1.46 | trigger=MD5withRSA default | cve=null"
+    }
+  ]
+}
