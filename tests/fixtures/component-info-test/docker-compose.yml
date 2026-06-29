@@ -1,0 +1,6 @@
+services:
+  app:
+    image: myapp
+    privileged: true        # 强信号：需要 root
+    cap_add:
+      - SYS_ADMIN

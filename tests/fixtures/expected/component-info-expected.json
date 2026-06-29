@@ -1,0 +1,80 @@
+{
+  "scan_metadata": {"scanner": "component_info", "version": "1.0", "component": "component-info-test"},
+  "findings": [
+    {
+      "id": "INFO-001",
+      "dimension": "component_info",
+      "file": "tests/fixtures/component-info-test/app.py",
+      "line": 1,
+      "check_item": "architecture",
+      "status": "PASS",
+      "severity": "info",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "检测到 Django 框架导入，推断 B/S 架构",
+      "detail": "组件为 B/S 架构（Web 应用）",
+      "suggestion": "无",
+      "evidence": "from django.db import models"
+    },
+    {
+      "id": "INFO-002",
+      "dimension": "component_info",
+      "file": "tests/fixtures/component-info-test/app.py",
+      "line": 12,
+      "check_item": "default_account",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "硬编码 admin/admin123 默认账号，红线 RL-160",
+      "detail": "代码中存在硬编码默认账号 admin/admin123",
+      "suggestion": "强制首次登录修改密码",
+      "evidence": "ADMIN_USER = \"admin\"\nADMIN_PASS = \"admin123\""
+    },
+    {
+      "id": "INFO-003",
+      "dimension": "component_info",
+      "file": "tests/fixtures/component-info-test/app.py",
+      "line": 5,
+      "check_item": "personal_data",
+      "status": "FAIL",
+      "severity": "critical",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "id_card 字段明文存储，红线 RL-140",
+      "detail": "身份证号字段以明文 CharField 存储",
+      "suggestion": "改用加密存储 + 脱敏显示",
+      "evidence": "id_card = models.CharField(max_length=18)"
+    },
+    {
+      "id": "INFO-004",
+      "dimension": "component_info",
+      "file": "tests/fixtures/component-info-test/app.py",
+      "line": 4,
+      "check_item": "personal_data",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "phone 字段明文存储，红线 RL-141",
+      "detail": "手机号字段以明文 CharField 存储",
+      "suggestion": "改用加密存储 + 脱敏显示",
+      "evidence": "phone = models.CharField(max_length=20)"
+    },
+    {
+      "id": "INFO-005",
+      "dimension": "component_info",
+      "file": "tests/fixtures/component-info-test/docker-compose.yml",
+      "line": 4,
+      "check_item": "requires_root",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "docker-compose.yml 含 privileged: true + cap_add: SYS_ADMIN，多源交集确认为需要 root",
+      "detail": "组件需要 root 权限运行",
+      "suggestion": "评估是否真的需要 privileged，尝试用最小 capability 替代",
+      "evidence": "privileged: true\ncap_add:\n  - SYS_ADMIN"
+    }
+  ]
+}
