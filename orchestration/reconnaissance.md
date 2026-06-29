@@ -98,6 +98,18 @@ grep -E "\.(conf|cfg|ini|yaml|yml|json|toml|xml|properties|env|config|config\.go
 
 未归入以上类别的文件写入 `excluded`，reason 为 `unclassified`。敏感文件扫描和权限扫描仍可消费完整文件列表。
 
+### 3.6 依赖文件
+
+```bash
+grep -E "(^|/)(package\.json|package-lock\.json|requirements\.txt|Pipfile\.lock|go\.mod|go\.sum|pom\.xml|Cargo\.toml|vcpkg\.json|conanfile\.txt)$" /tmp/recon_scan_files.txt > /tmp/recon_dependency_files.txt
+```
+
+### 3.7 Docker 文件
+
+```bash
+grep -E "(^|/)(Dockerfile|docker-compose\.yml|docker-compose\.yaml)$" /tmp/recon_scan_files.txt > /tmp/recon_docker_files.txt
+```
+
 ## Step 4: 规模评估与分片
 
 ```text
@@ -132,6 +144,11 @@ grep -E "\.(conf|cfg|ini|yaml|yml|json|toml|xml|properties|env|config|config\.go
     }
   ],
   "config_files": ["/path/to/config.yaml"],
+  "dependency_files": ["..."],
+  "docker_files": ["..."],
+  "crypto_relevant_files": ["..."],
+  "network_relevant_files": ["..."],
+  "component_info_relevant_files": ["..."],
   "all_files": ["/path/to/file1.c"],
   "excluded": [
     {"path": "/path/to/vendor/foo.go", "reason": "third_party:vendor"}
@@ -140,6 +157,16 @@ grep -E "\.(conf|cfg|ini|yaml|yml|json|toml|xml|properties|env|config|config\.go
   "timestamp": "ISO 8601 格式时间戳"
 }
 ```
+
+`dependency_files`: package.json, package-lock.json, requirements.txt, Pipfile.lock, go.mod, go.sum, pom.xml, Cargo.toml, vcpkg.json, conanfile.txt
+
+`docker_files`: Dockerfile, docker-compose.yml, docker-compose.yaml
+
+`crypto_relevant_files` 是 `source_files ∪ config_files` 按语言过滤（Tier-1 或 Tier-2）。
+
+`network_relevant_files` 是 `source_files ∪ config_files` 过滤包含端口/协议模式的文件。
+
+`component_info_relevant_files` 是 `source_files ∪ config_files ∪ docker_files`。
 
 `component_name` 取目标路径最后一级目录名。
 
