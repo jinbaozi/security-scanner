@@ -1,0 +1,50 @@
+{
+  "version": "1.0",
+  "component": "full-test-component-info",
+  "scan_date": "2026-06-29",
+  "architecture": {
+    "value": "B/S",
+    "confidence": "high",
+    "label": "AUTO",
+    "inference_note": "检测到 express 依赖 + http.ListenAndServeTLS",
+    "reverse_evidence": ["scanned: package.json", "matched: express, jsonwebtoken"]
+  },
+  "protocols": [
+    {"name": "TLSv1.2", "evidence": "tls.Config{MinVersion: tls.VersionTLS12}"}
+  ],
+  "ports": [
+    {"port": 8443, "protocol": "TCP", "evidence": "http.ListenAndServeTLS(\":8443\", ...)"},
+    {"port": 443, "protocol": "TCP", "evidence": "config/app.yaml: port: 443"}
+  ],
+  "symmetric_algos": [],
+  "asymmetric_algos": [],
+  "hash_algos": [
+    {"name": "MD5", "evidence": "crypto/md5 import + md5.Sum", "usage": "non-security", "label": "AUTO"}
+  ],
+  "custom_algos": [],
+  "pseudo_encryption": [],
+  "random_sources": [],
+  "default_accounts": [],
+  "personal_data": [],
+  "requires_root": {
+    "value": "否",
+    "confidence": "high",
+    "label": "AUTO",
+    "inference_note": "无 setuid/privileged 信号，端口 8443 > 1024",
+    "reverse_evidence": ["scanned: Dockerfile", "scanned: docker-compose.yml", "matched: 0 root signals"]
+  },
+  "self_declared": {
+    "algorithms": ["MD5 (缓存)"],
+    "protocols": ["TLSv1.2"],
+    "matched_actual": true,
+    "mismatches": []
+  },
+  "dependency_summary": {
+    "tier1_libraries": 0,
+    "tier2_libraries": 2,
+    "libraries_with_red_line": 0,
+    "missing_lock_file": false
+  },
+  "red_line_violations": [],
+  "needs_human": []
+}
