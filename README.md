@@ -89,13 +89,13 @@ Phase 0: 发现阶段
   -> 探索目录、排除第三方/生成代码、分类文件、生成 Scan Plan
 
 Phase 1: 并行扫描
-  -> 按需派发 6 个维度 Scanner subagent
+  -> 按需派发 9 个维度 Scanner subagent
 
 Phase 2: 裁决阶段
   -> 对中低置信度 findings 进行上下文复核
 
 Phase 3: 报告生成
-  -> 输出终端摘要、JSON、综合报告和 4 份专项报告
+  -> 输出终端摘要、JSON、综合报告和 7 份专项报告
 ```
 
 审计检查点：
@@ -278,7 +278,7 @@ python3 -m json.tool security-scanner/tests/fixtures/expected/url-expected.json 
 
 ### 报告一定会包含 6 个专项报告吗？
 
-不是。当前设计要求生成 1 份综合报告、1 份 JSON 和 4 份专项报告：安全编译、公网地址、口令硬编码、未公开接口。FileLeak 和 Permission 的 findings 会进入 JSON 与综合报告。
+不是。当前设计要求生成 1 份综合报告、1 份 JSON 和 7 份专项报告：安全编译、公网地址、口令硬编码、未公开接口、密码学、网络、组件档案。FileLeak 和 Permission 的 findings 会进入 JSON 与综合报告。
 
 ### 低置信度发现如何处理？
 
