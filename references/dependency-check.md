@@ -145,7 +145,7 @@ fi
 | Fedora | `dnf install -y checksec` |
 | Arch | `pacman -S checksec` |
 | macOS | `brew install checksec` |
-| 下载脚本 | `curl -sL https://raw.githubusercontent.com/slimm609/checksec.sh/master/checksec -o /usr/local/bin/checksec && chmod +x /usr/local/bin/checksec` |
+| 下载脚本 | `mkdir -p ~/.local/bin && curl -sL https://raw.githubusercontent.com/slimm609/checksec.sh/master/checksec -o ~/.local/bin/checksec && chmod +x ~/.local/bin/checksec` |
 | 上游地址 | <https://github.com/slimm609/checksec> |
 
 安装后必须验证：
