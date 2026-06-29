@@ -60,6 +60,40 @@ JSON 必须包含以下顶层字段：
 
 字段缺失时不得生成看似完整的 JSON；应进入降级流程并在 `report_audit` 中标记。
 
+### 2.1 组件档案 Summary JSON
+
+输出文件：`component-info-summary-{component_name}-{date}.json`
+
+这是新维度的双产出之一，结构按 9 字段聚合，便于生成 Markdown "组件档案概览" 章节。
+
+JSON 顶层字段：
+
+```json
+{
+  "version": "1.0",
+  "component": "...",
+  "scan_date": "...",
+  "architecture": {"value": "B/S", "confidence": "high", "label": "AUTO", "inference_note": "...", "reverse_evidence": [...]},
+  "protocols": [{"name": "TLSv1.3", "evidence": "..."}],
+  "ports": [{"port": 443, "protocol": "TCP", "evidence": "..."}],
+  "symmetric_algos": [...],
+  "asymmetric_algos": [...],
+  "hash_algos": [...],
+  "custom_algos": [...],
+  "pseudo_encryption": [...],
+  "random_sources": [...],
+  "default_accounts": [...],
+  "personal_data": [...],
+  "requires_root": {"value": "否", "confidence": "high", "label": "AUTO", "inference_note": "...", "reverse_evidence": [...]},
+  "self_declared": {"algorithms": [...], "protocols": [...], "matched_actual": true, "mismatches": []},
+  "dependency_summary": {"tier1_libraries": 12, "tier2_libraries": 5, "libraries_with_red_line": 2, "missing_lock_file": false},
+  "red_line_violations": [{"rule_id": "RL-002", "category": "insecure_hash", "severity": "high", "summary": "...", "findings": ["CRYPTO-001"]}],
+  "needs_human": ["INFO-001"]
+}
+```
+
+每条 finding 的 `red_line_finding` 字段值必须能在 `findings` 数组中找到对应 id。
+
 ### 3. 综合 Markdown 报告
 
 输出文件：`security-scan-report-{component_name}-{date}.md`
@@ -71,7 +105,35 @@ JSON 必须包含以下顶层字段：
 - 六个维度的详细发现：ELF、公网地址、口令和硬编码、未公开接口、敏感文件泄露、文件权限。
 - 审计日志、质量审计结果和降级输出说明。
 
-### 4. 四份维度专项报告
+### 3.1 综合报告"组件档案概览"章节
+
+综合报告顶部（基本信息和扫描统计之后）插入"组件档案概览"章节：
+
+```markdown
+## 组件档案概览
+
+| 字段 | 值 | 标签 | 备注 |
+|------|-----|------|------|
+| 架构类型 | {architecture.value} | {architecture.label} | {architecture.inference_note} |
+| 通信协议 | {protocols.names} | AUTO | - |
+| ... (其他 7 个字段) |
+
+### 子报告索引
+
+- [密码学详细 finding](./report-密码学-{name}-{date}.md)
+- [网络协议与端口详细 finding](./report-网络-{name}-{date}.md)
+- [组件档案详细 finding](./report-组件档案-{name}-{date}.md)
+
+### 声明 vs 实际
+
+| 类别 | 声明 | 实际 | 一致 |
+| 协议 | {self_declared.protocols} | {actual.protocols} | {yes/no} |
+| 算法 | {self_declared.algorithms} | {actual.algorithms} | {yes/no} |
+```
+
+数据来源：`component-info-summary-{name}-{date}.json`。
+
+### 4. 七份维度专项报告
 
 所有专项报告使用简体中文，并使用对应模板：
 
@@ -79,6 +141,9 @@ JSON 必须包含以下顶层字段：
 - `templates/report-公网地址.md` -> `report-公网地址-{component_name}-{date}.md`
 - `templates/report-口令硬编码.md` -> `report-口令硬编码-{component_name}-{date}.md`
 - `templates/report-未公开接口.md` -> `report-未公开接口-{component_name}-{date}.md`
+- `templates/report-密码学.md` -> `report-密码学-{component_name}-{date}.md`
+- `templates/report-网络.md` -> `report-网络-{component_name}-{date}.md`
+- `templates/report-组件档案.md` -> `report-组件档案-{component_name}-{date}.md`
 
 专项报告只展示对应维度的数据，但必须继承 JSON 中的裁决结果、严重度和审计状态。
 
