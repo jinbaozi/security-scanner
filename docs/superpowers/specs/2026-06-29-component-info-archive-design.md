@@ -45,7 +45,7 @@
 
 | # | 字段名 | 字段类型 | 维度归属 | 可机扫 | 反向证据 |
 |---|--------|---------|---------|--------|---------|
-| 1 | 架构类型 | enum(`B/S`、`C/S`、`不涉及`) | component_info | 推断 | 已搜索 `import.*Django`、`include.*Qt` 等 |
+| 1 | 架构类型 | enum(`B/S`、`C/S`、`不涉及`、`MISSING`) | component_info | 推断 | 已搜索 `import.*Django`、`include.*Qt` 等 |
 | 2 | 通信协议 | enum(`SSHv2`、`TLS1.2`、`TLS1.3`、`SSL3.0`、`Telnet`、...) | network | 直接枚举 | 已 grep `ssh|tls|ssl|telnet` |
 | 3 | 算法（4 类） | list（对称/非对称/Hash/自定义） | crypto | 直接枚举 | 已 grep 算法关键字 |
 | 4 | 伪加密 | list(`Base64充当密码`、自写 XOR、字符串反转) | crypto | 启发式 | 已搜索 `base64.*password` |
@@ -53,6 +53,10 @@
 | 6 | 默认账号 | list(admin、root、user、...) | component_info | 启发式 | 已搜索硬编码凭证 |
 | 7 | 端口 | list(80、443、8080、...) | network | 直接枚举 | 已 grep `bind(|listen |port:` |
 | 8 | 个人数据 | list(姓名、手机号、身份证、邮箱、位置、设备标识) | component_info | 字段名正则 + 加密/脱敏检查 | 已搜索字段名 |
+| 3a | 对称算法 | list(AES、SM4、DES、3DES、RC4、Blowfish、IDEA) | crypto | 直接枚举 | 已 grep 算法关键字 |
+| 3b | 非对称算法 | list(RSA、ECC、SM2、DSA、ElGamal) | crypto | 直接枚举 | 已 grep 算法关键字 |
+| 3c | Hash 算法 | list(MD5、SHA-1、SHA-256、SHA-512、SHA3、SM3、BLAKE2) | crypto | 直接枚举 | 已 grep 算法关键字 |
+| 3d | 自定义算法 | list(项目自写密码学循环) | crypto | 启发式 | 已搜索自写加密模式 |
 | 9 | 是否需 root 启动 | enum(`是`/`否`) + reason | component_info | 多源交集 | 已搜索 `setuid|cap_setuid|privileged: true` |
 
 每字段输出 schema：
@@ -103,12 +107,13 @@
 
 | check_item | 触发 pattern | severity | 红线 |
 |------------|-------------|---------|------|
-| `insecure_symmetric` | 命中 `DES`、`3DES`、`RC4`、单次 `XOR` 加密循环 | high | 红线 1+2 |
+| `insecure_symmetric` | 命中 `DES`、`3DES`、`RC4` | high | 红线 2 |
+| `pseudo_encryption` | `base64_decode.*password\|secret\|key`、自写 XOR 字符串 | critical | 红线 1 |
 | `insecure_asymmetric` | 命中 `RSA<2048`、`DSA<2048`、`ElGamal` | high | 红线 2 |
 | `insecure_hash` | MD5 用于 `password\|passwd\|pwd`、SHA-1 用于 `signature\|sign\|cert` | high | 红线 2 |
-| `pseudo_encryption` | `base64_decode.*password\|secret\|key`、自写 XOR 字符串 | critical | 红线 1 |
 | `insecure_random` | `Math.random`、`java.util.Random`、`rand()` 用于 `key\|iv\|salt\|token\|nonce` | critical | 红线 3 |
 | `legacy_protocol_crypto` | `SSLv3`、`SSLv2`、`TLSv1.0`、`TLSv1.1` | high | 红线 2 |
+| `custom_algorithm` | 项目源码中出现自写密码学循环（不依赖 OpenSSL/JCA 等标准库） | medium | 红线 1 |
 
 **安全/非安全用途区分**（默认区分，可降级）：
 
@@ -245,9 +250,9 @@
   "hash_algos": [...],
   "custom_algos": [],
   "pseudo_encryption": [],
-  "random_sources": [{"api": "RAND_bytes", "evidence": "..."}, {"api": "Math.random", "evidence": "...", "red_line": "FAIL"}],
+  "random_sources": [{"api": "RAND_bytes", "evidence": "src/foo.c:12"}, {"api": "Math.random", "evidence": "src/bar.js:34", "red_line_finding": "CRYPTO-005"}],
   "default_accounts": [...],
-  "personal_data": [{"field": "phone", "category": "phone", "storage": "plaintext", "red_line": "FAIL"}],
+  "personal_data": [{"field": "phone", "category": "phone", "storage": "plaintext", "red_line_finding": "INFO-007"}],
   "requires_root": {"value": "否", "confidence": "high", "label": "AUTO", "inference_note": "...", "reverse_evidence": [...]},
   "self_declared": {
     "algorithms": ["SM4", "SM2", "SM3"],
@@ -332,7 +337,10 @@
 
 ### 5.3 Verdict 阶段去重
 
-`crypto-scanner` 与 `secret-scanner` 对同一 `file:line:check_item` 去重，留高 severity。
+`crypto-scanner` 与 `secret-scanner` 都会在源码中检测同一类模式（如 `MD5` 调用、`AES` 调用、加密库导入），因此在 verdict 阶段按以下规则去重：
+
+- 同一 `file + line + check_item`（如 `foo.c:42:insecure_hash`）出现在两个 scanner 的 findings 中时，保留 severity 更高的一条；若 severity 相同，保留 `confidence` 更高的一条；若都相同则保留 crypto-scanner 的 finding（crypto-scanner 是该检查项的归属维度）。
+- 同一 `file + line` 范围内（±5 行）出现多个相关 finding（如一个 `MD5()` 调用既被 secret-scanner 识别为弱哈希又被 crypto-scanner 识别为不安全算法），合并为一条 finding，evidence 拼接两者的证据。
 
 ---
 
