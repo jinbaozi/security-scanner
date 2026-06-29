@@ -52,7 +52,7 @@
 
 - 协议总览中的协议数量必须等于 findings 中对应类别的去重数量。
 - 红线违规汇总必须与 JSON 中 `dimension=network` 的 findings 保持一致。
-- 使用 `references/network-redline.md` 知识库时，必须在质量审计结果中标注知识库最后更新时间。
+- 使用 `references/patterns-network.md` 知识库时，必须在质量审计结果中标注知识库最后更新时间。
 
 ## 质量审计结果
 

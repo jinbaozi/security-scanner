@@ -77,7 +77,7 @@
 - 9 字段摘要中的字段数量必须与 spec section 4.2 的 9 项一致。
 - 声明 vs 实际对账表的偏差必须与 JSON 中 `dimension=component_info` 的 findings 保持一致。
 - 未公开接口表与敏感文件泄露表必须分别与 `dimension=undisclosed_interface` 和 `dimension=sensitive_file` 的 findings 保持一致。
-- 使用 `references/component-manifest-schema.md` 知识库时，必须在质量审计结果中标注知识库最后更新时间。
+- 使用 `references/personal-data-patterns.md` 知识库时，必须在质量审计结果中标注知识库最后更新时间。
 
 ## 质量审计结果
 
