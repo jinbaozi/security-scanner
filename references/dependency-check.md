@@ -63,7 +63,37 @@ if which checksec >/dev/null 2>&1; then
 fi
 ```
 
-### Step 4: 安装缺失依赖
+### Step 4: 检查权限
+
+安装核心依赖需要 root 权限。若当前用户不是 root，先检查是否有缺失的核心依赖，有则阻断扫描并提示用户提供 root 密码。
+
+```bash
+check_root_for_install() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "当前用户非 root，无法自动安装系统依赖。"
+        echo "请使用 root 用户执行，或运行："
+        echo "  sudo -i"
+        echo "  dnf install -y checksec binutils file xxd python3"
+        echo ""
+        echo "安装完成后，重新启动本扫描。"
+        exit 1
+    fi
+}
+
+# 仅在缺失 file/stat/checksec 等需要系统包管理器安装的依赖时检查权限
+missing_system_tools=false
+for tool in file stat checksec readelf objdump xxd python3; do
+    if ! which "$tool" >/dev/null 2>&1; then
+        missing_system_tools=true
+        break
+    fi
+done
+if [ "$missing_system_tools" = true ]; then
+    check_root_for_install
+fi
+```
+
+### Step 5: 安装缺失依赖
 
 安装优先级：
 
@@ -82,6 +112,7 @@ fi
 | Arch | `pacman -S checksec` |
 | macOS | `brew install checksec` |
 | 下载脚本 | `curl -sL https://raw.githubusercontent.com/slimm609/checksec.sh/master/checksec -o /usr/local/bin/checksec && chmod +x /usr/local/bin/checksec` |
+| 上游地址 | <https://github.com/slimm609/checksec> |
 
 安装后必须验证：
 
@@ -89,7 +120,7 @@ fi
 which checksec >/dev/null 2>&1 && checksec --help >/dev/null 2>&1
 ```
 
-### Step 5: 生成依赖报告
+### Step 6: 生成依赖报告
 
 ```json
 {
@@ -149,12 +180,15 @@ stat 不可用:
   - {tool_name} - {purpose}
 
 安装指南：
-  - pip:      pip install {package}
+  - Fedora:   sudo dnf install -y {package}    # 需 root 权限
+  - Ubuntu:   sudo apt install -y {package}   # 需 root 权限
+  - CentOS:   sudo yum install -y {package}   # 需 root 权限
   - macOS:    brew install {package}
-  - Ubuntu:   apt install {package}
-  - CentOS:   yum install {package}
+  - pip:      pip install {package}
 
 请安装缺失工具后重试。
+
+如需自动安装，请以 root 身份（`sudo -i`）重新启动扫描。
 ```
 
 ## 异常处理

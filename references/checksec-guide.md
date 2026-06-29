@@ -1,6 +1,8 @@
 # checksec 工具使用指南
 
 > 本文件指导 ELF 二进制安全编译扫描 Agent 如何正确使用 checksec 工具。
+>
+> 上游地址：<https://github.com/slimm609/checksec>
 
 ## 1. checksec 基本用法
 
