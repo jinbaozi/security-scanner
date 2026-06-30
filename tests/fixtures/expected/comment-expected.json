@@ -2,7 +2,7 @@
   "dimension": "comment",
   "should_report": [
     { "file": "comment-test-samples.c", "lines": "36-50", "type": "hidden_debug_comment" },
-    { "file": "comment-test-samples.c", "lines": "66-76", "type": "undisclosed_interface_comment" },
+    { "file": "comment-test-samples.c", "lines": "66-76", "type": "nonpublic_interface_comment" },
     { "file": "full-test/src/utils.go", "lines": "34-45", "type": "hidden_debug_comment" }
   ],
   "should_not_report": [

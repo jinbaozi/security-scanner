@@ -148,7 +148,7 @@ grep -E "(^|/)(Dockerfile|docker-compose\.yml|docker-compose\.yaml)$" /tmp/recon
   "docker_files": ["..."],
   "crypto_relevant_files": ["..."],
   "network_relevant_files": ["..."],
-  "component_info_relevant_files": ["..."],
+  "component_profile_relevant_files": ["..."],
   "all_files": ["/path/to/file1.c"],
   "excluded": [
     {"path": "/path/to/vendor/foo.go", "reason": "third_party:vendor"}
@@ -166,7 +166,7 @@ grep -E "(^|/)(Dockerfile|docker-compose\.yml|docker-compose\.yaml)$" /tmp/recon
 
 `network_relevant_files` 是 `source_files ∪ config_files` 过滤包含端口/协议模式的文件。
 
-`component_info_relevant_files` 是 `source_files ∪ config_files ∪ docker_files`。
+`component_profile_relevant_files` 是 `source_files ∪ config_files ∪ docker_files`。
 
 `component_name` 取目标路径最后一级目录名。
 

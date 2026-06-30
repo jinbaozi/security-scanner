@@ -8,6 +8,21 @@ from scanners.registry import discover_scanners
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_DIR = ROOT / "tests" / "fixtures" / "expected"
+LEGACY_DIMENSION_IDS = (
+    "component" + "_info",
+    "file" + "_leak",
+    "undisclosed" + "_interface",
+    "sensitive" + "_file",
+)
+LEGACY_SCAN_PATHS = (
+    ROOT / "templates",
+    ROOT / "README.md",
+    ROOT / "SKILL.md",
+    ROOT / "orchestration",
+    ROOT / "scanners",
+    ROOT / "tests",
+)
+GENERATED_CONTRACT_DIRS = {"__pycache__", ".pytest_cache"}
 
 PROMPT_DIMENSION_PATTERNS = (
     re.compile(r'"dimension"\s*:\s*"([^"]+)"'),
@@ -38,6 +53,20 @@ def _walk_json_values(value: Any, key_name: str) -> list[str]:
             found.extend(_walk_json_values(item, key_name))
         return found
     return []
+
+
+def _contract_text_files(paths: tuple[Path, ...]) -> list[Path]:
+    files: list[Path] = []
+    for path in paths:
+        if path.is_file():
+            files.append(path)
+            continue
+        files.extend(
+            item
+            for item in path.rglob("*")
+            if item.is_file() and GENERATED_CONTRACT_DIRS.isdisjoint(item.parts)
+        )
+    return files
 
 
 def test_scanner_prompt_dimensions_match_meta_ids():
@@ -74,3 +103,13 @@ def test_expected_fixture_dimensions_are_current_scanner_ids():
 
         for value in dimensions + scanner_names:
             assert value in scanner_ids, f"{fixture_path} uses unknown scanner id {value!r}"
+
+
+def test_contract_texts_do_not_use_legacy_dimension_ids():
+    legacy_pattern = re.compile("|".join(re.escape(item) for item in LEGACY_DIMENSION_IDS))
+
+    for path in _contract_text_files(LEGACY_SCAN_PATHS):
+        content = path.read_text(encoding="utf-8", errors="ignore")
+        match = legacy_pattern.search(content)
+
+        assert match is None, f"{path.relative_to(ROOT)} uses legacy scanner id {match.group(0)!r}"
