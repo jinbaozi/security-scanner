@@ -1,0 +1,43 @@
+{
+  "scan_metadata": {
+    "scanner": "content-compliance",
+    "version": "1.0",
+    "component": "content-compliance-test"
+  },
+  "findings": [
+    {
+      "id": "CONTENT-COMPLIANCE-001",
+      "dimension": "content-compliance",
+      "file": "resources/i18n/messages.json",
+      "line": 12,
+      "check_item": "political_sensitive_term",
+      "status": "WARN",
+      "severity": "medium",
+      "confidence": "medium",
+      "verdict": "needs_human",
+      "verdict_reasoning": "文案出现涉台不规范称谓，需要人工内容合规审核。",
+      "detail": "疑似政治敏感表述不符合 redline 13.1.1。",
+      "suggestion": "按正式政治表述修订，并由内容合规负责人复核。",
+      "evidence": "label: \"台北,台湾\"",
+      "redline_clause": "13.1.1",
+      "rl_ids": ["RL-260"]
+    },
+    {
+      "id": "CONTENT-COMPLIANCE-002",
+      "dimension": "content-compliance",
+      "file": "assets/china-map.geojson",
+      "line": null,
+      "check_item": "map_resource_presence",
+      "status": "WARN",
+      "severity": "low",
+      "confidence": "medium",
+      "verdict": "needs_human",
+      "verdict_reasoning": "发现地图资源文件，需要人工核验版图完整性。",
+      "detail": "交付包包含地图资源，需进行政治敏感信息审核。",
+      "suggestion": "核验钓鱼岛、赤尾屿、南海诸岛等版图要素和边界线。",
+      "evidence": "assets/china-map.geojson",
+      "redline_clause": "13.1.1",
+      "rl_ids": ["RL-261"]
+    }
+  ]
+}

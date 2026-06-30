@@ -1,9 +1,9 @@
 ---
 name: security-scanner
 description: >
-  AI 辅助安全合规扫描工具。扫描软件包的 9 个维度：ELF 安全编译、公网地址、口令硬编码、
-  未公开接口、敏感文件泄露、文件权限、密码学合规、网络协议与端口、组件基础档案。
-  支持 Claude Code / Codex / OpenCode。
+  AI 辅助安全合规扫描工具。扫描软件包的 13 个维度：ELF 安全编译、公网地址、口令硬编码、
+  未公开接口、敏感文件泄露、文件权限、密码学合规、网络协议与端口、组件基础档案、
+  依赖组件风险、安全编码规范、完整性校验、内容合规。支持 Claude Code / Codex / OpenCode。
 triggers:
   - 安全扫描
   - 合规检查
@@ -44,6 +44,20 @@ triggers:
 7. **密码学合规**（crypto）：对称/非对称/Hash 算法、伪加密、随机数 API、不安全协议。
 8. **网络协议与端口**（network）：通信协议（SSHv2/TLS1.2/TLS1.3 等）、监听端口。
 9. **组件基础档案**（component-info）：架构类型、默认账号、个人数据、root 启动需求。
+10. **依赖组件风险**（dependency）：依赖清单、锁文件、嵌入库、版本与已知漏洞风险。
+11. **安全编码规范**（secure-coding）：危险 API、输入校验、资源管理、异常处理等编码风险。
+12. **完整性校验**（integrity）：交付物校验和、签名、来源可信与篡改风险。
+13. **内容合规**（content-compliance）：交付包中的许可证、敏感文本、违规内容和合规声明风险。
+
+## Scan Profiles
+
+Orchestrator 必须接受 `scan_profile` 输入，并按以下合法 profile 调度。未显式指定时默认使用 `kylin-redline-p0`；`kylin-redline-full` 必须由用户或上层流程显式指定。任何其他 profile 名称均为非法输入，必须 `FAIL` 并停止进入 Phase 1。Profile 定义的是最终目标维度集合；实际执行时仍以 `discover_scanners()` 发现结果与 profile 集合取交集，未落地或不可发现的维度必须记录为覆盖缺口，不得虚构 scanner。
+
+| Profile | 维度范围 | 用途 |
+|---------|----------|------|
+| `kylin-redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 默认红线扫描，覆盖现有 9 维和依赖组件风险 |
+| `kylin-redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整红线扫描，需显式指定 |
+| `kylin-redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
 
 ## 文件结构
 
@@ -68,7 +82,11 @@ security-scanner/
 │   ├── permission/{meta.yaml,scanner.md}
 │   ├── network/{meta.yaml,scanner.md}
 │   ├── crypto/{meta.yaml,scanner.md}
-│   └── component-info/{meta.yaml,scanner.md}
+│   ├── component-info/{meta.yaml,scanner.md}
+│   ├── dependency/{meta.yaml,scanner.md}
+│   ├── secure-coding/{meta.yaml,scanner.md}
+│   ├── integrity/{meta.yaml,scanner.md}
+│   └── content-compliance/{meta.yaml,scanner.md}
 ├── orchestration/
 │   ├── orchestrator.md
 │   ├── reconnaissance.md
@@ -87,7 +105,11 @@ security-scanner/
     ├── report-未公开接口.md
     ├── report-密码学.md
     ├── report-网络.md
-    └── report-组件档案.md
+    ├── report-组件档案.md
+    ├── report-依赖与漏洞.md
+    ├── report-安全编码.md
+    ├── report-完整性.md
+    └── report-内容合规.md
 ```
 
 ## 执行流程
@@ -100,7 +122,9 @@ security-scanner/
 SKILL.md
 ├── Phase -1 -> references/dependency-check.md
 ├── Phase 0  -> orchestration/reconnaissance.md
-├── Phase 1  -> discover_scanners() 自动发现 scanners/<dim>/{meta.yaml,scanner.md}
+├── Phase 1  -> 校验 scan_profile（默认 kylin-redline-p0）
+│              -> discover_scanners() 自动发现 scanners/<dim>/{meta.yaml,scanner.md}
+│              -> 与 profile 维度集合取交集后调度
 │              -> topological_order() 按 consumes 依赖调度
 │              -> ScanContext 中转 scanner findings
 ├── Phase 2  -> references/verdict-rules.md
@@ -113,6 +137,11 @@ SKILL.md
               -> templates/report-密码学.md
               -> templates/report-网络.md
               -> templates/report-组件档案.md
+              -> templates/report-依赖与漏洞.md
+              -> templates/report-安全编码.md
+              -> templates/report-完整性.md
+              -> templates/report-内容合规.md
+              -> references/redline-spec.md（仅综合报告/A3b 阶段加载）
 ```
 
 ### Phase -1: 环境预检
@@ -157,26 +186,27 @@ Phase 0: 发现阶段 PASS
   分片数: 3
 ```
 
-### Phase 1: registry 调度扫描（9 个维度）
+### Phase 1: registry + profile 调度扫描
 
-根据 Scan Plan 和 scanner registry 按需加载 scanner 模块并派发 9 个独立 LLM session（Q21B）。
+根据 Scan Plan、`scan_profile` 和 scanner registry 按需加载 scanner 模块并派发独立 LLM session（Q21B）。`scan_profile` 未指定时使用 `kylin-redline-p0`；`kylin-redline-full` 必须显式指定；非法 profile 立即 `FAIL`。
 
 Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanners/<dim>/` 目录中的 `scanner.md` + `meta.yaml` + 可选 `references/`。新增维度只需 drop a directory，调度器通过目录发现和 `meta.yaml` 依赖声明完成加载、排序和 reference 注入。
 
 调度策略：
 
 - 调用 `discover_scanners()` 自动发现 `scanners/<dim>/meta.yaml` 和 `scanners/<dim>/scanner.md`。
-- 调用 `topological_order()` 根据各 scanner `meta.yaml` 的 `consumes` 依赖生成调度顺序；无依赖且资源允许的维度可并行执行。
+- 根据 `scan_profile` 取得允许维度集合，仅调度 `discover_scanners()` 发现结果与 profile 维度集合的交集；未被 profile 选中的维度记为 `skipped_by_profile`，不算失败。
+- 调用 `topological_order()` 根据入选 scanner `meta.yaml` 的 `consumes` 依赖生成调度顺序；无依赖且资源允许的维度可并行执行。
 - 每个 scanner session 只加载自身 `scanner.md`、分配文件列表、输出 schema，以及 `meta.yaml` 声明的 references。
 - scanner 间 findings 通过 `ScanContext` 中转。若下游 `meta.yaml` 声明 `consumes`，上游 findings 按 `inject_as: data`、`severity_filter`、`token_budget` 筛选后注入下游 user message，不能写入 system prompt。
 - 维度专属 references 保留在 `scanners/<dim>/references/`；顶层 `references/` 用于跨维度和跨阶段共享资料。当前共享关系与 `scanners/*/meta.yaml` 保持一致：
-  - `references/allowlists.md`：`comment`、`url`、`secret`、`fileleak`、`permission`、`elf`、`network`、`crypto`、`component-info`（9 个 scanner 全部引用）。
-  - `references/red-line-rules.md`：`network`、`crypto`、`component-info`。
-  - `references/library-vuln-caps.md`：`network`、`crypto`。
+  - `references/allowlists.md`：由各 scanner `meta.yaml` 声明引用，常见于文本、权限、ELF、网络、密码学、组件档案及新增维度。
+  - `references/red-line-rules.md`：红线相关维度按 `meta.yaml` 声明引用。
+  - `references/library-vuln-caps.md`：依赖、网络、密码学等需要库版本知识库的维度按 `meta.yaml` 声明引用。
   - `references/dependency-check.md`：`orchestration/orchestrator.md` 在 Phase -1 环境预检中加载。
   - `references/verdict-rules.md`：裁决阶段（Phase 2）由 orchestration 流程加载。
 
-当前 registry 应发现以下 9 个维度：
+已定义 profile 可选择以下 13 个维度；实际执行集合由 `discover_scanners()` 发现结果与 profile 维度集合取交集得到：
 
 1. `elf`：`scanners/elf/{meta.yaml,scanner.md}`
 2. `url`：`scanners/url/{meta.yaml,scanner.md}`
@@ -187,6 +217,10 @@ Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanner
 7. `network`：`scanners/network/{meta.yaml,scanner.md}`
 8. `crypto`：`scanners/crypto/{meta.yaml,scanner.md}`
 9. `component-info`：`scanners/component-info/{meta.yaml,scanner.md}`
+10. `dependency`：`scanners/dependency/{meta.yaml,scanner.md}`
+11. `secure-coding`：`scanners/secure-coding/{meta.yaml,scanner.md}`
+12. `integrity`：`scanners/integrity/{meta.yaml,scanner.md}`
+13. `content-compliance`：`scanners/content-compliance/{meta.yaml,scanner.md}`
 
 所有适用 Scanner 完成后执行审计点 A1。
 
@@ -219,9 +253,9 @@ Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanner
 3. 派发 Reporter subagent 生成：
    - 终端摘要
    - JSON 结构化数据
-   - 综合 Markdown 报告
-   - 7 份专项报告：安全编译、公网地址、口令硬编码、未公开接口、密码学、网络、组件档案
-4. 执行审计点 A3：字段完整性、数据一致性、内容质量、覆盖完整性。
+   - 综合 Markdown 报告（含 redline 40 条覆盖矩阵和人工合规项附录）
+   - 当前 profile 对应的维度专项报告
+4. 执行审计点 A3/A3b：字段完整性、数据一致性、内容质量、覆盖完整性、redline 覆盖矩阵完整性。
 
 ## Finding Schema
 
@@ -230,7 +264,7 @@ Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanner
 ```json
 {
   "id": "{DIMENSION}-{SEQ}",
-  "dimension": "comment|url|secret|fileleak|permission|elf|network|crypto|component-info",
+  "dimension": "comment|url|secret|fileleak|permission|elf|network|crypto|component-info|dependency|secure-coding|integrity|content-compliance",
   "file": "文件绝对路径",
   "line": "integer | string | null — 源码行号、注释范围或不适用",
   "check_item": "检查项名称",
@@ -258,8 +292,12 @@ Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanner
 | `network` | `integer` 或 `null` | `9` |
 | `crypto` | `integer` 或 `null` | `4` |
 | `component-info` | `integer` 或 `null` | `5` |
+| `dependency` | `integer` 或 `null` | `12` |
+| `secure-coding` | `integer` 或 `string` | `"18-24"` |
+| `integrity` | `null` 或 `integer` | `null` |
+| `content-compliance` | `integer`、`string` 或 `null` | `"LICENSE:12"` |
 
-**新维度 evidence 扩展**：crypto / network / component-info 维度的 finding 的 `evidence` 字段可包含库信息，格式：
+**新维度 evidence 扩展**：crypto / network / component-info / dependency / secure-coding / integrity / content-compliance 维度的 finding 的 `evidence` 字段可包含库信息或合规证据，格式：
 `library=NAME@VERSION | library_version=VERSION | trigger=REASON | cve=CVE-XXXX-XXXXX`
 老 6 维度不解析此格式。
 

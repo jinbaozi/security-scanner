@@ -1,0 +1,24 @@
+id: secure-coding
+name: 安全编码扫描
+version: 1.0.0
+description: 危险 C/C++ API、安全函数失效宏、注释失效代码和安全编码规范检查
+
+consumes: []
+references:
+  - path: references/unsafe-functions.md
+    scope: local
+  - path: references/safe-fn-antipatterns.md
+    scope: local
+  - path: references/redline-clauses.md
+    scope: local
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip

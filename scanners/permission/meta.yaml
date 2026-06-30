@@ -7,6 +7,8 @@ consumes: []
 references:
   - path: ../../references/allowlists.md
     scope: shared
+  - path: references/redline-clauses.md
+    scope: local
 
 session:
   model: sonnet

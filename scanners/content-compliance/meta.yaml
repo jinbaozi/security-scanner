@@ -1,0 +1,22 @@
+id: content-compliance
+name: 内容合规扫描
+version: 1.0.0
+description: 文案、地图资源、图表和 UI 字符串中的政治敏感表述合规检查
+
+consumes: []
+references:
+  - path: references/forbidden-terms.md
+    scope: local
+  - path: references/redline-clauses.md
+    scope: local
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip

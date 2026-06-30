@@ -4,7 +4,7 @@
 
 ## 项目简介
 
-本 SKILL 用于对源码、配置、脚本、交付包和 ELF 二进制文件进行九维度安全合规检查，并生成简体中文报告。
+本 SKILL 用于对源码、配置、脚本、交付包和 ELF 二进制文件进行 13 维度安全合规检查，并生成简体中文报告。
 
 适用场景：
 
@@ -33,6 +33,22 @@
 | 7 | 密码学合规 | 对称/非对称/Hash 算法、伪加密、随机数 API、不安全协议、库版本知识库匹配 |
 | 8 | 网络协议与端口 | 通信协议（SSHv2/TLS1.2/TLS1.3）、监听端口、声明 vs 实际对账 |
 | 9 | 组件基础档案 | 架构类型、默认账号、个人数据处理、root 启动需求、声明 vs 实际对账 |
+| 10 | 依赖组件风险 | 依赖清单、锁文件、嵌入库、版本与已知漏洞风险 |
+| 11 | 安全编码规范 | 危险 API、输入校验、资源管理、异常处理等编码风险 |
+| 12 | 完整性校验 | 交付物校验和、签名、来源可信与篡改风险 |
+| 13 | 内容合规 | 许可证、敏感文本、违规内容和合规声明风险 |
+
+## Scan Profiles
+
+扫描 profile 决定 Phase 1 可调度的维度集合：
+
+| Profile | 维度范围 | 说明 |
+|---------|----------|------|
+| `kylin-redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 默认 profile，适合常规红线扫描 |
+| `kylin-redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整扫描，必须显式指定 |
+| `kylin-redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
+
+未指定 profile 时默认使用 `kylin-redline-p0`。非法 profile 会导致 Orchestrator `FAIL`，不会进入 Phase 1 扫描。Profile 表示目标维度集合；实际执行维度由 registry 发现结果与 profile 取交集决定，未发现的 profile 维度会记录为覆盖缺口。
 
 ## 系统要求
 
@@ -90,6 +106,7 @@ Phase 0: 发现阶段
 
 Phase 1: registry 调度扫描
   -> discover_scanners() 自动发现 scanner
+  -> 与 scan_profile 维度集合取交集
   -> topological_order() 按 consumes 依赖排序
   -> 通过 ScanContext 在 scanner 间中转 findings
 
@@ -97,10 +114,10 @@ Phase 2: 裁决阶段
   -> 对中低置信度 findings 进行上下文复核
 
 Phase 3: 报告生成
-  -> 输出终端摘要、JSON、综合报告和 7 份专项报告
+  -> 输出终端摘要、JSON、综合报告和当前 profile 对应的专项报告
 ```
 
-Phase 1 采用 γ-sidecar（gamma sidecar）结构调度 scanner：每个维度都是 `scanners/<dim>/` 下的一组旁挂文件，由 `scanner.md`、`meta.yaml` 和可选 `references/` 组成。Registry 只发现目录，不维护旧式 flat scanner path；新增 scanner 即 drop a directory，让 `discover_scanners()` 读取新目录中的 `meta.yaml` 和 `scanner.md`。
+Phase 1 采用 γ-sidecar（gamma sidecar）结构调度 scanner：每个维度都是 `scanners/<dim>/` 下的一组旁挂文件，由 `scanner.md`、`meta.yaml` 和可选 `references/` 组成。Registry 只发现目录，不维护旧式 flat scanner path；新增 scanner 即 drop a directory，让 `discover_scanners()` 读取新目录中的 `meta.yaml` 和 `scanner.md`。实际执行维度由 `discover_scanners()` 发现结果与 `scan_profile` 维度集合取交集得到，未被 profile 选中的维度会记录为 `skipped_by_profile`。
 
 审计检查点：
 
@@ -127,6 +144,10 @@ Reporter 指令定义三类输出：
 | 密码学专项报告 | `report-密码学-{component_name}-{date}.md` |
 | 网络专项报告 | `report-网络-{component_name}-{date}.md` |
 | 组件档案专项报告 | `report-组件档案-{component_name}-{date}.md` |
+| 依赖与漏洞专项报告 | `report-依赖与漏洞-{component_name}-{date}.md` |
+| 安全编码专项报告 | `report-安全编码-{component_name}-{date}.md` |
+| 完整性专项报告 | `report-完整性-{component_name}-{date}.md` |
+| 内容合规专项报告 | `report-内容合规-{component_name}-{date}.md` |
 | 组件档案 summary JSON | `component-info-summary-{component_name}-{date}.json` |
 
 具体落盘位置由执行扫描的 AI agent 和用户当前工作目录决定；当前 SKILL 不强制固定 `reports/` 目录。
@@ -157,7 +178,7 @@ Reporter 指令定义三类输出：
 
 | 字段 | 说明 |
 |------|------|
-| `dimension` | `comment`、`url`、`secret`、`fileleak`、`permission`、`elf`、`network`、`crypto`、`component-info` |
+| `dimension` | `comment`、`url`、`secret`、`fileleak`、`permission`、`elf`、`network`、`crypto`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` |
 | `line` | 按维度解释，源码行号为 integer；注释范围可为 string，如 `"36-50"`；不适用为 `null` |
 | `status` | `PASS`、`WARN`、`FAIL` |
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
@@ -177,6 +198,10 @@ Reporter 指令定义三类输出：
 | `network` | `integer` 或 `null` | `9` |
 | `crypto` | `integer` 或 `null` | `4` |
 | `component-info` | `integer` 或 `null` | `5` |
+| `dependency` | `integer` 或 `null` | `12` |
+| `secure-coding` | `integer` 或 `string` | `"18-24"` |
+| `integrity` | `null` 或 `integer` | `null` |
+| `content-compliance` | `integer`、`string` 或 `null` | `"LICENSE:12"` |
 
 ## 项目结构
 
@@ -222,11 +247,23 @@ security-scanner/
 │   │   ├── meta.yaml
 │   │   ├── scanner.md
 │   │   └── references/patterns-crypto.md
-│   └── component-info/
+│   ├── component-info/
+│   │   ├── meta.yaml
+│   │   ├── scanner.md
+│   │   ├── references/architecture-signals.md
+│   │   └── references/personal-data-patterns.md
+│   ├── dependency/
+│   │   ├── meta.yaml
+│   │   └── scanner.md
+│   ├── secure-coding/
+│   │   ├── meta.yaml
+│   │   └── scanner.md
+│   ├── integrity/
+│   │   ├── meta.yaml
+│   │   └── scanner.md
+│   └── content-compliance/
 │       ├── meta.yaml
-│       ├── scanner.md
-│       ├── references/architecture-signals.md
-│       └── references/personal-data-patterns.md
+│       └── scanner.md
 ├── orchestration/
 │   ├── orchestrator.md
 │   ├── reconnaissance.md
@@ -263,9 +300,9 @@ security-scanner/
 
 | 共享 reference | 引用者 |
 |----------------|--------|
-| `references/allowlists.md` | `comment`、`url`、`secret`、`fileleak`、`permission`、`elf`、`network`、`crypto`、`component-info`（9 个 scanner 全部引用） |
-| `references/red-line-rules.md` | `network`、`crypto`、`component-info` |
-| `references/library-vuln-caps.md` | `network`、`crypto` |
+| `references/allowlists.md` | 由各 scanner `meta.yaml` 声明引用，常见于文本、权限、ELF、网络、密码学、组件档案及新增维度 |
+| `references/red-line-rules.md` | 红线相关维度按 `meta.yaml` 声明引用 |
+| `references/library-vuln-caps.md` | 依赖、网络、密码学等需要库版本知识库的维度按 `meta.yaml` 声明引用 |
 | `references/dependency-check.md` | `orchestration/orchestrator.md` 在 Phase -1 环境预检中加载 |
 | `references/verdict-rules.md` | 裁决阶段（Phase 2）由 orchestration 流程加载 |
 
@@ -343,17 +380,17 @@ python3 -m json.tool security-scanner/tests/fixtures/expected/url-expected.json 
 
 可以。用户可以在自然语言中指定维度，例如“只检查口令硬编码和公网地址”。Agent 应只加载相关 scanner 和必要 reference 文件。
 
-### 报告一定会包含 6 个专项报告吗？
+### 报告一定会包含固定数量的专项报告吗？
 
-不是。当前设计要求生成 1 份综合报告、1 份 JSON 和 7 份专项报告：安全编译、公网地址、口令硬编码、未公开接口、密码学、网络、组件档案。FileLeak 和 Permission 的 findings 会进入 JSON 与综合报告。
+不是。当前设计要求生成 1 份综合报告、1 份 JSON，并按 `scan_profile` 实际执行或降级的维度生成专项报告。综合报告始终包含 redline 40 条覆盖矩阵和人工合规项附录。
 
 ### 低置信度发现如何处理？
 
 中低置信度 findings 进入 Verdict 阶段，最终标记为 `confirmed`、`suspected`、`rejected`、`needs_human` 或 `unverified`。`needs_human` 和 `unverified` 必须在报告中明确标注。
 
-### 9 个新维度和老的 6 个维度怎么协调？
+### 新增维度和老的 6 个维度怎么协调？
 
-crypto / network / component-info 三个新维度是 6 维度的扩展，不是替代。`crypto` 与 `secret` 维度共享凭证字符串匹配结果时，`secret` 优先（其严重度模型更精细）；`crypto` 仅保留算法/协议相关 finding，凭证泄露细节由 `secret` 报告。新维度的 evidence 字段可包含库信息，老 6 维度不解析该格式。
+crypto / network / component-info / dependency / secure-coding / integrity / content-compliance 等新增维度是老 6 维度的扩展，不是替代。`crypto` 与 `secret` 维度共享凭证字符串匹配结果时，`secret` 优先（其严重度模型更精细）；`crypto` 仅保留算法/协议相关 finding，凭证泄露细节由 `secret` 报告。新维度的 evidence 字段可包含库信息或合规证据，老 6 维度不解析该格式。
 
 ### 综合报告为什么有"组件档案概览"章节？
 

@@ -45,7 +45,7 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 | `id` | `INFO-{SEQ}`，SEQ 从 001 递增 |
 | `dimension` | 固定为 `component-info` |
 | `line` | 匹配所在行；无法定位时为 `null` |
-| `check_item` | `architecture`、`default_account`、`personal_data`、`requires_root` |
+| `check_item` | `architecture`、`default_account`、`default_password_policy`、`personal_data`、`requires_root` |
 | `status` | 最终输出仅使用 `PASS`、`WARN`、`FAIL`；跳过或未知情况统一输出为 `WARN` 并在 detail 中说明 |
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
 | `confidence` | `high`、`medium`、`low` |
@@ -101,9 +101,12 @@ grep -rnE "INSERT\s+INTO\s+\w+\s+VALUES\s*\([^)]*['\"](?:admin|root)['\"]" {sql_
 
 # 常量定义形式（Python/Go/Java）
 grep -rnE "(?:ADMIN_USER|ADMIN_PASS|DEFAULT_USER|DEFAULT_PASSWORD|USER_DEFAULT|PASS_DEFAULT)\s*=\s*['\"][^'\"]+['\"]" {all_files}
+
+# 缺省口令策略信号
+grep -rnE "(first[_ -]?login|force[_ -]?change|initial[_ -]?password|default[_ -]?password|empty[_ -]?password|password[_ -]?policy)" {all_files}
 ```
 
-命中后输出 `check_item=default_account`、`severity=high`、`status=FAIL` 的 finding，并关联 RL-160 / RL-161 / RL-162。
+命中默认账号/口令后输出 `check_item=default_account`、`severity=high`、`status=FAIL` 的 finding，并关联 RL-160 / RL-161 / RL-162。若仅发现缺省口令策略信号（例如首次登录强制改密、禁止空口令、默认口令说明），输出 `check_item=default_password_policy`、`status=WARN/PASS`，作为 7.1.4 人工复核依据，不硬判 FAIL。
 
 ### Step 4: Layer 3 - 个人数据字段违规处理
 
@@ -158,11 +161,14 @@ grep -rnE "^\s*(?:port|listen|Listen|EXPOSE)\s*[:=]?\s*[0-9]{1,3}\b" {all_files}
 
 # 弱信号 5：使用 0-1023 端口且无 setcap / getcap
 grep -rnE "\b(?:bind|listen)\s*\([^)]*(?:['\"]?:[1-9][0-9]{0,2}|[0-9]{1,3})\)" {all_files}
+
+# 弱信号 6：Docker/systemd 明确 root 用户
+grep -rnE "^\s*USER\s+root\b|^\s*user\s*:\s*root\b|^\s*User\s*=\s*root\b" {dockerfile_files} {compose_files} {systemd_files}
 ```
 
 判定逻辑：
 
-- **FAIL**（高置信 root 需求）：同时满足 ≥ 2 个弱信号（如 `privileged: true` + `cap_add: SYS_ADMIN`；或 SUID + privileged）
+- **FAIL**（高置信 root 需求）：同时满足 ≥ 2 个弱信号（如 `privileged: true` + `cap_add: SYS_ADMIN`；或 Docker/systemd root + 特权端口/高危 capability）
 - **WARN**（疑似 root 需求）：仅 1 个弱信号（如单独 `privileged: true`，或单独 SUID）
 - **PASS**：无任何信号
 
@@ -194,6 +200,7 @@ grep -rnE "\b(?:bind|listen)\s*\([^)]*(?:['\"]?:[1-9][0-9]{0,2}|[0-9]{1,3})\)" {
 |------------|----------------|------|
 | `architecture` | info | 架构类型识别（仅信息记录） |
 | `default_account` | high | 硬编码 admin/root 默认账号（RL-160 / RL-161 / RL-162） |
+| `default_password_policy` | medium/info | 缺省口令、空口令、首次登录强制改密策略信号 |
 | `personal_data` | critical（id_card / bank_card）/ high（phone / mobile）/ high（HTTP 明文）/ medium（邮箱日志） | 个人数据违规处理（RL-140 ~ RL-144） |
 | `requires_root` | high（多源交集）/ medium（单源） | root 需求识别 |
 

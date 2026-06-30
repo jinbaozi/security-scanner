@@ -9,6 +9,8 @@ references:
     scope: shared
   - path: references/checksec-guide.md
     scope: local
+  - path: references/redline-clauses.md
+    scope: local
 
 session:
   model: sonnet

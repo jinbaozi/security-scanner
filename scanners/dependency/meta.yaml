@@ -1,0 +1,24 @@
+id: dependency
+name: 依赖与漏洞扫描
+version: 1.0.0
+description: 依赖清单、锁文件、SBOM、公开漏洞与缺失锁文件检查
+
+consumes: []
+references:
+  - path: references/patterns-dependency.md
+    scope: local
+  - path: references/redline-clauses.md
+    scope: local
+  - path: ../../references/dependency-check.md
+    scope: shared
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip
