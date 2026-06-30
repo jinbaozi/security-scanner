@@ -18,7 +18,7 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
 ```json
 {
   "id": "FILELEAK-001",
-  "dimension": "file_leak",
+  "dimension": "fileleak",
   "file": "/path/to/.env",
   "line": null,
   "check_item": "env_file",
@@ -38,7 +38,7 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
 | 字段 | 要求 |
 |------|------|
 | `id` | `FILELEAK-{SEQ}`，SEQ 从 001 递增 |
-| `dimension` | 固定为 `file_leak` |
+| `dimension` | 固定为 `fileleak` |
 | `line` | 文件名匹配时为 `null`；内容匹配时填写行号 |
 | `check_item` | `env_file`、`private_key_file`、`ssh_private_key_file`、`temp_or_log_file`、`core_dump`、`build_file`、`os_generated_file`、`certificate_file` |
 | `status` | 最终输出仅使用 `PASS`、`WARN`、`FAIL`；跳过或未知情况统一输出为 `WARN` 并在 detail 中说明 |

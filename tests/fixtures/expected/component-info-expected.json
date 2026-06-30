@@ -1,9 +1,9 @@
 {
-  "scan_metadata": {"scanner": "component_info", "version": "1.0", "component": "component-info-test"},
+  "scan_metadata": {"scanner": "component-info", "version": "1.0", "component": "component-info-test"},
   "findings": [
     {
       "id": "INFO-001",
-      "dimension": "component_info",
+      "dimension": "component-info",
       "file": "tests/fixtures/component-info-test/app.py",
       "line": 1,
       "check_item": "architecture",
@@ -18,7 +18,7 @@
     },
     {
       "id": "INFO-002",
-      "dimension": "component_info",
+      "dimension": "component-info",
       "file": "tests/fixtures/component-info-test/app.py",
       "line": 12,
       "check_item": "default_account",
@@ -33,7 +33,7 @@
     },
     {
       "id": "INFO-003",
-      "dimension": "component_info",
+      "dimension": "component-info",
       "file": "tests/fixtures/component-info-test/app.py",
       "line": 5,
       "check_item": "personal_data",
@@ -48,7 +48,7 @@
     },
     {
       "id": "INFO-004",
-      "dimension": "component_info",
+      "dimension": "component-info",
       "file": "tests/fixtures/component-info-test/app.py",
       "line": 4,
       "check_item": "personal_data",
@@ -63,7 +63,7 @@
     },
     {
       "id": "INFO-005",
-      "dimension": "component_info",
+      "dimension": "component-info",
       "file": "tests/fixtures/component-info-test/docker-compose.yml",
       "line": 4,
       "check_item": "requires_root",

@@ -62,9 +62,8 @@ FAIL -> 进入修复循环（最多 2 次自动修复）-> 仍失败则降级
 
 - 所有 Scanner 完成且输出符合 schema：PASS。
 - 1 个 Scanner 失败：WARN，重试失败项（最多 2 次）。
-- 2 个 Scanner 失败：WARN，标记失败维度但不影响主流程。
-- 3-4 个 Scanner 失败：部分降级，继续其他维度。
-- >= 5 个 Scanner 失败：FAIL，Phase 级降级。
+- 2-3 个 Scanner 失败：部分降级，继续其他维度。
+- >= 4 个 Scanner 失败：FAIL，Phase 级降级，收集已完成结果。
 
 ### A2（Verdict 审计）
 

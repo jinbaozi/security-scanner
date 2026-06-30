@@ -23,7 +23,7 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 ```json
 {
   "id": "INFO-001",
-  "dimension": "component_info",
+  "dimension": "component-info",
   "file": "/path/to/app.py",
   "line": 5,
   "check_item": "personal_data",
@@ -43,7 +43,7 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 | 字段 | 要求 |
 |------|------|
 | `id` | `INFO-{SEQ}`，SEQ 从 001 递增 |
-| `dimension` | 固定为 `component_info` |
+| `dimension` | 固定为 `component-info` |
 | `line` | 匹配所在行；无法定位时为 `null` |
 | `check_item` | `architecture`、`default_account`、`personal_data`、`requires_root` |
 | `status` | 最终输出仅使用 `PASS`、`WARN`、`FAIL`；跳过或未知情况统一输出为 `WARN` 并在 detail 中说明 |
@@ -172,7 +172,7 @@ grep -rnE "\b(?:bind|listen)\s*\([^)]*(?:['\"]?:[1-9][0-9]{0,2}|[0-9]{1,3})\)" {
 
 将所有 Layer 1-5 命中、且未在白名单中排除的问题，转换为统一 finding schema 输出。
 
-每个 finding 的 id 从 `INFO-001` 开始递增，dimension 固定为 `component_info`。
+每个 finding 的 id 从 `INFO-001` 开始递增，dimension 固定为 `component-info`。
 
 ## 判定规则
 

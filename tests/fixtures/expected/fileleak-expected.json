@@ -1,5 +1,5 @@
 {
-  "dimension": "file_leak",
+  "dimension": "fileleak",
   "should_report": [
     { "file": "fileleak-test/sample_project/.env", "type": "env_file", "severity": "high" },
     { "file": "fileleak-test/sample_project/.env.production", "type": "env_file", "severity": "high" },
