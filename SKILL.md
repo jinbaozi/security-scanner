@@ -165,7 +165,12 @@ Phase 0: 发现阶段 PASS
 - 调用 `topological_order()` 根据各 scanner `meta.yaml` 的 `consumes` 依赖生成调度顺序；无依赖且资源允许的维度可并行执行。
 - 每个 scanner session 只加载自身 `scanner.md`、分配文件列表、输出 schema，以及 `meta.yaml` 声明的 references。
 - scanner 间 findings 通过 `ScanContext` 中转。若下游 `meta.yaml` 声明 `consumes`，上游 findings 按 `inject_as: data`、`severity_filter`、`token_budget` 筛选后注入下游 user message，不能写入 system prompt。
-- 顶层共享 references 只用于跨维度资料：`network` 和 `crypto` 都引用 `references/red-line-rules.md`、`references/library-vuln-caps.md`；`component-info` 引用 `references/red-line-rules.md`、`references/allowlists.md`。维度专属 references 保留在 `scanners/<dim>/references/`。
+- 维度专属 references 保留在 `scanners/<dim>/references/`；顶层 `references/` 用于跨维度和跨阶段共享资料。当前共享关系与 `scanners/*/meta.yaml` 保持一致：
+  - `references/allowlists.md`：`comment`、`url`、`secret`、`fileleak`、`permission`、`elf`、`network`、`crypto`、`component-info`（9 个 scanner 全部引用）。
+  - `references/red-line-rules.md`：`network`、`crypto`、`component-info`。
+  - `references/library-vuln-caps.md`：`network`、`crypto`。
+  - `references/dependency-check.md`：`orchestration/orchestrator.md` 在 Phase -1 环境预检中加载。
+  - `references/verdict-rules.md`：裁决阶段（Phase 2）由 orchestration 流程加载。
 
 当前 registry 应发现以下 9 个维度：
 

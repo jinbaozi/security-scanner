@@ -241,7 +241,15 @@ security-scanner/
 
 如果新维度需要消费上游 findings，在 `meta.yaml` 中声明 `consumes`，并使用 `inject_as: data`、`severity_filter` 和 `token_budget` 控制注入方式、严重度范围和 token 预算。上游 findings 经 `ScanContext` 中转后作为 data 注入下游 scanner 的 user message，不写入 system prompt。
 
-本地 reference 放在 `scanners/<dim>/references/` 并以相对路径引用；跨维度共享 reference 放在顶层 `references/`。当前共享关系包括：`network` 和 `crypto` 都引用 `references/red-line-rules.md`、`references/library-vuln-caps.md`；`component-info` 引用 `references/red-line-rules.md`、`references/allowlists.md`。
+本地 reference 放在 `scanners/<dim>/references/` 并以相对路径引用；跨维度和跨阶段共享 reference 放在顶层 `references/`。当前共享关系与 `scanners/*/meta.yaml` 保持一致：
+
+| 共享 reference | 引用者 |
+|----------------|--------|
+| `references/allowlists.md` | `comment`、`url`、`secret`、`fileleak`、`permission`、`elf`、`network`、`crypto`、`component-info`（9 个 scanner 全部引用） |
+| `references/red-line-rules.md` | `network`、`crypto`、`component-info` |
+| `references/library-vuln-caps.md` | `network`、`crypto` |
+| `references/dependency-check.md` | `orchestration/orchestrator.md` 在 Phase -1 环境预检中加载 |
+| `references/verdict-rules.md` | 裁决阶段（Phase 2）由 orchestration 流程加载 |
 
 ### 白名单和排除规则
 
