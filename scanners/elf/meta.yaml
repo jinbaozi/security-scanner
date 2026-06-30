@@ -1,0 +1,20 @@
+id: elf
+name: ELF 安全编译扫描
+version: 1.0.0
+description: Stack Canary、NX、RELRO、PIE、BIND_NOW、Strip、RPATH/RUNPATH、FORTIFY_SOURCE
+
+consumes: []
+references:
+  - path: ../../references/allowlists.md
+    scope: shared
+  - path: references/checksec-guide.md
+    scope: local
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip
