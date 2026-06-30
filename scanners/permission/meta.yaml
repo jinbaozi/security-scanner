@@ -1,0 +1,18 @@
+id: permission
+name: 文件权限扫描
+version: 1.0.0
+description: setuid/setgid、world-writable、异常可执行脚本
+
+consumes: []
+references:
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip
