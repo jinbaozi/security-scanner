@@ -7,6 +7,10 @@ consumes: []
 references:
   - path: ../../references/allowlists.md
     scope: shared
+  - path: ../../references/red-line-rules.md
+    scope: shared
+  - path: ../../references/library-vuln-caps.md
+    scope: shared
   - path: references/patterns-network.md
     scope: local
 
