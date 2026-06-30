@@ -1,0 +1,18 @@
+id: fileleak
+name: 敏感文件泄露扫描
+version: 1.0.0
+description: .env、私钥、证书密钥、日志、临时文件、备份文件、core dump
+
+consumes: []
+references:
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip
