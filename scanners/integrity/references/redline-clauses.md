@@ -8,7 +8,7 @@ redline_clauses:
   - clause_id: 10.1.1
     rl_ids: ["RL-220"]
     automation: partial
-    profile_min: kylin-redline-full
+    profile_min: redline-full
     summary: >-
       产品对外发布的软件（包含软件包/补丁包）必须提供完整性校验机制，在安装、升级过程中对软件进行完整性验证
     manual_note: >-

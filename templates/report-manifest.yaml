@@ -1,0 +1,61 @@
+# Scanner dimension -> report template mapping (single source of truth for Phase 3)
+# Reporter Agent must load this file before rendering reports.
+
+dimensions:
+  elf:
+    display_name: 安全编译
+    template: report-安全编译.md
+    output: report-安全编译-{component_name}-{date}.md
+  url:
+    display_name: 公网地址
+    template: report-公网地址.md
+    output: report-公网地址-{component_name}-{date}.md
+  secret:
+    display_name: 口令硬编码
+    template: report-口令硬编码.md
+    output: report-口令硬编码-{component_name}-{date}.md
+  comment:
+    display_name: 未公开接口
+    template: report-未公开接口.md
+    output: report-未公开接口-{component_name}-{date}.md
+  fileleak:
+    display_name: 敏感文件泄露
+    template: report-敏感文件泄露.md
+    output: report-敏感文件泄露-{component_name}-{date}.md
+  permission:
+    display_name: 文件权限
+    template: report-文件权限.md
+    output: report-文件权限-{component_name}-{date}.md
+  crypto:
+    display_name: 密码学
+    template: report-密码学.md
+    output: report-密码学-{component_name}-{date}.md
+  network:
+    display_name: 网络
+    template: report-网络.md
+    output: report-网络-{component_name}-{date}.md
+  component-info:
+    display_name: 组件档案
+    template: report-组件档案.md
+    output: report-组件档案-{component_name}-{date}.md
+  dependency:
+    display_name: 依赖与漏洞
+    template: report-依赖与漏洞.md
+    output: report-依赖与漏洞-{component_name}-{date}.md
+  secure-coding:
+    display_name: 安全编码
+    template: report-安全编码.md
+    output: report-安全编码-{component_name}-{date}.md
+  integrity:
+    display_name: 完整性
+    template: report-完整性.md
+    output: report-完整性-{component_name}-{date}.md
+  content-compliance:
+    display_name: 内容合规
+    template: report-内容合规.md
+    output: report-内容合规-{component_name}-{date}.md
+
+summary:
+  template: report-comprehensive.md
+  output: security-scan-report-{component_name}-{date}.md
+  title: 安全合规扫描汇总报告

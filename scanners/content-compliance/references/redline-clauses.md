@@ -8,7 +8,7 @@ redline_clauses:
   - clause_id: 13.1.1
     rl_ids: ["RL-230"]
     automation: partial
-    profile_min: kylin-redline-full
+    profile_min: redline-full
     summary: >-
       产品系统中的任何文字、地图、图表的描述中，关于国家、地区、领土、民族、语言等政治敏感信息的描述要符合国家政治要求，不得违反国家正式的政治表述和立场。
     manual_note: >-

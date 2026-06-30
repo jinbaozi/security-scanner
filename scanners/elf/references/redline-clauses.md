@@ -8,7 +8,7 @@ redline_clauses:
   - clause_id: 11.2.1
     rl_ids: ["RL-260"]
     automation: partial
-    profile_min: kylin-redline-p0
+    profile_min: redline-p0
     summary: >-
       产品必须按规范开启安全编译选项。
     manual_note: >-

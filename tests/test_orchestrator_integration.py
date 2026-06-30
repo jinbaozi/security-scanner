@@ -9,7 +9,7 @@ from scanners.registry import discover_scanners
 from scanners.registry.resolver import CircularDependencyError, topological_order
 
 PROFILE_DIMENSIONS = {
-    "kylin-redline-p0": {
+    "redline-p0": {
         "comment",
         "url",
         "secret",
@@ -21,7 +21,7 @@ PROFILE_DIMENSIONS = {
         "component-info",
         "dependency",
     },
-    "kylin-redline-full": {
+    "redline-full": {
         "comment",
         "url",
         "secret",
@@ -36,13 +36,13 @@ PROFILE_DIMENSIONS = {
         "integrity",
         "content-compliance",
     },
-    "kylin-redline-binary": {"elf", "fileleak", "permission", "dependency"},
+    "redline-binary": {"elf", "fileleak", "permission", "dependency"},
 }
 
 
 def test_all_scanners_discoverable():
     scanners = discover_scanners()
-    assert set(scanners.keys()) == PROFILE_DIMENSIONS["kylin-redline-full"]
+    assert set(scanners.keys()) == PROFILE_DIMENSIONS["redline-full"]
 
 
 def test_profile_dimensions_are_discoverable_subsets():
