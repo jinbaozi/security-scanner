@@ -43,7 +43,7 @@ checksec --file=/path/to/binary --output=json
 | NX（堆栈不可执行） | `NX enabled` | 不适用 | `NX disabled` | `-Wl,-z,noexecstack` |
 | PIE（地址无关） | `PIE enabled` 或 `DSO` | 不适用 | `No PIE` | `-fPIE -pie` 或 `-fPIC` |
 | BIND_NOW（立即加载） | 包含 `BIND_NOW` | 不适用 | 不包含 `BIND_NOW` | `-Wl,-z,now` |
-| RPATH/RUNPATH | `No RPATH` 且 `No RUNPATH` | 不适用 | 设置了 RPATH 或 RUNPATH | 移除 `--rpath` |
+| RPATH/RUNPATH | `No RPATH` 且 `No RUNPATH` | 不适用 | 设置了 RPATH 或 RUNPATH | 移除 `--rpath`，避免发布包携带可控库搜索路径 |
 | Strip（符号信息） | `No Symbols` | 不适用 | `Symbols` | 发布包执行 `strip` |
 | FORTIFY_SOURCE | `Fortify: Yes` 且 `Fortified > 0` | 部分函数加固 | `Fortify: No` 或 `Fortified = 0` | `-D_FORTIFY_SOURCE=2 -O2` |
 
@@ -87,6 +87,13 @@ readelf -s /path/to/binary | grep "__stack_chk_fail"
 ```bash
 readelf -d /path/to/binary | grep -E "RPATH|RUNPATH"
 ```
+
+判定说明：
+
+- `RPATH` 和 `RUNPATH` 都表示二进制携带运行时库搜索路径，发布包中通常应移除。
+- 构建参数 `-Wl,--disable-new-dtags` 会让链接器生成旧式 `DT_RPATH`，优先级高于 `LD_LIBRARY_PATH`，风险通常高于 `RUNPATH`。
+- 仅出现 `RUNPATH` 也不能直接 PASS；若路径指向 `$ORIGIN`、相对路径、临时目录、可写目录或交付包外路径，应输出 `FAIL/WARN` 并要求人工确认。
+- 修复建议优先移除 rpath/runpath；确需使用 `$ORIGIN` 时，应限制到只读、随包交付且不可被普通用户写入的目录。
 
 ### 3.6 检查 FORTIFY_SOURCE
 

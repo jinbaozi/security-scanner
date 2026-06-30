@@ -25,6 +25,20 @@
 | TLSv1.1 | `TLSv1\.1\|PROTOCOL_TLSv1_1\|TLS1\.1` | medium |
 | Telnet | `telnet\|TELNET\|telnetlib\.\|libtelnet` | high |
 | HTTP 明文 | `http://` (无 s) | low (单独)，传输敏感字段时 high |
+| TFTP | `\btftp\b\|tftpd\|in\.tftpd\|69/udp` | high |
+| SNMPv1 | `SNMPv1\|snmp-server community\|version\s+1` | high |
+| SNMPv2/v2c | `SNMPv2c?\|version\s+2c\|community\s+(?:public\|private)` | high |
+| SSHv1.x | `SSH-1\.\d\|Protocol\s+1\b\|SSHv1` | high |
+| FTP 明文 | `\bftp://\|vsftpd\|proftpd\|FileZilla Server\|21/tcp` | high |
+| FTP 匿名登录 | `anonymous_enable\s*=\s*YES\|AllowAnonymous\s+on\|anonymous\s+login` | high |
+| Rlogin/Rsh/Rexec | `\brlogin\b\|\brsh\b\|\brexec\b\|\.rhosts` | high |
+| LDAP 明文 | `ldap://\|389/tcp` | medium |
+| SMTP 未配置 STARTTLS | `smtp.*(?:disable.*starttls\|starttls\s*=\s*false)\|25/tcp` | medium |
+| POP3 明文 | `pop3://\|110/tcp` | medium |
+| IMAP 明文 | `imap://\|143/tcp` | medium |
+| TLS 3DES Cipher Suite | `TLS_.*3DES\|DES-CBC3-SHA\|3DES_EDE_CBC` | high |
+| SSH CBC Cipher | `aes(?:128\|192\|256)-cbc\|3des-cbc\|blowfish-cbc` | medium |
+| 明文管理接口 | `http://[^"]*(?:admin\|manage\|console\|login)\|management.*http` | high |
 
 ## 2. 端口识别 Pattern
 
@@ -76,6 +90,10 @@
 - 23 → Telnet（红线）
 - 25 → SMTP（应配 STARTTLS）
 - 389 → LDAP（应配 LDAPS）
+- 69/udp → TFTP（红线，应替换为 SFTP/HTTPS）
+- 110 → POP3（应替换为 POP3S）
+- 143 → IMAP（应替换为 IMAPS）
+- 161/udp → SNMP（应使用 SNMPv3）
 
 ## 4. 端口号与组件用途对照
 
@@ -86,7 +104,11 @@
 | 22 | SSH | low（应禁用 root 登录） |
 | 21 | FTP | high（应替换为 SFTP/FTPS） |
 | 23 | Telnet | critical（红线） |
+| 69/udp | TFTP | high（红线，应替换为 SFTP/HTTPS） |
 | 25 | SMTP | medium（应配 STARTTLS） |
+| 110 | POP3 | medium（应替换为 POP3S） |
+| 143 | IMAP | medium（应替换为 IMAPS） |
+| 161/udp | SNMP | high（应使用 SNMPv3） |
 | 3306 | MySQL | high（应限制访问） |
 | 5432 | PostgreSQL | high（应限制访问） |
 | 6379 | Redis | high（应设密码） |

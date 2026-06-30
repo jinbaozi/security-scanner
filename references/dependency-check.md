@@ -6,6 +6,15 @@
 
 在 Phase 0（Reconnaissance）之前执行。由 Orchestrator 自身执行，无需派发 subagent。
 
+## 与 Dependency Scanner 的职责边界
+
+Phase -1 只负责检测运行环境和外部工具可用性；Dependency Scanner 负责扫描项目依赖、锁文件、SBOM 和公开漏洞风险。
+
+- 缺少 `grep`/`find`/`file`/`stat`/`checksec` 等运行依赖：由 Phase -1 处理。
+- 缺少项目 lock 文件或 SBOM：由 Dependency Scanner 输出 `MISSING_LOCK_FILE` WARN finding。
+- OSV/grype/trivy 不可用：Phase -1 可记录外部工具降级；Dependency Scanner 继续使用 manifest/SBOM/内置证据并在 `audit_log` 标注 degraded。
+- Crypto/Network 不重复产出 `MISSING_LOCK_FILE`，只消费 dependency 的 SBOM/漏洞上下文。
+
 ## 步骤
 
 ### Step 1: 检测运行时环境

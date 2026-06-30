@@ -12,6 +12,10 @@ consumes:
     inject_as: data
     severity_filter: [critical, high]
     token_budget: 4000
+  - dim: dependency
+    inject_as: data
+    severity_filter: [critical, high, medium]
+    token_budget: 4000
 
 references:
   - path: references/patterns-crypto.md
@@ -22,6 +26,8 @@ references:
     scope: shared
   - path: ../../references/allowlists.md
     scope: shared
+  - path: references/redline-clauses.md
+    scope: local
 
 session:
   model: sonnet

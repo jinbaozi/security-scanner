@@ -1,0 +1,60 @@
+{
+  "scan_metadata": {
+    "scanner": "secure-coding",
+    "version": "1.0",
+    "component": "secure-coding-test"
+  },
+  "findings": [
+    {
+      "id": "SECURE-CODING-001",
+      "dimension": "secure-coding",
+      "file": "tests/fixtures/secure-coding-test/unsafe.c",
+      "line": 12,
+      "check_item": "unsafe_function",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "strcpy 直接复制外部输入，属于高风险安全编码问题。",
+      "detail": "使用不安全 C 函数 strcpy，可能导致缓冲区溢出。",
+      "suggestion": "改用长度受控接口，并校验目标缓冲区长度和返回值。",
+      "evidence": "strcpy(buf, input)",
+      "redline_clause": "11.1.2",
+      "rl_ids": ["RL-230"]
+    },
+    {
+      "id": "SECURE-CODING-002",
+      "dimension": "secure-coding",
+      "file": "tests/fixtures/secure-coding-test/compat.h",
+      "line": 3,
+      "check_item": "safe_function_disabled",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "high",
+      "verdict": "confirmed",
+      "verdict_reasoning": "宏将 strcpy_s 重定义为 strcpy，安全函数语义被降级。",
+      "detail": "安全函数被宏替换为不安全函数。",
+      "suggestion": "移除宏降级，保留安全函数边界检查和返回值处理。",
+      "evidence": "#define strcpy_s strcpy",
+      "redline_clause": "11.1.2",
+      "rl_ids": ["RL-231"]
+    },
+    {
+      "id": "SECURE-CODING-003",
+      "dimension": "secure-coding",
+      "file": "tests/fixtures/secure-coding-test/legacy.c",
+      "line": "20-34",
+      "check_item": "commented_out_code",
+      "status": "WARN",
+      "severity": "medium",
+      "confidence": "medium",
+      "verdict": "needs_human",
+      "verdict_reasoning": "#if 0 包裹了疑似旧认证逻辑，需要人工确认是否为交付残留。",
+      "detail": "源码中存在条件编译注释包裹代码结构。",
+      "suggestion": "删除无效代码或迁移到明确的测试/示例目录，并在发布包中排除。",
+      "evidence": "#if 0 ... check_password(...) ... #endif",
+      "redline_clause": "11.1.1",
+      "rl_ids": ["RL-232"]
+    }
+  ]
+}

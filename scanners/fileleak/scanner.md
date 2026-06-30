@@ -40,7 +40,7 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
 | `id` | `FILELEAK-{SEQ}`，SEQ 从 001 递增 |
 | `dimension` | 固定为 `fileleak` |
 | `line` | 文件名匹配时为 `null`；内容匹配时填写行号 |
-| `check_item` | `env_file`、`private_key_file`、`ssh_private_key_file`、`temp_or_log_file`、`core_dump`、`build_file`、`os_generated_file`、`certificate_file` |
+| `check_item` | `env_file`、`private_key_file`、`ssh_private_key_file`、`temp_or_log_file`、`core_dump`、`build_file`、`os_generated_file`、`certificate_file`、`dev_tool_binary`、`password_crack_tool`、`authorized_keys`、`malware_scan` |
 | `status` | 最终输出仅使用 `PASS`、`WARN`、`FAIL`；跳过或未知情况统一输出为 `WARN` 并在 detail 中说明 |
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
 | `confidence` | `high`、`medium`、`low` |
@@ -59,6 +59,9 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
 | `Makefile`, `CMakeLists.txt`, `*.cmake` | LOW | `build_file` | low | 构建文件，需确认是否允许交付 |
 | `.DS_Store`, `Thumbs.db` | LOW | `os_generated_file` | low | OS 生成文件 |
 | `*.crt`, `*.cer` | INFO | `certificate_file` | info | 公钥证书，通常允许但需确认边界 |
+| `authorized_keys`, `known_hosts` | HIGH | `authorized_keys` | high | SSH 授权文件不应进入交付包 |
+| `tcpdump`, `gdb`, `strace`, `nmap`, `gcc`, `javac`, `jdb` | MEDIUM | `dev_tool_binary` | medium | 开发/调试/扫描工具残留 |
+| `hydra`, `john`, `hashcat`, `medusa`, `ncrack` | HIGH | `password_crack_tool` | high | 口令破解工具残留 |
 
 ## 执行步骤
 
@@ -86,6 +89,14 @@ find {target} -type f \( \
 
 # INFO
 find {target} -type f \( -name "*.crt" -o -name "*.cer" \) 2>/dev/null
+
+# 开发/调试/扫描工具与口令破解工具
+find {target} -type f \( \
+  -name "tcpdump" -o -name "gdb" -o -name "strace" -o -name "nmap" \
+  -o -name "gcc" -o -name "javac" -o -name "jdb" \
+  -o -name "hydra" -o -name "john" -o -name "hashcat" -o -name "medusa" -o -name "ncrack" \
+  -o -name "authorized_keys" -o -name "known_hosts" \
+\) 2>/dev/null
 ```
 
 ### Step 2: 符号链接处理
@@ -115,6 +126,16 @@ done
 
 每个匹配生成一个 finding。`detail` 说明文件类型、为何不应进入交付包；`suggestion` 通常为“从交付包中移除，并通过部署系统或安全渠道提供”。
 
+### Step 5: 可选恶意文件扫描
+
+若 ClamAV 或等价防病毒工具可用，可对交付包执行轻量扫描：
+
+```bash
+clamscan -r --infected {target}
+```
+
+工具不可用时不阻断扫描；输出 `check_item=malware_scan`、`status=WARN`、`verdict=needs_human`，说明“未执行病毒/木马扫描，需人工或流水线补充”。
+
 ## 降级策略
 
 当扫描规模过大或工具不可用时，按以下路径降级：
@@ -132,3 +153,4 @@ done
 | 超大目录超过 5000 文件 | 仅按文件名模式匹配，不分析内容 |
 | 符号链接死循环 | `readlink` 失败则跳过并记录 |
 | 无读取权限的目录 | 跳过并在结果元数据中记录 |
+| ClamAV 不可用 | 降级为人工检查项，不硬判 FAIL |

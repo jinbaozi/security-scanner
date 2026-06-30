@@ -24,6 +24,8 @@
 | Blowfish | `\bBlowfish\|BF_encrypt\|blowfish` | medium |
 | IDEA | `\bIDEA\|idea_encrypt` | medium |
 | RC2 | `\bRC2\|rc2_encrypt` | high |
+| SKIPJACK | `\bSKIPJACK\|skipjack_encrypt\|skipjack_set_key` | high |
+| AES-ECB | `AES/ECB\|EVP_aes_.*_ecb\|MODE_ECB` | high |
 
 ### 1.3 跨语言 API 映射
 
@@ -55,6 +57,8 @@
 | DSA < 2048 | `DSA_generate_parameters_ex\([a-z_]+,\s*(?:512\|1024)` | high |
 | ElGamal | `\bElGamal\|elgamal_` | high |
 | 1024 位 RSA | `RSA.*1024\|key_size.*1024.*rsa` | high |
+| DH 512 位参数 | `DH_generate_parameters_ex\([^,]+,\s*512\|dhparam\s+512\|ffdhe512` | high |
+| DH 1024 位参数 | `DH_generate_parameters_ex\([^,]+,\s*1024\|dhparam\s+1024\|ffdhe1024` | high |
 
 ## 3. Hash 算法 Pattern
 
@@ -76,8 +80,19 @@
 |------|---------|---------|-----------|
 | MD5 | `MD5\|md5\(` | password 哈希、token 派生、签名、证书指纹 | cache key、etag、文件 dedup、内容指纹 |
 | SHA-1 | `SHA-?1\|sha1\(` | 数字签名、证书指纹 | git commit hash、内容指纹 |
+| MD2 | `\bMD2\b\|md2\(` | 任意密码学用途 | 无 |
+| MD4 | `\bMD4\b\|md4\(` | 任意密码学用途 | NTLM 兼容场景需人工确认 |
+| HMAC-*-96 | `HMAC-?(?:MD5\|SHA1\|SHA256)-?96\|hmac.*truncate.*96` | 认证码截断且无协议证明 | 标准协议中经评估的截断长度 |
 
-安全/非安全用途通过上下文关键字判断（前 50 字符或后 50 字符是否包含 password/passwd/pwd/sign/signature/cert/key/token/iv/salt 等关键字）。
+安全/非安全用途通过上下文关键字判断（前 50 字符或后 50 字符是否包含 password/passwd/pwd/sign/signature/cert/key/token/iv/salt 等关键字）。SHA-1 在签名、证书、完整性保护和认证用途为 FAIL；在 HMAC 兼容协议中默认 WARN-PASS 并要求人工确认协议约束；在 Git hash、内容指纹、缓存 key 等非安全用途不告警。
+
+### 3.3 推荐国密算法（INFO）
+
+| 算法 | Pattern | 说明 |
+|------|---------|------|
+| SM4 | `\bSM4\|sm4_crypt\|sms4` | 国密对称算法推荐项，作为 INFO 记录，不作为 FAIL |
+| SM2 | `\bSM2\|sm2_` | 国密非对称算法推荐项，作为 INFO 记录，不作为 FAIL |
+| SM3 | `\bSM3\|sm3_` | 国密 Hash 推荐项，作为 INFO 记录，不作为 FAIL |
 
 ## 4. 伪加密 Pattern（红线 1）
 

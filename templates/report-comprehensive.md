@@ -78,6 +78,29 @@
 - 各维度发现统计必须等于 JSON `summary.by_dimension` 与 `summary.by_verdict` 的组合结果。
 - 专项报告中的问题数量必须与本综合报告的对应维度数量一致。
 - `rejected` finding 只进入审计日志，不计入正式问题总数。
+- redline manual 项只进入人工合规项清单，不计入 automated FAIL 总数。
+
+## Redline 40 条覆盖矩阵
+
+| 条款 | 自动化 | 最低 Profile | 主责维度 | 覆盖状态 | Finding / 说明 |
+|------|--------|--------------|----------|----------|----------------|
+{redline_coverage_matrix}
+
+覆盖状态说明：
+
+- `covered`：已有 confirmed/suspected finding 或 PASS 证据覆盖。
+- `no finding`：自动/半自动检查已执行，未发现问题。
+- `manual`：仅进入人工合规项，不计入 automated FAIL。
+- `degraded`：输入或工具不足，需结合审计日志复核。
+- `not applicable`：当前 profile 或目标输入不适用。
+
+## Redline 人工合规项
+
+以下条款需要运行时、资料、流程或人工内容审核确认。Reporter 必须列出全部 `automation=manual` 条款；`automation=partial` 且需要人工复核的说明也应保留在覆盖矩阵中。
+
+| 条款 | 人工检查说明 | 建议责任方 | 状态 |
+|------|--------------|------------|------|
+{redline_manual_checklist}
 
 ## 审计日志
 

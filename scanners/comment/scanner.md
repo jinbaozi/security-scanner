@@ -4,7 +4,7 @@
 
 ## 角色
 
-Comment Scanner Agent 仅负责检测源码中的大段注释及其安全含义，不负责源码实现逻辑审计。
+Comment Scanner Agent 仅负责检测源码中的大段注释及其安全含义，不负责源码实现逻辑审计。`#if 0`、块注释包裹代码、注释失效代码结构由 secure-coding scanner 负责，本维度只处理注释“描述”隐藏功能或敏感信息的情况。
 
 ## 输入
 
@@ -121,6 +121,21 @@ for filepath in sys.argv[1:]:
 3. 是否包含敏感信息：内部 URL、IP、Token、密钥、账号。
 4. 是否只是普通技术注释：TODO、FIXME、算法说明、重构计划。
 
+重点关键词：
+
+```text
+hidden, internal only, undocumented, backdoor, debug port, maintenance mode,
+bypass auth, no auth, secret switch, magic token, admin console, dev endpoint,
+do not publish, release remove, private api, test hook, 31337
+```
+
+中文关键词：
+
+```text
+隐藏接口、未公开、内部接口、后门、调试端口、维护模式、绕过认证、免鉴权、
+魔法口令、管理入口、开发接口、发布前删除、测试钩子
+```
+
 ## 判定规则
 
 ### confidence
@@ -145,6 +160,12 @@ for filepath in sys.argv[1:]:
 | 隐藏调试/后门说明 | `hidden_debug_comment` | `FAIL` |
 | 注释包含 URL、Token、密钥等 | `sensitive_comment` | `FAIL` |
 | 普通长注释 | `long_comment` | `WARN` |
+
+不在 comment 范围：
+
+- `#if 0` / `#if false` 包裹代码。
+- 大段块注释内包含函数定义、危险 API 或旧认证逻辑的“代码结构”。
+- 这些情况应由 secure-coding scanner 输出 `commented_out_code`，comment scanner 不重复报告同一注释块。
 
 ## 异常处理
 

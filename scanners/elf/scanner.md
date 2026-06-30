@@ -9,6 +9,7 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
 ## 输入
 
 - `elf_files`: 从 Scan Plan 获取的 ELF 文件路径列表
+- `config_files` / `build_files`（可选）：构建脚本、安装脚本、sysctl 配置片段，用于弱检 ASLR 加固配置
 - `checksec_available`: boolean，表示 `checksec` 工具是否可用
 - `component_name`: 源码组件名称
 - `references/checksec-guide.md`: checksec 字段含义与 readelf 降级规则
@@ -52,6 +53,8 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
 | `detail` | 简体中文说明风险和实际状态 |
 | `suggestion` | 简体中文整改建议；PASS 项写“无需整改” |
 | `evidence` | checksec/readelf/file 命令输出片段 |
+
+> redline 11.2.1 的二进制侧由 PIE、NX、RELRO、Canary、BIND_NOW、FORTIFY_SOURCE 等安全编译项覆盖。内核 ASLR（如 `/proc/sys/kernel/randomize_va_space=2`）属于运行时/系统加固配置，本 scanner 不新增 `aslr` check_item；仅对构建或安装脚本中的明显弱化配置输出 WARN。
 
 ## 执行步骤
 
@@ -139,6 +142,16 @@ file "{filepath}" | grep -E "stripped|not stripped"
 | 不检查 | 栈溢出检测 | `stack_check` | - | - | - | - |
 
 > trapv 和 stack-check 行仅用于完整性说明，实际不会生成 finding。报告不包含这两项。
+
+### Step 3b: 加固脚本弱检（不新增 ASLR check_item）
+
+对 `config_files` / `build_files` 中的 sysctl、安装脚本和容器启动脚本执行弱检：
+
+```bash
+grep -rnE "randomize_va_space\s*=\s*[01]\|kernel\.randomize_va_space\s*=\s*[01]\|echo\s+[01]\s*>\s*/proc/sys/kernel/randomize_va_space" {config_and_build_files}
+```
+
+命中时输出 `check_item=pie` 的 `WARN` finding（不是 `FAIL`，也不新增 `aslr` check_item），`detail` 说明“脚本疑似关闭或弱化内核 ASLR；PIE 已覆盖二进制侧，运行时加固需人工确认”，`redline_clause=11.2.1`。
 
 ### Step 4: 判定 severity、confidence、verdict
 

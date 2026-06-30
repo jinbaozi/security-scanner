@@ -1,0 +1,24 @@
+id: integrity
+name: 完整性校验扫描
+version: 1.0.0
+description: RPM/DEB 签名元数据、构建校验脚本、gpg/cosign/sha256sum 完整性检查
+
+consumes:
+  - dim: dependency
+    inject_as: data
+    severity_filter: [critical, high, medium]
+    token_budget: 4000
+references:
+  - path: references/redline-clauses.md
+    scope: local
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip

@@ -1,5 +1,23 @@
 {
   "scan_metadata": {"scanner": "network", "version": "1.0", "component": "network-test"},
+  "artifacts": {
+    "port_inventory": [
+      {
+        "port": 8080,
+        "protocol": "tcp",
+        "source": "tests/fixtures/network-test/server.go:10",
+        "evidence": "Addr: \":8080\"",
+        "declared_in_communication_matrix": false
+      },
+      {
+        "port": 23,
+        "protocol": "tcp",
+        "source": "tests/fixtures/network-test/config.yaml:3",
+        "evidence": "port: 23",
+        "declared_in_communication_matrix": false
+      }
+    ]
+  },
   "findings": [
     {
       "id": "NETWORK-001",
@@ -14,7 +32,9 @@
       "verdict_reasoning": "MinVersion = VersionSSL30，启用 SSLv3，红线 RL-100",
       "detail": "服务器配置启用了 SSLv3 协议",
       "suggestion": "改用 TLSv1.2 或 TLSv1.3",
-      "evidence": "tls.Config{MinVersion: tls.VersionSSL30}"
+      "evidence": "tls.Config{MinVersion: tls.VersionSSL30}",
+      "redline_clause": "6.1.2",
+      "rl_ids": ["RL-100"]
     },
     {
       "id": "NETWORK-002",
@@ -29,7 +49,9 @@
       "verdict_reasoning": "通过 &http.Server{Addr: \":8080\"} 识别监听 8080/TCP",
       "detail": "应用监听 8080/TCP 端口",
       "suggestion": "无",
-      "evidence": "Addr: \":8080\""
+      "evidence": "Addr: \":8080\"",
+      "redline_clause": null,
+      "rl_ids": []
     },
     {
       "id": "NETWORK-003",
@@ -44,7 +66,9 @@
       "verdict_reasoning": "23 端口为 Telnet 协议默认端口，红线 RL-104",
       "detail": "应用监听 23/TCP（Telnet 默认端口）",
       "suggestion": "改用 SSH（22 端口）",
-      "evidence": "port: 23"
+      "evidence": "port: 23",
+      "redline_clause": "6.1.2",
+      "rl_ids": ["RL-104"]
     }
   ]
 }

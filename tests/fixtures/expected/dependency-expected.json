@@ -1,0 +1,54 @@
+{
+  "scan_metadata": {
+    "scanner": "dependency",
+    "version": "1.0",
+    "component": "dependency-test"
+  },
+  "artifacts": {
+    "sbom": [
+      {
+        "name": "openssl",
+        "version": "1.0.2",
+        "ecosystem": "system",
+        "source": "vendor/openssl-1.0.2/README:1",
+        "confidence": "medium"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "DEPENDENCY-001",
+      "dimension": "dependency",
+      "file": "package.json",
+      "line": null,
+      "check_item": "missing_lock_file",
+      "status": "WARN",
+      "severity": "medium",
+      "confidence": "high",
+      "verdict": "needs_human",
+      "verdict_reasoning": "发现 package.json 但未发现对应 lock 文件，依赖版本不可复现。",
+      "detail": "缺少依赖锁文件，依赖解析结果可能随时间变化。",
+      "suggestion": "生成并随包提交 package-lock.json、pnpm-lock.yaml 或 yarn.lock。",
+      "evidence": "manifest=package.json | lock_file=missing",
+      "redline_clause": "2.1.2",
+      "rl_ids": ["RL-211"]
+    },
+    {
+      "id": "DEPENDENCY-002",
+      "dimension": "dependency",
+      "file": "vendor/openssl-1.0.2/README",
+      "line": 1,
+      "check_item": "known_vulnerability",
+      "status": "FAIL",
+      "severity": "high",
+      "confidence": "medium",
+      "verdict": "suspected",
+      "verdict_reasoning": "vendored OpenSSL 1.0.2 属老旧版本，需结合 OSV/grype/trivy 或供应商公告确认 CVE。",
+      "detail": "嵌入式第三方库版本较旧，可能存在公开高危漏洞。",
+      "suggestion": "升级到受支持版本，并保留 SBOM 与漏洞扫描结果。",
+      "evidence": "library=openssl@1.0.2 | trigger=vendored_version",
+      "redline_clause": "2.1.1",
+      "rl_ids": ["RL-210"]
+    }
+  ]
+}

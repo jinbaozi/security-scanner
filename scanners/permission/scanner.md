@@ -40,7 +40,7 @@ Permission Scanner Agent 仅负责检查文件权限风险，包括 setuid/setgi
 | `id` | `PERM-{SEQ}`，SEQ 从 001 递增 |
 | `dimension` | 固定为 `permission` |
 | `line` | 权限问题无行号，固定为 `null` |
-| `check_item` | `setuid_setgid`、`world_writable`、`unexpected_executable`、`system_owned` |
+| `check_item` | `setuid_setgid`、`world_writable`、`unexpected_executable`、`system_owned`、`credential_file_permission` |
 | `status` | 最终输出仅使用 `PASS`、`WARN`、`FAIL`；跳过或未知情况统一输出为 `WARN` 并在 detail 中说明 |
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
 | `confidence` | `high`、`medium`、`low` |
@@ -54,6 +54,7 @@ Permission Scanner Agent 仅负责检查文件权限风险，包括 setuid/setgi
 | setuid/setgid 位 | 设置了 setuid 或 setgid | - | 未设置 |
 | World-writable | 设置了 o+w 权限 | - | 无 o+w |
 | 脚本可执行权限 | 非预期脚本有 +x | 入口脚本用途不明确 | 权限合理 |
+| 凭据文件权限 | 私钥/凭据文件 group/world 可读写 | 权限过宽但用途需确认 | 仅 owner 可读或不可读 |
 
 ## 执行步骤
 
@@ -111,6 +112,23 @@ ls -la "{filepath}" | awk '{print $1, $3, $4, $9}'
 - `-rwxr-sr-x`：第 7 位为 `s` 或 `S`，表示 setgid。
 - `-rwxrwxrwx`：第 9 位为 `w`，表示 world-writable。
 
+### Step 4b: 凭据文件权限
+
+对私钥、token、配置凭据文件执行权限检查：
+
+```bash
+find {target} -type f \( \
+  -name "*.pem" -o -name "*.key" -o -name "id_rsa" -o -name "id_ed25519" \
+  -o -name ".env" -o -name "*.env" -o -name "*secret*" -o -name "*credential*" \
+\) -exec stat -c '%a %U %G %n' {} \; 2>/dev/null
+```
+
+判定：
+
+- 私钥或 `.env` 文件权限包含 group/world 读写（如 `0644`、`0660`、`0666`）：`check_item=credential_file_permission`、`status=FAIL`、`severity=high`。
+- 配置凭据文件权限为 `0640` 且属组为服务专用组：`WARN`，需人工确认部署边界。
+- 推荐权限：私钥 `0600`，服务凭据配置 `0600` 或受控 `0640`。
+
 ### Step 5: 排除特殊文件
 
 自动排除：
@@ -124,6 +142,7 @@ ls -la "{filepath}" | awk '{print $1, $3, $4, $9}'
 - setuid/setgid：通常 `severity=high`；若可执行文件来源不明或 world-writable，可升为 `critical`。
 - world-writable：通常 `severity=medium`；若是脚本、ELF 或配置文件，可升为 `high`。
 - unexpected executable：通常 `severity=low`、`confidence=medium`，交由 Verdict 阶段确认。
+- credential_file_permission：私钥、token、`.env` 等凭据文件 group/world 可读写通常 `severity=high`；受控属组读取为 `medium/WARN`。
 
 ## 降级策略
 

@@ -18,7 +18,9 @@
       "verdict_reasoning": "MD5 用于密码哈希，红线 RL-040",
       "detail": "MD5 用于密码派生",
       "suggestion": "改用 bcrypt/scrypt/Argon2",
-      "evidence": "MD5((unsigned char*)pwd, strlen(pwd), digest)"
+      "evidence": "MD5((unsigned char*)pwd, strlen(pwd), digest)",
+      "redline_clause": "5.1.4",
+      "rl_ids": ["RL-040"]
     },
     {
       "id": "CRYPTO-002",
@@ -33,7 +35,9 @@
       "verdict_reasoning": "DES 使用，红线 RL-001",
       "detail": "DES 加密算法已被认为不安全",
       "suggestion": "改用 AES-128 或 SM4",
-      "evidence": "DES_set_key((DES_cblock*)\"12345678\", &ks)"
+      "evidence": "DES_set_key((DES_cblock*)\"12345678\", &ks)",
+      "redline_clause": "5.1.4",
+      "rl_ids": ["RL-001"]
     },
     {
       "id": "CRYPTO-003",
@@ -48,7 +52,9 @@
       "verdict_reasoning": "Python random.random 用于 key 派生，红线 RL-080",
       "detail": "使用密码学不安全的伪随机数派生密钥",
       "suggestion": "改用 secrets 模块或 os.urandom",
-      "evidence": "return random.random()  # 上下文: derive_key"
+      "evidence": "return random.random()  # 上下文: derive_key",
+      "redline_clause": "3.1.3",
+      "rl_ids": ["RL-080"]
     },
     {
       "id": "CRYPTO-004",
@@ -63,7 +69,9 @@
       "verdict_reasoning": "Bouncy Castle 1.46 < 1.50，默认启用 MD5withRSA",
       "detail": "Bouncy Castle 1.46 默认启用 MD5withRSA 签名",
       "suggestion": "升级到 Bouncy Castle ≥ 1.70",
-      "evidence": "library=BouncyCastle@1.46 | library_version=1.46 | trigger=MD5withRSA default | cve=null"
+      "evidence": "library=BouncyCastle@1.46 | library_version=1.46 | trigger=MD5withRSA default | cve=null",
+      "redline_clause": "5.1.4",
+      "rl_ids": ["RL-121"]
     }
   ]
 }

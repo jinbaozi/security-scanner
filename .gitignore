@@ -1,6 +1,7 @@
 # docs/superpowers and .superpowers are meta workspace, not project code
 docs/superpowers/
 .superpowers/
+.worktrees/
 
 # Python build artifacts
 __pycache__/
