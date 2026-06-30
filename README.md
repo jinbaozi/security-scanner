@@ -157,12 +157,26 @@ Reporter 指令定义三类输出：
 
 | 字段 | 说明 |
 |------|------|
-| `dimension` | `elf`、`url`、`secret`、`comment`、`file_leak`、`permission`、`crypto`、`network`、`component-info` |
-| `line` | 源码行号为 integer；注释范围可为 string，如 `"36-50"`；不适用为 `null` |
+| `dimension` | `comment`、`url`、`secret`、`fileleak`、`permission`、`elf`、`network`、`crypto`、`component-info` |
+| `line` | 按维度解释，源码行号为 integer；注释范围可为 string，如 `"36-50"`；不适用为 `null` |
 | `status` | `PASS`、`WARN`、`FAIL` |
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
 | `confidence` | `high`、`medium`、`low` |
 | `verdict` | `confirmed`、`suspected`、`rejected`、`needs_human`、`unverified` |
+
+`line` 字段按维度解释：
+
+| 维度 | line 类型 | 示例 |
+|------|-----------|------|
+| `comment` | `string` | `"36-50"` |
+| `url` | `integer` | `45` |
+| `secret` | `integer` | `32` |
+| `fileleak` | `null` 或 `integer` | `null` |
+| `permission` | `null` | `null` |
+| `elf` | `null` | `null` |
+| `network` | `integer` 或 `null` | `9` |
+| `crypto` | `integer` 或 `null` | `4` |
+| `component-info` | `integer` 或 `null` | `5` |
 
 ## 项目结构
 
