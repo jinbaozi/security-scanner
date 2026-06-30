@@ -1,4 +1,6 @@
 """Topological dependency resolution for scanners. See plan Task 1."""
+from typing import Any
+
 from scanners.registry.schema import MetaSchema
 
 
@@ -6,9 +8,20 @@ class CircularDependencyError(ValueError):
     pass
 
 
-def topological_order(scanners: dict[str, MetaSchema]) -> list[str]:
+def _meta_for(scanner: Any) -> MetaSchema:
+    if isinstance(scanner, MetaSchema):
+        return scanner
+    return scanner.meta
+
+
+def topological_order(scanners: dict[str, Any]) -> list[str]:
     """Return scanner IDs in dependency-first order."""
-    for scanner_id, meta in scanners.items():
+    scanner_meta = {
+        scanner_id: _meta_for(scanner)
+        for scanner_id, scanner in scanners.items()
+    }
+
+    for scanner_id, meta in scanner_meta.items():
         for consume in meta.consumes:
             if consume.dim not in scanners:
                 raise ValueError(
@@ -17,7 +30,7 @@ def topological_order(scanners: dict[str, MetaSchema]) -> list[str]:
 
     in_degree = {scanner_id: 0 for scanner_id in scanners}
     dependents: dict[str, list[str]] = {scanner_id: [] for scanner_id in scanners}
-    for scanner_id, meta in scanners.items():
+    for scanner_id, meta in scanner_meta.items():
         for consume in meta.consumes:
             dependents[consume.dim].append(scanner_id)
             in_degree[scanner_id] += 1
