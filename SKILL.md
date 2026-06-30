@@ -230,7 +230,7 @@ Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanner
 ```json
 {
   "id": "{DIMENSION}-{SEQ}",
-  "dimension": "elf|url|secret|comment|file_leak|permission",
+  "dimension": "comment|url|secret|fileleak|permission|elf|network|crypto|component-info",
   "file": "文件绝对路径",
   "line": "integer | string | null — 源码行号、注释范围或不适用",
   "check_item": "检查项名称",
@@ -249,12 +249,15 @@ Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanner
 
 | 维度 | line 类型 | 示例 |
 |------|-----------|------|
-| ELF | `null` | `null` |
-| URL | `integer` | `45` |
-| Secret | `integer` | `32` |
-| Comment | `string` | `"36-50"` |
-| FileLeak | `null` 或 `integer` | `null` |
-| Permission | `null` | `null` |
+| `comment` | `string` | `"36-50"` |
+| `url` | `integer` | `45` |
+| `secret` | `integer` | `32` |
+| `fileleak` | `null` 或 `integer` | `null` |
+| `permission` | `null` | `null` |
+| `elf` | `null` | `null` |
+| `network` | `integer` 或 `null` | `9` |
+| `crypto` | `integer` 或 `null` | `4` |
+| `component-info` | `integer` 或 `null` | `5` |
 
 **新维度 evidence 扩展**：crypto / network / component-info 维度的 finding 的 `evidence` 字段可包含库信息，格式：
 `library=NAME@VERSION | library_version=VERSION | trigger=REASON | cve=CVE-XXXX-XXXXX`
