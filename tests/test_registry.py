@@ -71,6 +71,17 @@ def test_discover_skips_registry_dir(tmp_path: Path):
     assert scanners == {}
 
 
+def test_discover_ignores_non_scanner_directories(tmp_path: Path):
+    scanners_dir = tmp_path / "scanners"
+    (scanners_dir / "__pycache__").mkdir(parents=True)
+    (scanners_dir / ".cache").mkdir()
+    (scanners_dir / "notes").mkdir()
+
+    scanners = discover_scanners(scanners_dir)
+
+    assert scanners == {}
+
+
 def test_discover_duplicate_id_raises(tmp_path: Path):
     scanners_dir = tmp_path / "scanners"
     for name in ("a", "b"):

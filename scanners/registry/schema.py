@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 
 Severity = Literal["critical", "high", "medium", "low", "info"]
@@ -48,11 +48,30 @@ def validate_meta(meta_path: Path) -> MetaSchema:
     if not meta_path.exists():
         raise ValueError(f"meta.yaml not found: {meta_path}")
 
-    data = yaml.safe_load(meta_path.read_text()) or {}
-    for consume in data.get("consumes", []):
+    try:
+        data = yaml.safe_load(meta_path.read_text()) or {}
+    except yaml.YAMLError as exc:
+        raise ValueError(f"invalid YAML in {meta_path}: {exc}") from exc
+
+    if not isinstance(data, dict):
+        raise ValueError(f"meta.yaml must be a mapping in {meta_path}")
+
+    consumes = data.get("consumes", [])
+    if consumes is None:
+        consumes = []
+    if not isinstance(consumes, list):
+        raise ValueError(f"consumes must be a list in {meta_path}")
+
+    for consume in consumes:
+        if not isinstance(consume, dict):
+            raise ValueError(f"consume entries must be mappings in {meta_path}")
         if consume.get("inject_as") != "data":
             raise ValueError(
                 f"inject_as must be 'data' (Q29), got {consume.get('inject_as')!r} "
                 f"in {meta_path}"
             )
-    return MetaSchema(**data)
+
+    try:
+        return MetaSchema(**data)
+    except ValidationError as exc:
+        raise ValueError(f"invalid meta.yaml schema in {meta_path}: {exc}") from exc

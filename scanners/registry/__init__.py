@@ -26,11 +26,15 @@ def discover_scanners(root: Path = Path("scanners")) -> dict[str, Scanner]:
 
         scanner_md = dim_dir / "scanner.md"
         meta_yaml = dim_dir / "meta.yaml"
-        if not scanner_md.exists():
+        has_scanner_md = scanner_md.exists()
+        has_meta_yaml = meta_yaml.exists()
+        if not has_scanner_md and not has_meta_yaml:
+            continue
+        if not has_scanner_md:
             raise ValueError(
                 f"scanner.md missing in {dim_dir} (meta.yaml exists but no prompt)"
             )
-        if not meta_yaml.exists():
+        if not has_meta_yaml:
             raise ValueError(
                 f"meta.yaml missing in {dim_dir} (scanner.md exists but no metadata)"
             )
