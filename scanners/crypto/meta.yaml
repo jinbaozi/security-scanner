@@ -1,0 +1,33 @@
+id: crypto
+name: 密码学合规扫描
+version: 1.0.0
+description: 对称/非对称/Hash 算法、伪加密、随机数 API、不安全协议、库版本知识库匹配
+
+consumes:
+  - dim: elf
+    inject_as: data
+    severity_filter: [critical, high]
+    token_budget: 8000
+  - dim: network
+    inject_as: data
+    severity_filter: [critical, high]
+    token_budget: 4000
+
+references:
+  - path: references/patterns-crypto.md
+    scope: local
+  - path: ../../references/red-line-rules.md
+    scope: shared
+  - path: ../../references/library-vuln-caps.md
+    scope: shared
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip

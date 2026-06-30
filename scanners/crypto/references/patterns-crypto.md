@@ -1,6 +1,6 @@
 # 密码学 Patterns 库
 
-> 本文件集中维护密码学相关的 pattern 集合。crypto-scanner 和 secret-scanner 都引用此文件。
+> 本文件集中维护 crypto scanner 专属的密码学相关 pattern 集合。
 > 用户可在此扩展自定义 pattern。
 
 ## 1. 对称算法 Pattern
