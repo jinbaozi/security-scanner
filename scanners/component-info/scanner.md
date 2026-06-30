@@ -12,8 +12,8 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 - `config_files`: 配置文件列表
 - `component_name`: 源码组件名称
 - `references/personal-data-patterns.md`: 个人数据字段名与违规处理 pattern 库
-- `references/red-line-rules.md`: 红线规则库（RL-140 ~ RL-159 个人数据、RL-160 ~ RL-179 默认账号）
-- `references/allowlists.md`: 白名单与例外规则
+- `../../references/red-line-rules.md`: 红线规则库（RL-140 ~ RL-159 个人数据、RL-160 ~ RL-179 默认账号）
+- `../../references/allowlists.md`: 白名单与例外规则
 - `references/architecture-signals.md`: 架构类型推断信号库（Django/Flask/Spring/Express/Gin/Telnet/socket 等）
 
 ## 输出
@@ -59,8 +59,8 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 读取以下参考文件以加载检测规则：
 
 - `references/personal-data-patterns.md`：个人数据字段名 pattern 库（姓名、手机号、身份证、邮箱、位置、设备标识、银行卡、出生日期、头像、IP 地址），覆盖 snake_case / camelCase / PascalCase 三种命名约定；违规处理 pattern（明文存储 RL-140/RL-141/RL-142、HTTP 明文传输 RL-143、邮箱明文日志 RL-144）
-- `references/red-line-rules.md`：红线规则库（RL-140 ~ RL-159 个人数据违规处理、RL-160 ~ RL-179 默认账号未披露）
-- `references/allowlists.md`：白名单与例外规则
+- `../../references/red-line-rules.md`：红线规则库（RL-140 ~ RL-159 个人数据违规处理、RL-160 ~ RL-179 默认账号未披露）
+- `../../references/allowlists.md`：白名单与例外规则
 - `references/architecture-signals.md`：架构类型推断信号库（B/S 框架、DNS 服务、嵌入式 socket 等）
 
 ### Step 2: Layer 1 - 架构类型推断
@@ -87,7 +87,7 @@ grep -rnE "socket\.socket|telnetlib\.|net\.Listen|ServerSocket|TcpListener" {all
 
 ### Step 3: Layer 2 - 默认账号识别
 
-执行默认账号 pattern 匹配（`references/red-line-rules.md` RL-160 ~ RL-162）：
+执行默认账号 pattern 匹配（`../../references/red-line-rules.md` RL-160 ~ RL-162）：
 
 ```bash
 # RL-160: admin/admin123/password

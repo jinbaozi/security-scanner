@@ -1,0 +1,33 @@
+id: component-info
+name: 组件基础档案扫描
+version: 1.0.0
+description: 架构类型、默认账号、个人数据处理、root 启动需求、声明 vs 实际对账
+
+consumes:
+  - dim: elf
+    inject_as: data
+    severity_filter: [critical, high]
+    token_budget: 4000
+  - dim: crypto
+    inject_as: data
+    severity_filter: [critical, high]
+    token_budget: 4000
+
+references:
+  - path: references/personal-data-patterns.md
+    scope: local
+  - path: references/architecture-signals.md
+    scope: local
+  - path: ../../references/red-line-rules.md
+    scope: shared
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 20000
+  references_token_budget: 14000
+
+failure:
+  max_retries: 2
+  on_failure: skip
