@@ -113,6 +113,52 @@ def test_consume_returns_defensive_copies_of_findings():
     assert later_result[0]["evidence"]["path"] == "before"
 
 
+def test_all_findings_returns_findings_from_all_published_dims():
+    context = ScanContext()
+    context.publish("network", [finding("network-high", "high")])
+    context.publish(
+        "crypto",
+        [
+            finding("crypto-critical", "critical"),
+            finding("crypto-medium", "medium"),
+        ],
+    )
+
+    result = context.all_findings()
+
+    assert [item["id"] for item in result] == [
+        "network-high",
+        "crypto-critical",
+        "crypto-medium",
+    ]
+
+
+def test_all_findings_returns_defensive_copies_of_findings():
+    context = ScanContext()
+    context.publish(
+        "network",
+        [
+            {
+                "id": "original",
+                "severity": "high",
+                "description": "abcd",
+                "evidence": {"path": "before"},
+            }
+        ],
+    )
+
+    result = context.all_findings()
+    result.append(finding("added-after-collection", "high"))
+    result[0]["id"] = "mutated"
+    result[0]["evidence"]["path"] = "after"
+
+    later_result = context.all_findings()
+
+    assert len(later_result) == 1
+    assert later_result[0]["id"] == "original"
+    assert later_result[0]["evidence"]["path"] == "before"
+
+
 def test_consume_unknown_dim_returns_empty_list():
     context = ScanContext()
 

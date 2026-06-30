@@ -15,6 +15,13 @@ class ScanContext:
         """Overwrite findings for a scanner dimension."""
         self._findings_by_dim[dim] = deepcopy(findings)
 
+    def all_findings(self) -> list[dict[str, Any]]:
+        """Return defensive copies of all published findings."""
+        findings: list[dict[str, Any]] = []
+        for dim_findings in self._findings_by_dim.values():
+            findings.extend(dim_findings)
+        return deepcopy(findings)
+
     def consume(
         self,
         dim: str,
