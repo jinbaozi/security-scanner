@@ -1,0 +1,20 @@
+id: network
+name: 网络协议与端口扫描
+version: 1.0.0
+description: 通信协议（SSHv2/TLS1.2/TLS1.3）、监听端口、声明 vs 实际对账
+
+consumes: []
+references:
+  - path: ../../references/allowlists.md
+    scope: shared
+  - path: references/patterns-network.md
+    scope: local
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip
