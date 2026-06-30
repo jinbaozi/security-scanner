@@ -8,7 +8,7 @@ redline_clauses:
   - clause_id: 4.3.2
     rl_ids: ["RL-143"]
     automation: partial
-    profile_min: kylin-redline-p0
+    profile_min: redline-p0
     summary: >-
       禁止在产品软件中包含用户界面不可见或产品资料未描述的未公开的公网地址（包括公网IP地址、公网URL地址/域名、邮箱地址）。
     manual_note: >-
@@ -16,7 +16,7 @@ redline_clauses:
   - clause_id: 6.1.2
     rl_ids: ["RL-105", "RL-143"]
     automation: partial
-    profile_min: kylin-redline-p0
+    profile_min: redline-p0
     summary: >-
       在非信任网络之间进行敏感数据的传输须采用安全传输通道或者加密后传输，有标准协议规定除外。
     manual_note: >-
@@ -25,7 +25,7 @@ redline_clauses:
   - clause_id: 9.1.1
     rl_ids: ["RL-140", "RL-141", "RL-142", "RL-143", "RL-144"]
     automation: partial
-    profile_min: kylin-redline-full
+    profile_min: redline-full
     summary: >-
       涉及个人数据的采集/处理的功能须提供安全保护机制（如认证、权限控制、日志记录等），并通过产品资料向客户公开。
     manual_note: >-

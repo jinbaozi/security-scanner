@@ -44,11 +44,11 @@
 
 | Profile | 维度范围 | 说明 |
 |---------|----------|------|
-| `kylin-redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 默认 profile，适合常规红线扫描 |
-| `kylin-redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整扫描，必须显式指定 |
-| `kylin-redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
+| `redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 默认 profile，适合常规红线扫描 |
+| `redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整扫描，必须显式指定 |
+| `redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
 
-未指定 profile 时默认使用 `kylin-redline-p0`。非法 profile 会导致 Orchestrator `FAIL`，不会进入 Phase 1 扫描。Profile 表示目标维度集合；实际执行维度由 registry 发现结果与 profile 取交集决定，未发现的 profile 维度会记录为覆盖缺口。
+未指定 profile 时默认使用 `redline-p0`。非法 profile 会导致 Orchestrator `FAIL`，不会进入 Phase 1 扫描。Profile 表示目标维度集合；实际执行维度由 registry 发现结果与 profile 取交集决定，未发现的 profile 维度会记录为覆盖缺口。
 
 ## 系统要求
 

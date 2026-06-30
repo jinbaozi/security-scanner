@@ -50,7 +50,7 @@ def test_slice_redline_clauses_generates_dim_references(tmp_path: Path):
     assert "clause_id: 5.1.3" in crypto_text
     assert 'rl_ids: ["RL-080", "RL-081", "RL-082", "RL-083", "RL-084"]' in crypto_text
     assert "automation: full" in crypto_text
-    assert "profile_min: kylin-redline-p0" in crypto_text
+    assert "profile_min: redline-p0" in crypto_text
     assert "summary:" in crypto_text
 
     all_text = "\n".join(

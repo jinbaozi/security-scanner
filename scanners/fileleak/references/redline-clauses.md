@@ -8,7 +8,7 @@ redline_clauses:
   - clause_id: 4.1.1
     rl_ids: ["RL-160", "RL-161", "RL-162", "RL-180", "RL-181", "RL-182", "RL-217", "RL-218", "RL-219"]
     automation: partial
-    profile_min: kylin-redline-p0
+    profile_min: redline-p0
     summary: >-
       禁止存在可绕过系统安全机制（认证、权限控制、日志记录）对系统或数据进行访问的功能。 • 禁止隐秘访问方式：包括隐藏账号、隐藏口令、无鉴权的隐藏模式命令/参数、隐藏组合键访问方式；隐藏的协议/端口/服务；隐藏的生产命令/端口、调测命令/端口 • 禁止不可管理的认证/访问方式：包括用户不可管理的账号，人机接口以及可远程访问的机机接口的硬编码口令。
     manual_note: >-
@@ -17,7 +17,7 @@ redline_clauses:
   - clause_id: 4.3.1
     rl_ids: ["RL-246"]
     automation: partial
-    profile_min: kylin-redline-full
+    profile_min: redline-full
     summary: >-
       禁止在产品软件中存留可能被质疑的组件，包括第三方的网络嗅探、调试工具、开发/编译工具、仅在调测阶段使用的认证密钥、自研调试工具/脚本。
     manual_note: >-

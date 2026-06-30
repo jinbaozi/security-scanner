@@ -51,13 +51,13 @@ triggers:
 
 ## Scan Profiles
 
-Orchestrator 必须接受 `scan_profile` 输入，并按以下合法 profile 调度。未显式指定时默认使用 `kylin-redline-p0`；`kylin-redline-full` 必须由用户或上层流程显式指定。任何其他 profile 名称均为非法输入，必须 `FAIL` 并停止进入 Phase 1。Profile 定义的是最终目标维度集合；实际执行时仍以 `discover_scanners()` 发现结果与 profile 集合取交集，未落地或不可发现的维度必须记录为覆盖缺口，不得虚构 scanner。
+Orchestrator 必须接受 `scan_profile` 输入，并按以下合法 profile 调度。未显式指定时默认使用 `redline-p0`；`redline-full` 必须由用户或上层流程显式指定。任何其他 profile 名称均为非法输入，必须 `FAIL` 并停止进入 Phase 1。Profile 定义的是最终目标维度集合；实际执行时仍以 `discover_scanners()` 发现结果与 profile 集合取交集，未落地或不可发现的维度必须记录为覆盖缺口，不得虚构 scanner。
 
 | Profile | 维度范围 | 用途 |
 |---------|----------|------|
-| `kylin-redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 默认红线扫描，覆盖现有 9 维和依赖组件风险 |
-| `kylin-redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整红线扫描，需显式指定 |
-| `kylin-redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
+| `redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 默认红线扫描，覆盖现有 9 维和依赖组件风险 |
+| `redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整红线扫描，需显式指定 |
+| `redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
 
 ## 文件结构
 
@@ -122,7 +122,7 @@ security-scanner/
 SKILL.md
 ├── Phase -1 -> references/dependency-check.md
 ├── Phase 0  -> orchestration/reconnaissance.md
-├── Phase 1  -> 校验 scan_profile（默认 kylin-redline-p0）
+├── Phase 1  -> 校验 scan_profile（默认 redline-p0）
 │              -> discover_scanners() 自动发现 scanners/<dim>/{meta.yaml,scanner.md}
 │              -> 与 profile 维度集合取交集后调度
 │              -> topological_order() 按 consumes 依赖调度
@@ -188,7 +188,7 @@ Phase 0: 发现阶段 PASS
 
 ### Phase 1: registry + profile 调度扫描
 
-根据 Scan Plan、`scan_profile` 和 scanner registry 按需加载 scanner 模块并派发独立 LLM session（Q21B）。`scan_profile` 未指定时使用 `kylin-redline-p0`；`kylin-redline-full` 必须显式指定；非法 profile 立即 `FAIL`。
+根据 Scan Plan、`scan_profile` 和 scanner registry 按需加载 scanner 模块并派发独立 LLM session（Q21B）。`scan_profile` 未指定时使用 `redline-p0`；`redline-full` 必须显式指定；非法 profile 立即 `FAIL`。
 
 Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanners/<dim>/` 目录中的 `scanner.md` + `meta.yaml` + 可选 `references/`。新增维度只需 drop a directory，调度器通过目录发现和 `meta.yaml` 依赖声明完成加载、排序和 reference 注入。
 
