@@ -1,0 +1,18 @@
+id: url
+name: 公网地址扫描
+version: 1.0.0
+description: 硬编码公网 URL、IP、域名、邮箱；HTTP 明文外部地址
+
+consumes: []
+references:
+  - path: ../../references/allowlists.md
+    scope: shared
+
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+
+failure:
+  max_retries: 2
+  on_failure: skip
