@@ -6,7 +6,7 @@
 
 ```text
 Phase -1: Pre-flight Check -> 审计 -> Phase 0: Recon -> 审计 A0
--> Phase 1: Parallel Scan -> 审计 A1 -> Phase 2: Verdict -> 审计 A2
+-> Phase 1: Registry Scheduling -> Phase 1.5: Scanner Sessions -> 审计 A1 -> Phase 2: Verdict -> 审计 A2
 -> Phase 3: Report -> 审计 A3 -> 输出
 ```
 
@@ -20,9 +20,17 @@ Phase -1: Pre-flight Check -> 审计 -> Phase 0: Recon -> 审计 A0
 
 Phase -1 和 Phase 0 必须顺序执行，前一 Phase 完成后才能进入下一 Phase。
 
-### 并行执行
+### Phase 1：注册表加载与拓扑调度
 
-Phase 1 中 9 个维度扫描并行执行（6 老 + 3 新）。所有 Scanner 完成后设置 barrier，再进入 Phase 2。
+Phase 1 不再枚举固定 scanner 文件路径。Orchestrator 必须通过 `scanners/registry/` 提供的 registry API 加载生产布局：调用 `discover_scanners(Path("scanners"))` 发现 scanner 元数据和 prompt，验证 9 个 scanner 全部存在；调用 `topological_order(scanners)` 生成依赖优先的执行顺序，并确认不存在循环依赖；随后初始化 `ScanContext()` 作为本次扫描中 scanner findings 的唯一交换上下文。
+
+### Phase 1.5：启动各 scanner session
+
+Orchestrator 按拓扑顺序启动 scanner。每个 scanner 必须运行在独立 LLM session 中（Q21B），只读取自身目录下的 `meta.yaml` session 配置与 `scanner.md` system prompt。对每个 `meta.consumes` 条目，调用 `context.consume(dim, severity_filter, token_budget)` 取得上游 findings；这些 consumed finding JSON 必须作为 user message 中的数据块附加给下游 scanner，不能写入 system prompt（Q29）。按 `meta.references` 加载 reference 文件并纳入该 session 的用户上下文；scanner 输出后解析 finding JSON，并调用 `context.publish(scanner_id, findings)` 发布本维度结果。
+
+### Phase 2：裁决输入
+
+Phase 2 从 `ScanContext` 收集所有维度 findings，再进入现有 verdict flow。裁决阶段继续负责跨维度去重、补充 `confidence` 与 `verdict_reasoning`、执行 A2 审计，并保持后续报告流程不变。
 
 ### 条件跳过
 
@@ -66,10 +74,10 @@ FAIL -> 进入修复循环（最多 2 次自动修复）-> 仍失败则降级
 
 ### Verdict 阶段去重规则
 
-`crypto-scanner` 与 `secret-scanner` 都会在源码中检测同一类模式（如 MD5 调用、AES 调用、加密库导入），verdict 阶段按以下规则去重：
+`crypto` 与 `secret` 两个 scanner 都会在源码中检测同一类模式（如 MD5 调用、AES 调用、加密库导入），verdict 阶段按以下规则去重：
 
-- 同一 `file + line + check_item`（如 `foo.c:42:insecure_hash`）出现在两个 scanner 的 findings 中时，保留 severity 更高的一条；若 severity 相同，保留 `confidence` 更高的一条；若都相同则保留 crypto-scanner 的 finding。
-- 同一 `file + line` 范围内（±5 行）出现多个相关 finding（如一个 MD5() 调用既被 secret-scanner 识别为弱哈希又被 crypto-scanner 识别为不安全算法），合并为一条 finding，evidence 拼接两者的证据。
+- 同一 `file + line + check_item`（如 `foo.c:42:insecure_hash`）出现在两个 scanner 的 findings 中时，保留 severity 更高的一条；若 severity 相同，保留 `confidence` 更高的一条；若都相同则保留 `crypto` 的 finding。
+- 同一 `file + line` 范围内（±5 行）出现多个相关 finding（如一个 MD5() 调用既被 `secret` 识别为弱哈希又被 `crypto` 识别为不安全算法），合并为一条 finding，evidence 拼接两者的证据。
 
 ### A3（Report 审计）
 
@@ -79,8 +87,8 @@ FAIL -> 进入修复循环（最多 2 次自动修复）-> 仍失败则降级
 
 ## Agent 派发约束
 
-- 每个 subagent 只加载自己负责的 scanner 或 reporter 文件。
-- subagent 上下文只包含自身规则、分配文件列表、必要白名单和统一输出 schema。
+- 每个 scanner session 只加载自己负责的 scanner 或 reporter 文件。
+- scanner session 上下文只包含自身规则、分配文件列表、必要白名单、reference 数据、consumed finding 数据块和统一输出 schema。
 - 单个分片不超过 50 个文件。
 - 每个维度最多 8 个并发 agent，总 agent 上限 16。
 - 每个 agent 最多重试 2 次，退避时间为 0s、5s、15s。
