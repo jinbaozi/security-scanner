@@ -100,6 +100,8 @@ Phase 3: 报告生成
   -> 输出终端摘要、JSON、综合报告和 7 份专项报告
 ```
 
+Phase 1 采用 γ-sidecar（gamma sidecar）结构调度 scanner：每个维度都是 `scanners/<dim>/` 下的一组旁挂文件，由 `scanner.md`、`meta.yaml` 和可选 `references/` 组成。Registry 只发现目录，不维护旧式 flat scanner path；新增 scanner 即 drop a directory，让 `discover_scanners()` 读取新目录中的 `meta.yaml` 和 `scanner.md`。
+
 审计检查点：
 
 | 检查点 | 阶段 | 重点 |
@@ -163,6 +165,8 @@ Reporter 指令定义三类输出：
 | `verdict` | `confirmed`、`suspected`、`rejected`、`needs_human`、`unverified` |
 
 ## 项目结构
+
+当前项目采用 γ-sidecar（gamma sidecar）布局：每个 scanner 位于 `scanners/<dim>/`，目录内包含 `scanner.md`、`meta.yaml`，并可按需附带 `references/`。新增维度时只需放入一个新的 `scanners/<dim>/` 目录，不需要增加扁平化 scanner 文件路径或手工修改调度列表。
 
 ```text
 security-scanner/
@@ -237,7 +241,7 @@ security-scanner/
 
 ### 扩展新维度
 
-新增 scanner 只需要创建 `scanners/<new-dim>/meta.yaml` 和 `scanners/<new-dim>/scanner.md`。Phase 1 由 `discover_scanners()` 自动发现维度，并由 `topological_order()` 根据 `meta.yaml` 中的 `consumes` 依赖决定调度顺序，不需要维护硬编码 scanner 列表。
+新增 scanner 只需要按 γ-sidecar 结构创建 `scanners/<new-dim>/`，并在其中放置 `meta.yaml`、`scanner.md` 和可选 `references/`。Phase 1 由 `discover_scanners()` 自动发现维度，并由 `topological_order()` 根据 `meta.yaml` 中的 `consumes` 依赖决定调度顺序，不需要维护硬编码 scanner 列表；新增 scanner 即 drop a directory。
 
 如果新维度需要消费上游 findings，在 `meta.yaml` 中声明 `consumes`，并使用 `inject_as: data`、`severity_filter` 和 `token_budget` 控制注入方式、严重度范围和 token 预算。上游 findings 经 `ScanContext` 中转后作为 data 注入下游 scanner 的 user message，不写入 system prompt。
 
@@ -286,10 +290,23 @@ security-scanner/
 | `source-test/url-test-samples.go` / `.py` | URL、IP、邮箱提取和白名单过滤样本 |
 | `source-test/secret-test-samples.py` / `config-test.yaml` | 口令、密钥、私钥和配置凭证样本 |
 | `source-test/comment-test-samples.c` | 长注释、隐藏调试和未公开接口样本 |
-| `source-test/full-test/` | 覆盖 URL、Secret、Comment、FileLeak、Permission 的端到端小项目 |
 | `fileleak-test/setup-fileleak.sh` | 生成敏感文件泄露测试目录 |
 | `permission-test/setup-permissions.sh` | 生成权限异常测试目录 |
-| `expected/*.json` | 各维度预期结果 baseline |
+| `crypto-test/` | 密码学算法、随机数 API、不安全协议和库依赖样本 |
+| `network-test/` | 网络协议、监听端口、TLS/SSH 配置和声明对账样本 |
+| `component-info-test/` | 组件基础档案单维度样本，覆盖架构、默认账号、个人数据和 root 需求信号 |
+| `source-test/full-test/` | 覆盖 URL、Secret、Comment、FileLeak、Permission 的端到端小项目 |
+| `full-test-component-info/` | 覆盖 component-info 综合对账和 summary 输出的端到端小项目 |
+| `expected/url-expected.json` | 公网地址维度 baseline |
+| `expected/secret-expected.json` | 口令和硬编码维度 baseline |
+| `expected/comment-expected.json` | 未公开接口维度 baseline |
+| `expected/fileleak-expected.json` | 敏感文件泄露维度 baseline |
+| `expected/permission-expected.json` | 文件权限维度 baseline |
+| `expected/elf-expected.json` | ELF 安全编译维度 baseline |
+| `expected/crypto-expected.json` | 密码学合规维度 baseline |
+| `expected/network-expected.json` | 网络协议与端口维度 baseline |
+| `expected/component-info-expected.json` | 组件基础档案 findings baseline |
+| `expected/component-info-summary-expected.json` | 组件基础档案 summary JSON baseline |
 
 可运行的轻量校验：
 

@@ -47,6 +47,8 @@ triggers:
 
 ## 文件结构
 
+本 SKILL 使用 γ-sidecar（gamma sidecar）结构组织 scanner：每个维度位于 `scanners/<dim>/`，由 `scanner.md`、`meta.yaml` 和可选 `references/` 组成。新增 scanner 即 drop a directory；registry 发现的是维度目录，不使用旧式扁平 scanner 文件路径。
+
 ```text
 security-scanner/
 ├── SKILL.md
@@ -158,6 +160,8 @@ Phase 0: 发现阶段 PASS
 ### Phase 1: registry 调度扫描（9 个维度）
 
 根据 Scan Plan 和 scanner registry 按需加载 scanner 模块并派发 9 个独立 LLM session（Q21B）。
+
+Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanners/<dim>/` 目录中的 `scanner.md` + `meta.yaml` + 可选 `references/`。新增维度只需 drop a directory，调度器通过目录发现和 `meta.yaml` 依赖声明完成加载、排序和 reference 注入。
 
 调度策略：
 
