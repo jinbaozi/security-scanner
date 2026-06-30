@@ -4,7 +4,7 @@
 
 ## 项目简介
 
-本 SKILL 用于对源码、配置、脚本、交付包和 ELF 二进制文件进行六维度安全合规检查，并生成简体中文报告。
+本 SKILL 用于对源码、配置、脚本、交付包和 ELF 二进制文件进行九维度安全合规检查，并生成简体中文报告。
 
 适用场景：
 
@@ -88,8 +88,10 @@ Phase -1: 环境预检
 Phase 0: 发现阶段
   -> 探索目录、排除第三方/生成代码、分类文件、生成 Scan Plan
 
-Phase 1: 并行扫描
-  -> 按需派发 9 个维度 Scanner subagent
+Phase 1: registry 调度扫描
+  -> discover_scanners() 自动发现 scanner
+  -> topological_order() 按 consumes 依赖排序
+  -> 通过 ScanContext 在 scanner 间中转 findings
 
 Phase 2: 裁决阶段
   -> 对中低置信度 findings 进行上下文复核
@@ -153,7 +155,7 @@ Reporter 指令定义三类输出：
 
 | 字段 | 说明 |
 |------|------|
-| `dimension` | `elf`、`url`、`secret`、`comment`、`file_leak`、`permission` |
+| `dimension` | `elf`、`url`、`secret`、`comment`、`file_leak`、`permission`、`crypto`、`network`、`component-info` |
 | `line` | 源码行号为 integer；注释范围可为 string，如 `"36-50"`；不适用为 `null` |
 | `status` | `PASS`、`WARN`、`FAIL` |
 | `severity` | `critical`、`high`、`medium`、`low`、`info` |
@@ -166,28 +168,55 @@ Reporter 指令定义三类输出：
 security-scanner/
 ├── README.md
 ├── SKILL.md
+├── component-info.md
 ├── scanners/
-│   ├── elf-scanner.md
-│   ├── url-scanner.md
-│   ├── secret-scanner.md
-│   ├── comment-scanner.md
-│   ├── fileleak-scanner.md
-│   ├── permission-scanner.md
-│   ├── crypto-scanner.md
-│   ├── network-scanner.md
-│   └── component-info-scanner.md
+│   ├── __init__.py
+│   ├── registry/
+│   │   ├── __init__.py
+│   │   ├── schema.py
+│   │   ├── resolver.py
+│   │   ├── context.py
+│   │   └── tokens.py
+│   ├── elf/
+│   │   ├── meta.yaml
+│   │   ├── scanner.md
+│   │   └── references/checksec-guide.md
+│   ├── url/
+│   │   ├── meta.yaml
+│   │   └── scanner.md
+│   ├── secret/
+│   │   ├── meta.yaml
+│   │   └── scanner.md
+│   ├── comment/
+│   │   ├── meta.yaml
+│   │   └── scanner.md
+│   ├── fileleak/
+│   │   ├── meta.yaml
+│   │   └── scanner.md
+│   ├── permission/
+│   │   ├── meta.yaml
+│   │   └── scanner.md
+│   ├── network/
+│   │   ├── meta.yaml
+│   │   ├── scanner.md
+│   │   └── references/patterns-network.md
+│   ├── crypto/
+│   │   ├── meta.yaml
+│   │   ├── scanner.md
+│   │   └── references/patterns-crypto.md
+│   └── component-info/
+│       ├── meta.yaml
+│       ├── scanner.md
+│       ├── references/architecture-signals.md
+│       └── references/personal-data-patterns.md
 ├── orchestration/
 │   ├── orchestrator.md
 │   ├── reconnaissance.md
 │   └── reporter.md
 ├── references/
 │   ├── allowlists.md
-│   ├── checksec-guide.md
 │   ├── dependency-check.md
 │   ├── verdict-rules.md
-│   ├── patterns-crypto.md
-│   ├── patterns-network.md
-│   ├── personal-data-patterns.md
 │   ├── library-vuln-caps.md
 │   └── red-line-rules.md
 ├── templates/
@@ -200,20 +229,19 @@ security-scanner/
 │   ├── report-网络.md
 │   └── report-组件档案.md
 └── tests/
-    └── fixtures/
-        ├── elf-test/
-        ├── source-test/
-        ├── fileleak-test/
-        ├── permission-test/
-        ├── crypto-test/
-        ├── network-test/
-        ├── component-info-test/
-        ├── full-test-component-info/
-        └── expected/
-└── component-info.md
+    ├── fixtures/
+    └── test_*.py
 ```
 
 ## 配置与自定义
+
+### 扩展新维度
+
+新增 scanner 只需要创建 `scanners/<new-dim>/meta.yaml` 和 `scanners/<new-dim>/scanner.md`。Phase 1 由 `discover_scanners()` 自动发现维度，并由 `topological_order()` 根据 `meta.yaml` 中的 `consumes` 依赖决定调度顺序，不需要维护硬编码 scanner 列表。
+
+如果新维度需要消费上游 findings，在 `meta.yaml` 中声明 `consumes`，并使用 `inject_as: data`、`severity_filter` 和 `token_budget` 控制注入方式、严重度范围和 token 预算。上游 findings 经 `ScanContext` 中转后作为 data 注入下游 scanner 的 user message，不写入 system prompt。
+
+本地 reference 放在 `scanners/<dim>/references/` 并以相对路径引用；跨维度共享 reference 放在顶层 `references/`。当前共享关系包括：`network` 和 `crypto` 都引用 `references/red-line-rules.md`、`references/library-vuln-caps.md`；`component-info` 引用 `references/red-line-rules.md`、`references/allowlists.md`。
 
 ### 白名单和排除规则
 
@@ -286,7 +314,7 @@ python3 -m json.tool security-scanner/tests/fixtures/expected/url-expected.json 
 
 ### 9 个新维度和老的 6 个维度怎么协调？
 
-crypto / network / component_info 三个新维度是 6 维度的扩展，不是替代。crypto-scanner 与 secret-scanner 共享 `references/patterns-crypto.md`，verdict 阶段去重（同一 file:line:check_item 留高 severity）。新维度的 evidence 字段可包含库信息，老 6 维度不解析该格式。
+crypto / network / component-info 三个新维度是 6 维度的扩展，不是替代。`crypto` 与 `secret` 维度共享凭证字符串匹配结果时，`secret` 优先（其严重度模型更精细）；`crypto` 仅保留算法/协议相关 finding，凭证泄露细节由 `secret` 报告。新维度的 evidence 字段可包含库信息，老 6 维度不解析该格式。
 
 ### 综合报告为什么有"组件档案概览"章节？
 

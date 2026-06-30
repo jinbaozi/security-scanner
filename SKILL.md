@@ -2,7 +2,8 @@
 name: security-scanner
 description: >
   AI 辅助安全合规扫描工具。扫描软件包的 9 个维度：ELF 安全编译、公网地址、口令硬编码、
-  未公开接口、敏感文件泄露、文件权限。支持 Claude Code / Codex / OpenCode。
+  未公开接口、敏感文件泄露、文件权限、密码学合规、网络协议与端口、组件基础档案。
+  支持 Claude Code / Codex / OpenCode。
 triggers:
   - 安全扫描
   - 合规检查
@@ -42,7 +43,7 @@ triggers:
 6. **文件权限**：setuid/setgid、world-writable、异常可执行权限。
 7. **密码学合规**（crypto）：对称/非对称/Hash 算法、伪加密、随机数 API、不安全协议。
 8. **网络协议与端口**（network）：通信协议（SSHv2/TLS1.2/TLS1.3 等）、监听端口。
-9. **组件基础档案**（component_info）：架构类型、默认账号、个人数据、root 启动需求。
+9. **组件基础档案**（component-info）：架构类型、默认账号、个人数据、root 启动需求。
 
 ## 文件结构
 
@@ -50,30 +51,41 @@ triggers:
 security-scanner/
 ├── SKILL.md
 ├── scanners/
-│   ├── elf-scanner.md
-│   ├── url-scanner.md
-│   ├── secret-scanner.md
-│   ├── comment-scanner.md
-│   ├── fileleak-scanner.md
-│   ├── permission-scanner.md
-│   ├── crypto-scanner.md
-│   ├── network-scanner.md
-│   └── component-info-scanner.md
+│   ├── __init__.py
+│   ├── registry/
+│   │   ├── __init__.py
+│   │   ├── schema.py
+│   │   ├── resolver.py
+│   │   ├── context.py
+│   │   └── tokens.py
+│   ├── elf/{meta.yaml,scanner.md}
+│   ├── url/{meta.yaml,scanner.md}
+│   ├── secret/{meta.yaml,scanner.md}
+│   ├── comment/{meta.yaml,scanner.md}
+│   ├── fileleak/{meta.yaml,scanner.md}
+│   ├── permission/{meta.yaml,scanner.md}
+│   ├── network/{meta.yaml,scanner.md}
+│   ├── crypto/{meta.yaml,scanner.md}
+│   └── component-info/{meta.yaml,scanner.md}
 ├── orchestration/
 │   ├── orchestrator.md
 │   ├── reconnaissance.md
 │   └── reporter.md
 ├── references/
 │   ├── allowlists.md
-│   ├── checksec-guide.md
 │   ├── dependency-check.md
-│   └── verdict-rules.md
+│   ├── verdict-rules.md
+│   ├── library-vuln-caps.md
+│   └── red-line-rules.md
 └── templates/
     ├── report-comprehensive.md
     ├── report-安全编译.md
     ├── report-公网地址.md
     ├── report-口令硬编码.md
-    └── report-未公开接口.md
+    ├── report-未公开接口.md
+    ├── report-密码学.md
+    ├── report-网络.md
+    └── report-组件档案.md
 ```
 
 ## 执行流程
@@ -86,10 +98,9 @@ security-scanner/
 SKILL.md
 ├── Phase -1 -> references/dependency-check.md
 ├── Phase 0  -> orchestration/reconnaissance.md
-├── Phase 1  -> scanners/*.md（仅加载适用维度）
-   - 新增: scanners/crypto-scanner.md
-   - 新增: scanners/network-scanner.md
-   - 新增: scanners/component-info-scanner.md
+├── Phase 1  -> discover_scanners() 自动发现 scanners/<dim>/{meta.yaml,scanner.md}
+│              -> topological_order() 按 consumes 依赖调度
+│              -> ScanContext 中转 scanner findings
 ├── Phase 2  -> references/verdict-rules.md
 └── Phase 3  -> orchestration/reporter.md
               -> templates/report-comprehensive.md
@@ -97,6 +108,9 @@ SKILL.md
               -> templates/report-公网地址.md
               -> templates/report-口令硬编码.md
               -> templates/report-未公开接口.md
+              -> templates/report-密码学.md
+              -> templates/report-网络.md
+              -> templates/report-组件档案.md
 ```
 
 ### Phase -1: 环境预检
@@ -141,36 +155,31 @@ Phase 0: 发现阶段 PASS
   分片数: 3
 ```
 
-### Phase 1: 并行扫描（9 个维度）
+### Phase 1: registry 调度扫描（9 个维度）
 
-根据 Scan Plan 按需加载 scanner 模块并派发 subagent。
+根据 Scan Plan 和 scanner registry 按需加载 scanner 模块并派发 9 个独立 LLM session（Q21B）。
 
-派发策略：
+调度策略：
 
-- 每个 subagent 只加载自己负责的 scanner `.md` 文件。
-- subagent 上下文只包含自身扫描规则、分配文件列表、必要白名单和输出 schema。
-- 不包含其他维度规则或其他 agent 中间结果。
+- 调用 `discover_scanners()` 自动发现 `scanners/<dim>/meta.yaml` 和 `scanners/<dim>/scanner.md`。
+- 调用 `topological_order()` 根据各 scanner `meta.yaml` 的 `consumes` 依赖生成调度顺序；无依赖且资源允许的维度可并行执行。
+- 每个 scanner session 只加载自身 `scanner.md`、分配文件列表、输出 schema，以及 `meta.yaml` 声明的 references。
+- scanner 间 findings 通过 `ScanContext` 中转。若下游 `meta.yaml` 声明 `consumes`，上游 findings 按 `inject_as: data`、`severity_filter`、`token_budget` 筛选后注入下游 user message，不能写入 system prompt。
+- 顶层共享 references 只用于跨维度资料：`network` 和 `crypto` 都引用 `references/red-line-rules.md`、`references/library-vuln-caps.md`；`component-info` 引用 `references/red-line-rules.md`、`references/allowlists.md`。维度专属 references 保留在 `scanners/<dim>/references/`。
 
-按需派发：
+当前 registry 应发现以下 9 个维度：
 
-1. **ELF Scanner**：读取 `scanners/elf-scanner.md`，输入 `elf_files`；ELF 文件 >20 个时分片。
-2. **URL Scanner**：读取 `scanners/url-scanner.md` 和 `references/allowlists.md`，输入 `source_shards + config_files`。
-3. **Secret Scanner**：读取 `scanners/secret-scanner.md`，输入 `source_shards + config_files`。
-4. **Comment Scanner**：读取 `scanners/comment-scanner.md`，输入 `source_shards`。
-5. **FileLeak Scanner**：读取 `scanners/fileleak-scanner.md`，输入完整文件列表（`all_files`）。
-   - 按文件名模式匹配检测敏感文件泄露。
-   - 文件数量超过 5000 时仅按文件名匹配，不做内容确认分析。
-   - 降级时跳过 LOW/MEDIUM/INFO 风险模式，仅检查 HIGH 风险文件。
+1. `elf`：`scanners/elf/{meta.yaml,scanner.md}`
+2. `url`：`scanners/url/{meta.yaml,scanner.md}`
+3. `secret`：`scanners/secret/{meta.yaml,scanner.md}`
+4. `comment`：`scanners/comment/{meta.yaml,scanner.md}`
+5. `fileleak`：`scanners/fileleak/{meta.yaml,scanner.md}`
+6. `permission`：`scanners/permission/{meta.yaml,scanner.md}`
+7. `network`：`scanners/network/{meta.yaml,scanner.md}`
+8. `crypto`：`scanners/crypto/{meta.yaml,scanner.md}`
+9. `component-info`：`scanners/component-info/{meta.yaml,scanner.md}`
 
-6. **Permission Scanner**：读取 `scanners/permission-scanner.md`，输入完整文件列表（`all_files`）。
-   - 检查 setuid/setgid、world-writable、异常可执行权限。
-   - 自动排除虚拟文件系统、挂载点和特殊文件类型。
-   - `stat` 不可用时使用 `ls -la` 解析；大规模扫描时仅检查 ELF 和脚本文件。
-7. **Crypto Scanner**：读取 `scanners/crypto-scanner.md`、`references/patterns-crypto.md`、`references/red-line-rules.md`、`references/library-vuln-caps.md`，输入 `source_shards + config_files + dependency_files`。
-8. **Network Scanner**：读取 `scanners/network-scanner.md`、`references/patterns-network.md`，输入 `source_shards + config_files`。
-9. **Component-Info Scanner**：读取 `scanners/component-info-scanner.md`、`references/personal-data-patterns.md`，输入 `source_shards + config_files + docker_files`。
-
-等待所有 Scanner 完成后执行审计点 A1。
+所有适用 Scanner 完成后执行审计点 A1。
 
 失败处理：
 
@@ -186,7 +195,7 @@ Phase 0: 发现阶段 PASS
 4. 对中/低置信度 findings 派发 Verdict subagent。
 5. 执行审计点 A2。
 
-去重说明：crypto-scanner 与 secret-scanner 共享同一份凭证字符串匹配结果时，secret-scanner 优先（其严重度模型更精细）；crypto-scanner 仅保留算法/协议相关的 finding，凭证泄露细节由 secret-scanner 报告。
+去重说明：`crypto` 与 `secret` 维度共享同一份凭证字符串匹配结果时，`secret` 优先（其严重度模型更精细）；`crypto` 仅保留算法/协议相关的 finding，凭证泄露细节由 `secret` 报告。
 
 分批策略：
 
@@ -238,7 +247,7 @@ Phase 0: 发现阶段 PASS
 | FileLeak | `null` 或 `integer` | `null` |
 | Permission | `null` | `null` |
 
-**新维度 evidence 扩展**：crypto / network / component_info 维度的 finding 的 `evidence` 字段可包含库信息，格式：
+**新维度 evidence 扩展**：crypto / network / component-info 维度的 finding 的 `evidence` 字段可包含库信息，格式：
 `library=NAME@VERSION | library_version=VERSION | trigger=REASON | cve=CVE-XXXX-XXXXX`
 老 6 维度不解析此格式。
 
