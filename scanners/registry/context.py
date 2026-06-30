@@ -1,4 +1,5 @@
 """In-memory finding exchange between scanner sessions."""
+from copy import deepcopy
 from typing import Any
 
 from scanners.registry.tokens import truncate_to_budget
@@ -12,7 +13,7 @@ class ScanContext:
 
     def publish(self, dim: str, findings: list[dict[str, Any]]) -> None:
         """Overwrite findings for a scanner dimension."""
-        self._findings_by_dim[dim] = list(findings)
+        self._findings_by_dim[dim] = deepcopy(findings)
 
     def consume(
         self,
@@ -27,4 +28,4 @@ class ScanContext:
             for finding in self._findings_by_dim.get(dim, [])
             if finding.get("severity") in allowed
         ]
-        return truncate_to_budget(filtered, budget)
+        return deepcopy(truncate_to_budget(filtered, budget))

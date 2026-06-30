@@ -64,6 +64,55 @@ def test_publish_overwrites_previous_findings_for_same_dim():
     assert [item["id"] for item in result] == ["new"]
 
 
+def test_publish_defensively_copies_input_findings():
+    context = ScanContext()
+    findings = [
+        {
+            "id": "original",
+            "severity": "high",
+            "description": "abcd",
+            "evidence": {"path": "before"},
+        }
+    ]
+
+    context.publish("network", findings)
+    findings.append(finding("added-after-publish", "high"))
+    findings[0]["id"] = "mutated"
+    findings[0]["evidence"]["path"] = "after"
+
+    result = context.consume("network", ["high"], 100)
+
+    assert len(result) == 1
+    assert result[0]["id"] == "original"
+    assert result[0]["evidence"]["path"] == "before"
+
+
+def test_consume_returns_defensive_copies_of_findings():
+    context = ScanContext()
+    context.publish(
+        "network",
+        [
+            {
+                "id": "original",
+                "severity": "high",
+                "description": "abcd",
+                "evidence": {"path": "before"},
+            }
+        ],
+    )
+
+    result = context.consume("network", ["high"], 100)
+    result.append(finding("added-after-consume", "high"))
+    result[0]["id"] = "mutated"
+    result[0]["evidence"]["path"] = "after"
+
+    later_result = context.consume("network", ["high"], 100)
+
+    assert len(later_result) == 1
+    assert later_result[0]["id"] == "original"
+    assert later_result[0]["evidence"]["path"] == "before"
+
+
 def test_consume_unknown_dim_returns_empty_list():
     context = ScanContext()
 
