@@ -10,3 +10,4 @@ __pycache__/
 .coverage
 .scanner_cache/
 *.tmp
+*.xlsx
