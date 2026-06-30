@@ -1,5 +1,4 @@
 """Token budgeting helpers for scanner context findings."""
-import json
 from typing import Any
 
 
@@ -19,16 +18,8 @@ def estimate_tokens(text: str) -> int:
     return (len(text) + 3) // 4
 
 
-def _finding_budget_text(finding: dict[str, Any]) -> str:
-    for key in ("description", "summary", "title", "message", "details"):
-        value = finding.get(key)
-        if isinstance(value, str):
-            return value
-    return json.dumps(finding, ensure_ascii=False, sort_keys=True)
-
-
 def _finding_tokens(finding: dict[str, Any]) -> int:
-    return estimate_tokens(_finding_budget_text(finding))
+    return estimate_tokens(str(finding))
 
 
 def truncate_to_budget(

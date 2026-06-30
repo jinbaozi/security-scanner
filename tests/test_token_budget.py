@@ -34,7 +34,8 @@ def test_truncate_to_budget_prioritizes_severity_descending():
         finding("info", "info", "a" * 4),
     ]
 
-    result = truncate_to_budget(findings, 6)
+    budget = sum(estimate_tokens(str(item)) for item in findings)
+    result = truncate_to_budget(findings, budget)
 
     assert [item["id"] for item in result] == [
         "critical",
@@ -48,11 +49,29 @@ def test_truncate_to_budget_prioritizes_severity_descending():
 
 def test_truncate_to_budget_skips_findings_that_exceed_remaining_budget():
     findings = [
-        finding("critical-large", "critical", "a" * 20),
+        {
+            "id": "critical-large",
+            "severity": "critical",
+            "description": "tiny",
+            "evidence": "a" * 1000,
+        },
         finding("high-small", "high", "a" * 4),
         finding("medium-small", "medium", "a" * 4),
     ]
+    budget = estimate_tokens(str(findings[1])) + estimate_tokens(str(findings[2]))
 
-    result = truncate_to_budget(findings, 2)
+    result = truncate_to_budget(findings, budget)
 
     assert [item["id"] for item in result] == ["high-small", "medium-small"]
+
+
+def test_truncate_to_budget_counts_full_finding_data_not_description_only():
+    finding_with_large_data = {
+        "id": "huge",
+        "severity": "critical",
+        "description": "tiny",
+        "evidence": "a" * 1000,
+    }
+    budget = estimate_tokens(finding_with_large_data["description"])
+
+    assert truncate_to_budget([finding_with_large_data], budget) == []
