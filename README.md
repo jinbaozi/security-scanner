@@ -44,11 +44,11 @@
 
 | Profile | 维度范围 | 说明 |
 |---------|----------|------|
-| `redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 默认 profile，适合常规红线扫描 |
-| `redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整扫描，必须显式指定 |
+| `redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 红线扫描，覆盖 10 个核心维度 |
+| `redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整红线扫描（默认），覆盖全部 13 维 |
 | `redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
 
-未指定 profile 时默认使用 `redline-p0`。非法 profile 会导致 Orchestrator `FAIL`，不会进入 Phase 1 扫描。Profile 表示目标维度集合；实际执行维度由 registry 发现结果与 profile 取交集决定，未发现的 profile 维度会记录为覆盖缺口。
+未指定 profile 时默认使用 `redline-full`。非法 profile 会导致 Orchestrator `FAIL`，不会进入 Phase 1 扫描。Profile 表示目标维度集合；实际执行维度由 registry 发现结果与 profile 取交集决定，未发现的 profile 维度会记录为覆盖缺口。
 
 ## 系统要求
 
@@ -135,22 +135,18 @@ Reporter 指令定义三类输出：
 | 输出 | 文件名模式 |
 |------|------------|
 | 终端摘要 | 直接输出扫描统计、严重度统计、裁决统计和报告路径 |
-| JSON 结构化数据 | `security-scan-report-{component_name}-{date}.json` |
-| 综合 Markdown 报告 | `security-scan-report-{component_name}-{date}.md` |
-| 安全编译专项报告 | `report-安全编译-{component_name}-{date}.md` |
-| 公网地址专项报告 | `report-公网地址-{component_name}-{date}.md` |
-| 口令硬编码专项报告 | `report-口令硬编码-{component_name}-{date}.md` |
-| 未公开接口专项报告 | `report-未公开接口-{component_name}-{date}.md` |
-| 密码学专项报告 | `report-密码学-{component_name}-{date}.md` |
-| 网络专项报告 | `report-网络-{component_name}-{date}.md` |
-| 组件档案专项报告 | `report-组件档案-{component_name}-{date}.md` |
-| 依赖与漏洞专项报告 | `report-依赖与漏洞-{component_name}-{date}.md` |
-| 安全编码专项报告 | `report-安全编码-{component_name}-{date}.md` |
-| 完整性专项报告 | `report-完整性-{component_name}-{date}.md` |
-| 内容合规专项报告 | `report-内容合规-{component_name}-{date}.md` |
-| 组件档案 summary JSON | `component-info-summary-{component_name}-{date}.json` |
+| 综合 Markdown 报告 | `security-reports/security-scan-report-{component_name}-{date}.md` |
+| JSON 结构化数据 | `security-reports/security-scan-report-{component_name}-{date}.json` |
+| 密码学专项报告 | `security-reports/report-密码学-{component_name}-{date}.md` |
+| 网络协议与端口专项报告 | `security-reports/report-网络-{component_name}-{date}.md` |
+| 组件档案专项报告 | `security-reports/report-组件档案-{component_name}-{date}.md` |
+| 依赖与漏洞专项报告 | `security-reports/report-依赖与漏洞-{component_name}-{date}.md` |
+| 安全编码专项报告 | `security-reports/report-安全编码-{component_name}-{date}.md` |
+| 完整性专项报告 | `security-reports/report-完整性-{component_name}-{date}.md` |
+| 内容合规专项报告 | `security-reports/report-内容合规-{component_name}-{date}.md` |
+| 组件档案 summary JSON | `security-reports/component-info-summary-{component_name}-{date}.json` |
 
-具体落盘位置由执行扫描的 AI agent 和用户当前工作目录决定；当前 SKILL 不强制固定 `reports/` 目录。
+所有报告统一输出到当前工作目录下的 `security-reports/` 目录。
 
 ### Finding Schema
 

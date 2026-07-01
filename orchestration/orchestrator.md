@@ -19,7 +19,7 @@ Orchestrator 必须接收以下输入：
 | 参数 | 必填 | 默认值 | 说明 |
 |------|------|--------|------|
 | `target_path` | 是 | 无 | 待扫描目标路径 |
-| `scan_profile` | 否 | `redline-p0` | 扫描 profile，决定 Phase 1 可调度维度 |
+| `scan_profile` | 否 | `redline-full` | 扫描 profile，决定 Phase 1 可调度维度 |
 
 合法 `scan_profile` 仅包括：
 
@@ -27,7 +27,7 @@ Orchestrator 必须接收以下输入：
 - `redline-full`：全部已定义 13 维（`elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance`）
 - `redline-binary`：`elf`、`fileleak`、`permission`、`dependency`
 
-未提供 `scan_profile` 时使用 `redline-p0`。`redline-full` 必须显式指定，不作为默认值。任何不在合法列表中的 `scan_profile` 都必须立即 `FAIL`，输出错误并停止后续 Phase。
+未提供 `scan_profile` 时默认使用 `redline-full`。任何不在合法列表中的 `scan_profile` 都必须立即 `FAIL`，输出错误并停止后续 Phase。
 
 ## 终端摘要格式
 
