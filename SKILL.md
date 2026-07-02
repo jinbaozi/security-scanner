@@ -21,6 +21,10 @@ triggers:
 
 # 安全合规扫描器 (Security Compliance Scanner)
 
+支持 Claude Code / Codex / OpenCode 时遵循同一共享报告契约：`scan_profile` 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量；Phase 3 必须生成最终汇总报告 + 13 个维度独立详细报告。
+
+报告口径：scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量。
+
 ## 触发条件
 
 当用户请求对代码或软件包进行以下操作时激活本 SKILL：
@@ -128,12 +132,14 @@ SKILL.md
 │              -> topological_order() 按 consumes 依赖调度
 │              -> ScanContext 中转 scanner findings
 ├── Phase 2  -> references/verdict-rules.md
-└── Phase 3  -> orchestration/reporter.md
+└── Phase 3  -> orchestration/reporter.md（最终汇总报告 + 13 个维度独立详细报告）
               -> templates/report-comprehensive.md
               -> templates/report-安全编译.md
               -> templates/report-公网地址.md
               -> templates/report-口令硬编码.md
               -> templates/report-未公开接口.md
+              -> templates/report-敏感文件泄露.md
+              -> templates/report-文件权限.md
               -> templates/report-密码学.md
               -> templates/report-网络.md
               -> templates/report-组件档案.md
@@ -249,13 +255,15 @@ Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanner
 ### Phase 3: 报告生成
 
 1. 读取 `orchestration/reporter.md`。
-2. 读取 `templates/` 下报告模板。
+2. 读取 `templates/report-manifest.yaml` 和 `templates/` 下报告模板。
 3. 派发 Reporter subagent 生成：
    - 终端摘要
    - JSON 结构化数据
    - 综合 Markdown 报告（含 redline 40 条覆盖矩阵和人工合规项附录）
-   - 当前 profile 对应的维度专项报告
-4. 执行审计点 A3/A3b：字段完整性、数据一致性、内容质量、覆盖完整性、redline 覆盖矩阵完整性。
+   - 13 个维度独立详细 Markdown 报告（未执行、profile 跳过、条件跳过、工具缺失、降级或失败的维度也必须生成占位报告）
+4. 执行审计点 A3/A3b/A3c：字段完整性、数据一致性、内容质量、覆盖完整性、redline 覆盖矩阵完整性、报告产物清单完整性。
+
+`templates/report-manifest.yaml` 是 Phase 3 报告维度、模板和输出路径的唯一来源。Reporter 必须设置 `reporting_dimensions` 为 manifest 中全部 13 个维度；`executed_dimensions` 只表示 Phase 1 实际扫描执行结果，不决定报告文件数量。
 
 ## Finding Schema
 

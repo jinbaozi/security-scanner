@@ -1,10 +1,12 @@
 # 安全合规扫描器（Security Compliance Scanner）
 
-面向 AI 编码工具的安全合规扫描 SKILL。它不是独立 CLI 程序，而是一组结构化 Markdown 指令文件，由 Claude Code、Codex、OpenCode 等 AI 编码助手按阶段加载并执行。
+面向 AI 编码工具的安全合规扫描 SKILL。它不是独立 CLI 程序，而是一组结构化 Markdown 指令文件，由 Claude Code、Codex、OpenCode 等 AI 编码助手按阶段加载并执行。Claude Code、Codex、OpenCode 使用同一共享报告契约。
 
 ## 项目简介
 
 本 SKILL 用于对源码、配置、脚本、交付包和 ELF 二进制文件进行 13 维度安全合规检查，并生成简体中文报告。
+
+报告阶段固定生成最终汇总报告 + 13 个维度独立详细报告。`scan_profile` 只影响扫描调度强度，不影响最终报告产物数量；profile 跳过、条件跳过、工具缺失、降级或失败的维度也会生成占位报告。
 
 适用场景：
 
@@ -49,6 +51,8 @@
 | `redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
 
 未指定 profile 时默认使用 `redline-full`。非法 profile 会导致 Orchestrator `FAIL`，不会进入 Phase 1 扫描。Profile 表示目标维度集合；实际执行维度由 registry 发现结果与 profile 取交集决定，未发现的 profile 维度会记录为覆盖缺口。
+
+Profile 只决定 Phase 1 扫描调度，不决定 Phase 3 报告数量。Reporter 始终以 `templates/report-manifest.yaml` 中全部 13 个维度作为 `reporting_dimensions`，生成 13 份维度独立详细报告。
 
 ## 系统要求
 
@@ -114,7 +118,7 @@ Phase 2: 裁决阶段
   -> 对中低置信度 findings 进行上下文复核
 
 Phase 3: 报告生成
-  -> 输出终端摘要、JSON、综合报告和当前 profile 对应的专项报告
+  -> 输出终端摘要、JSON、最终汇总报告 + 13 个维度独立详细报告
 ```
 
 Phase 1 采用 γ-sidecar（gamma sidecar）结构调度 scanner：每个维度都是 `scanners/<dim>/` 下的一组旁挂文件，由 `scanner.md`、`meta.yaml` 和可选 `references/` 组成。Registry 只发现目录，不维护旧式 flat scanner path；新增 scanner 即 drop a directory，让 `discover_scanners()` 读取新目录中的 `meta.yaml` 和 `scanner.md`。实际执行维度由 `discover_scanners()` 发现结果与 `scan_profile` 维度集合取交集得到，未被 profile 选中的维度会记录为 `skipped_by_profile`。
@@ -137,6 +141,12 @@ Reporter 指令定义三类输出：
 | 终端摘要 | 直接输出扫描统计、严重度统计、裁决统计和报告路径 |
 | 综合 Markdown 报告 | `security-reports/security-scan-report-{component_name}-{date}.md` |
 | JSON 结构化数据 | `security-reports/security-scan-report-{component_name}-{date}.json` |
+| 安全编译专项报告 | `security-reports/report-安全编译-{component_name}-{date}.md` |
+| 公网地址专项报告 | `security-reports/report-公网地址-{component_name}-{date}.md` |
+| 口令硬编码专项报告 | `security-reports/report-口令硬编码-{component_name}-{date}.md` |
+| 未公开接口专项报告 | `security-reports/report-未公开接口-{component_name}-{date}.md` |
+| 敏感文件泄露专项报告 | `security-reports/report-敏感文件泄露-{component_name}-{date}.md` |
+| 文件权限专项报告 | `security-reports/report-文件权限-{component_name}-{date}.md` |
 | 密码学专项报告 | `security-reports/report-密码学-{component_name}-{date}.md` |
 | 网络协议与端口专项报告 | `security-reports/report-网络-{component_name}-{date}.md` |
 | 组件档案专项报告 | `security-reports/report-组件档案-{component_name}-{date}.md` |
@@ -378,7 +388,7 @@ python3 -m json.tool security-scanner/tests/fixtures/expected/url-expected.json 
 
 ### 报告一定会包含固定数量的专项报告吗？
 
-不是。当前设计要求生成 1 份综合报告、1 份 JSON，并按 `scan_profile` 实际执行或降级的维度生成专项报告。综合报告始终包含 redline 40 条覆盖矩阵和人工合规项附录。
+是。报告固定 13 份维度独立详细报告，外加 1 份综合 Markdown 报告和 1 份 JSON 结构化数据。profile 跳过的维度也会生成占位报告，并在维度状态摘要、降级输出说明和 A3c 报告产物清单审计中写明原因。综合报告始终包含 redline 40 条覆盖矩阵和人工合规项附录。
 
 ### 低置信度发现如何处理？
 

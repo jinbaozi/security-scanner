@@ -49,13 +49,19 @@
 
 ## 专项报告索引
 
+本节必须列出 13 个维度独立详细报告路径，顺序和路径以 `templates/report-manifest.yaml` 为准。即使某维度未执行、被 profile 跳过、条件跳过、工具缺失、降级或失败，也必须列出对应占位报告路径。
+
 {dimension_report_index}
 
 ## 维度执行状态
 
+本节必须列出 13 个维度状态，状态来源包括 executed、skipped_by_profile、skipped_by_condition、degraded、failed、missing_profile_dimension。每个状态必须写明原因、输入条件、降级路径或审计引用。
+
 {dimension_status_summary}
 
 ## 详细发现
+
+以下每个维度详细区块必须保留。无 finding 时填写“未发现问题”或“不适用/降级原因：{reason}”，不得留空。
 
 ### ELF 安全编译
 
