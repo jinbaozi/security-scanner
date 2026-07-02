@@ -55,7 +55,7 @@ Dependency Scanner Agent 负责识别组件依赖、锁文件完整性、嵌入�
 | `redline_clause` | 命中的 redline 条款编号；无映射时为 `null` |
 | `rl_ids` | 命中的 RL-ID 数组；无映射时为 `[]` |
 
-Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度切片或全局 `../../references/redline-mapping.md` 不存在的组合。
+Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度 `references/redline-clauses.md` 未定义的条款组合。
 
 `artifacts.sbom` 至少包含：
 

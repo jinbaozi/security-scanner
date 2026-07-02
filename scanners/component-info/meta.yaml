@@ -24,13 +24,11 @@ references:
     scope: shared
   - path: references/redline-clauses.md
     scope: local
-  - path: ../../references/redline-mapping.md
-    scope: shared
 
 session:
   model: sonnet
-  max_tokens: 20000
-  references_token_budget: 14000
+  max_tokens: 16000
+  references_token_budget: 10000
 
 failure:
   max_retries: 2

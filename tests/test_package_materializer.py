@@ -1,8 +1,9 @@
+import json
 from pathlib import Path
 
 import pytest
 
-from scripts.package_materializer import CommandResult, PackageMaterializer, detect_input_kind
+from scripts.package_materializer import CommandResult, PackageMaterializer, detect_input_kind, main
 
 
 class FakeRunner:
@@ -160,3 +161,46 @@ def test_source_tree_is_recorded_without_rpm_semantics(tmp_path):
     assert result["input_kind"] == "source_tree"
     assert result["source_roots"] == [{"path": str(src), "origin": "raw_directory"}]
     assert "未验证 RPM patch 语义" in result["audit_log"][0]
+
+
+def test_cli_output_json_writes_full_result_and_prints_single_summary_line(tmp_path, capsys):
+    src = tmp_path / "src"
+    out = tmp_path / "out"
+    result_path = tmp_path / "materialization.json"
+    src.mkdir()
+
+    exit_code = main([str(src), str(out), "--output-json", str(result_path)])
+
+    stdout_lines = capsys.readouterr().out.splitlines()
+    payload = json.loads(result_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 0
+    assert payload["status"] == "ready"
+    assert payload["input_kind"] == "source_tree"
+    assert payload["source_roots"] == [{"path": str(src.resolve()), "origin": "raw_directory"}]
+    assert len(stdout_lines) == 1
+    assert "status=ready" in stdout_lines[0]
+    assert "input_kind=source_tree" in stdout_lines[0]
+    assert not stdout_lines[0].lstrip().startswith("{")
+    assert str(src.resolve()) not in stdout_lines[0]
+
+
+def test_cli_output_json_blocked_result_does_not_print_full_error_payload(tmp_path, capsys):
+    target = tmp_path / "unsupported.txt"
+    out = tmp_path / "out"
+    result_path = tmp_path / "materialization.json"
+    target.write_text("not an rpm", encoding="utf-8")
+
+    exit_code = main([str(target), str(out), "--output-json", str(result_path)])
+
+    stdout_lines = capsys.readouterr().out.splitlines()
+    payload = json.loads(result_path.read_text(encoding="utf-8"))
+
+    assert exit_code == 2
+    assert payload["status"] == "blocked"
+    assert payload["errors"]
+    assert len(stdout_lines) == 1
+    assert "status=blocked" in stdout_lines[0]
+    assert "errors=1" in stdout_lines[0]
+    assert payload["errors"][0] not in stdout_lines[0]
+    assert not stdout_lines[0].lstrip().startswith("{")

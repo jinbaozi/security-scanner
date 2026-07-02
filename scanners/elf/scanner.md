@@ -59,7 +59,7 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
 | `redline_clause` | 命中的 redline 条款编号；无映射时为 `null` |
 | `rl_ids` | 命中的 RL-ID 数组；无映射时为 `[]` |
 
-Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度切片或全局 `../../references/redline-mapping.md` 不存在的组合。
+Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度 `references/redline-clauses.md` 未定义的条款组合。
 
 > redline 11.2.1 的二进制侧由 PIE、NX、RELRO、Canary、BIND_NOW、FORTIFY_SOURCE 等安全编译项覆盖。内核 ASLR（如 `/proc/sys/kernel/randomize_va_space=2`）属于运行时/系统加固配置，本 scanner 不新增 `aslr` check_item；仅对构建或安装脚本中的明显弱化配置输出 WARN。
 

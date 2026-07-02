@@ -25,6 +25,10 @@ triggers:
 
 报告口径：scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量。
 
+## 终端输出契约
+
+默认采用最小终端输出：每个 Phase 最多输出 1 行终端状态，最终终端摘要最多 8 行。不得向终端输出完整 JSON、原始 findings、大段 stdout/stderr 或文件清单；完整数据必须写入 security-reports/ 下的 JSON、审计日志、Markdown 报告和维度报告。调试、失败、降级和审计细节也写入结构化产物，不在终端展开。
+
 ## 触发条件
 
 当用户请求对代码或软件包进行以下操作时激活本 SKILL：
@@ -169,10 +173,7 @@ SKILL.md
 终端摘要：
 
 ```text
-Phase -1: 环境预检 PASS
-  环境状态: ready | degraded
-  可用工具: grep, find, file, stat, checksec
-  降级项: [列出降级项]
+Phase -1: 环境预检 PASS status=ready|degraded missing_tools=N degraded_items=N
 ```
 
 ### Phase -0: 输入物化（Package Materialization）
@@ -182,16 +183,12 @@ Phase -1: 环境预检 PASS
 3. 对 binary RPM 展开到 `materialized/binary-root/`，作为 `binary_rpm` 根目录进入后续 ELF、权限、敏感文件和依赖线索扫描。
 4. 若 `%prep` 疑似因构建依赖失败，可在用户明确授权后执行 `dnf builddep <spec>` 并重试；该动作会修改系统包环境。当前用户非 root 或需要 sudo 时必须先阻断并要求 root/sudo 授权或 root 密码，不得静默安装依赖。
 5. 普通目录标记为 `raw_directory`，继续扫描，但报告必须说明未验证 RPM patch 语义。
-6. 输出 materialization JSON，并执行 A-0 审计。SRPM 物化失败时继续输出错误报告，但 `overall_redline_assurance=blocked`，源码相关 redline 覆盖项为 degraded/blocked。
+6. 将完整 materialization JSON 写入 `security-reports/materialization-{component_name}-{date}.json` 或等价审计产物，并执行 A-0 审计。SRPM 物化失败时继续输出错误报告，但 `overall_redline_assurance=blocked`，源码相关 redline 覆盖项为 degraded/blocked。
 
 终端摘要：
 
 ```text
-Phase -0: 输入物化 PASS|FAIL
-  输入类型: srpm | binary_rpm | package_directory | source_tree
-  源码根: [source_prepped/raw_directory roots]
-  二进制根: [binary_rpm roots]
-  builddep: not_required | authorization_required | root_authorization_required | succeeded | failed
+Phase -0: 输入物化 PASS|FAIL input_kind=srpm|binary_rpm|package_directory|source_tree source_roots=N binary_roots=N builddep=not_required|authorization_required|root_authorization_required|succeeded|failed
 ```
 
 ### Phase 0: 发现阶段（Reconnaissance）
@@ -205,12 +202,7 @@ Phase -0: 输入物化 PASS|FAIL
 终端摘要：
 
 ```text
-Phase 0: 发现阶段 PASS
-  目标: /path/to/project
-  组件名: {component_name}
-  总文件数: 1234 | ELF: 12 | 源码: 1100 | 配置: 122
-  排除: 50 个文件（第三方/生成代码）
-  分片数: 3
+Phase 0: 发现阶段 PASS component={component_name} files=1234 elf=12 source=1100 config=122 excluded=50 shards=3
 ```
 
 ### Phase 1: registry + profile 调度扫描
@@ -225,7 +217,7 @@ Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanner
 - 根据 `scan_profile` 取得允许维度集合，仅调度 `discover_scanners()` 发现结果与 profile 维度集合的交集；未被 profile 选中的维度记为 `skipped_by_profile`，不算失败。
 - 调用 `topological_order()` 根据入选 scanner `meta.yaml` 的 `consumes` 依赖生成调度顺序；无依赖且资源允许的维度可并行执行。
 - 每个 scanner session 只加载自身 `scanner.md`、分配文件列表、输出 schema，以及 `meta.yaml` 声明的 references。
-- scanner 间 findings 通过 `ScanContext` 中转。若下游 `meta.yaml` 声明 `consumes`，上游 findings 按 `inject_as: data`、`severity_filter`、`token_budget` 筛选后注入下游 user message，不能写入 system prompt。
+- scanner 间 findings 通过 `ScanContext` 中转。若下游 `meta.yaml` 声明 `consumes`，上游 findings 按 `inject_as: data`、`severity_filter`、`token_budget` 筛选后以 `compact=True` 紧凑模式注入下游 user message，不能写入 system prompt；原始 findings 仅保留给 Verdict 和 Reporter。
 - 维度专属 references 保留在 `scanners/<dim>/references/`；顶层 `references/` 用于跨维度和跨阶段共享资料。当前共享关系与 `scanners/*/meta.yaml` 保持一致：
   - `references/allowlists.md`：由各 scanner `meta.yaml` 声明引用，常见于文本、权限、ELF、网络、密码学、组件档案及新增维度。
   - `references/red-line-rules.md`：红线相关维度按 `meta.yaml` 声明引用。

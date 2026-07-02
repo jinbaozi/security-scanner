@@ -5,6 +5,43 @@ from typing import Any
 from scanners.registry.tokens import truncate_to_budget
 
 
+COMPACT_FINDING_FIELDS = (
+    "id",
+    "dimension",
+    "file",
+    "line",
+    "check_item",
+    "status",
+    "severity",
+    "confidence",
+    "verdict",
+    "description",
+    "detail",
+    "evidence",
+    "redline_clause",
+    "rl_ids",
+)
+COMPACT_TEXT_LIMIT = 240
+
+
+def _truncate_text(value: str, limit: int = COMPACT_TEXT_LIMIT) -> str:
+    if len(value) <= limit:
+        return value
+    return value[: limit - 3].rstrip() + "..."
+
+
+def _compact_finding(finding: dict[str, Any]) -> dict[str, Any]:
+    compact: dict[str, Any] = {}
+    for field in COMPACT_FINDING_FIELDS:
+        if field not in finding:
+            continue
+        value = finding[field]
+        if field in {"description", "detail", "evidence"} and isinstance(value, str):
+            value = _truncate_text(value)
+        compact[field] = deepcopy(value)
+    return compact
+
+
 class ScanContext:
     """Store and consume scanner findings by dimension for a single run."""
 
@@ -27,6 +64,8 @@ class ScanContext:
         dim: str,
         severity_filter: list[str],
         budget: int,
+        *,
+        compact: bool = False,
     ) -> list[dict[str, Any]]:
         """Return filtered finding data constrained by token budget."""
         allowed = set(severity_filter)
@@ -35,4 +74,6 @@ class ScanContext:
             for finding in self._findings_by_dim.get(dim, [])
             if finding.get("severity") in allowed
         ]
+        if compact:
+            filtered = [_compact_finding(finding) for finding in filtered]
         return deepcopy(truncate_to_budget(filtered, budget))

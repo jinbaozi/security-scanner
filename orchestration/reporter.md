@@ -25,17 +25,15 @@ Reporter Agent 负责把 Verdict 阶段输出转换为可审计报告。报告�
 
 Phase 3 的固定 Markdown 产物契约是：综合 Markdown 报告 + JSON 结构化数据 + 13 份维度独立详细 Markdown 报告。
 
+## 终端输出契约
+
+默认采用最小终端输出：每个 Phase 最多输出 1 行终端状态，最终终端摘要最多 8 行。不得向终端输出完整 JSON、原始 findings、大段 stdout/stderr 或文件清单；完整数据必须写入 security-reports/ 下的 JSON、审计日志、Markdown 报告和维度报告。Reporter 的终端输出只保留最终报告目录、总体状态、严重度/裁决计数和降级计数。
+
 ## 输出
 
 ### 1. 终端摘要
 
-终端摘要用于实时反馈扫描结果，应包含：
-
-- 扫描目标、组件名称、扫描耗时。
-- 各阶段状态：Pre-flight、Recon、Scan、Verdict、Report。
-- 严重度统计：`critical`、`high`、`medium`、`low`、`info`。
-- 裁决统计：`confirmed`、`suspected`、`rejected`、`needs_human`、`unverified`。
-- 生成文件路径和降级状态。
+终端摘要用于实时反馈扫描结果，最多 8 行，只包含扫描目标、组件名称、总体状态、严重度统计、裁决统计、降级数量和最终报告目录。不得展开 findings、文件清单、完整 JSON、审计明细或命令输出；这些内容必须写入 `security-reports/` 产物。
 
 ### 2. JSON 结构化数据
 
@@ -313,7 +311,7 @@ Reporter 必须为 `reporting_dimensions` 中全部 13 个维度生成独立详�
 | findings 数据不完整 | 生成部分报告，标记 “DATA INCOMPLETE”，列出缺失字段 |
 | Markdown 渲染失败 | 降级为纯文本报告，保留同等字段内容 |
 | JSON schema 校验失败 | 修复后重新生成，最多 2 次 |
-| 输出文件写入失败 | 改为终端直接输出 JSON，并标记写入失败 |
+| 输出文件写入失败 | 在可写的降级报告或审计日志中标记写入失败；终端仅输出写入失败状态和可用报告目录 |
 | 模板文件缺失 | 输出阻断错误，列出缺失模板，不生成伪造报告 |
 | 审计统计不一致 | 重新聚合统计并重新渲染；仍失败时降级输出 |
 

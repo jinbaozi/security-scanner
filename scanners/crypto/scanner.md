@@ -58,7 +58,7 @@ Crypto Scanner Agent 仅负责检测源码、配置文件和依赖声明中的�
 | `redline_clause` | 命中 redline 条款编号；无法映射时为 `null` |
 | `rl_ids` | 命中的 RL-ID 数组；无映射时为 `[]` |
 
-Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度切片或全局 `../../references/redline-mapping.md` 不存在的组合。`RL-120` ~ `RL-125` 对应的 5.1.2 是 manual 证明项，只能作为 `WARN` + `needs_human` 辅助证据输出，`redline_clause=null`、`rl_ids=[]`，不得自动确认为 `FAIL`。
+Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度 `references/redline-clauses.md` 未定义的条款组合。`RL-120` ~ `RL-125` 对应的 5.1.2 是 manual 证明项，只能作为 `WARN` + `needs_human` 辅助证据输出，`redline_clause=null`、`rl_ids=[]`，不得自动确认为 `FAIL`。
 
 ## 执行步骤
 

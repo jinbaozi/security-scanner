@@ -1,4 +1,8 @@
 from scanners.registry.tokens import estimate_tokens, truncate_to_budget
+from scanners.registry import discover_scanners
+
+
+SIMPLE_SCANNERS = {"comment", "url", "secret", "fileleak", "permission", "elf"}
 
 
 def finding(finding_id: str, severity: str, text: str) -> dict:
@@ -75,3 +79,15 @@ def test_truncate_to_budget_counts_full_finding_data_not_description_only():
     budget = estimate_tokens(finding_with_large_data["description"])
 
     assert truncate_to_budget([finding_with_large_data], budget) == []
+
+
+def test_production_scanner_session_budgets_are_compact():
+    scanners = discover_scanners()
+
+    for scanner_id, scanner in scanners.items():
+        if scanner_id in SIMPLE_SCANNERS:
+            assert scanner.meta.session.max_tokens <= 10000, scanner_id
+            assert scanner.meta.session.references_token_budget <= 6000, scanner_id
+        else:
+            assert scanner.meta.session.max_tokens <= 16000, scanner_id
+            assert scanner.meta.session.references_token_budget <= 10000, scanner_id

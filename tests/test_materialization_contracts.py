@@ -52,3 +52,18 @@ def test_skill_and_preflight_include_rpm_materialization_tools():
         assert "patch" in text
         assert "tar" in text
 
+
+def test_terminal_output_contract_is_compact_and_artifact_backed():
+    docs = {
+        "SKILL.md": (ROOT / "SKILL.md").read_text(encoding="utf-8"),
+        "orchestrator.md": (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8"),
+        "reporter.md": (ROOT / "orchestration" / "reporter.md").read_text(encoding="utf-8"),
+    }
+
+    for name, text in docs.items():
+        assert "每个 Phase 最多输出 1 行终端状态" in text, name
+        assert "最终终端摘要最多 8 行" in text, name
+        assert "不得向终端输出完整 JSON、原始 findings、大段 stdout/stderr 或文件清单" in text, name
+        assert "完整数据必须写入 security-reports/" in text, name
+
+    assert "改为终端直接输出 JSON" not in docs["reporter.md"]

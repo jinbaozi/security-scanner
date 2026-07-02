@@ -9,8 +9,6 @@ references:
     scope: local
   - path: references/redline-clauses.md
     scope: local
-  - path: ../../references/redline-mapping.md
-    scope: shared
   - path: ../../references/dependency-check.md
     scope: shared
   - path: ../../references/allowlists.md
@@ -18,8 +16,8 @@ references:
 
 session:
   model: sonnet
-  max_tokens: 16000
-  references_token_budget: 12000
+  max_tokens: 14000
+  references_token_budget: 9000
 
 failure:
   max_retries: 2

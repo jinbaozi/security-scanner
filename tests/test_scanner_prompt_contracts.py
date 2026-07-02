@@ -104,6 +104,18 @@ def test_all_scanner_prompts_declare_redline_clause_contract():
         )
 
 
+def test_scanner_sidecars_do_not_load_global_redline_sources_directly():
+    scanners = discover_scanners(ROOT / "scanners")
+    forbidden = {"../../references/redline-mapping.md", "../../references/redline-spec.md"}
+
+    for scanner in scanners.values():
+        meta_paths = {reference.path for reference in scanner.meta.references}
+
+        assert forbidden.isdisjoint(meta_paths), scanner.meta.id
+        assert "../../references/redline-mapping.md" not in scanner.prompt, scanner.scanner_md_path
+        assert "../../references/redline-spec.md" not in scanner.prompt, scanner.scanner_md_path
+
+
 def test_expected_fixture_dimensions_are_current_scanner_ids():
     scanner_ids = set(discover_scanners(ROOT / "scanners"))
 

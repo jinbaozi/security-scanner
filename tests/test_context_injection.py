@@ -163,3 +163,53 @@ def test_consume_unknown_dim_returns_empty_list():
     context = ScanContext()
 
     assert context.consume("missing", ["critical", "high"], 10) == []
+
+
+def test_consume_compact_keeps_trace_fields_and_truncates_large_payloads():
+    context = ScanContext()
+    long_detail = "问题详情" * 200
+    long_evidence = "evidence-line\n" * 200
+    context.publish(
+        "network",
+        [
+            {
+                "id": "critical-large",
+                "dimension": "network",
+                "file": "/src/server.go",
+                "line": 42,
+                "check_item": "insecure_protocol",
+                "status": "FAIL",
+                "severity": "critical",
+                "confidence": "high",
+                "verdict": "confirmed",
+                "detail": long_detail,
+                "suggestion": "完整修复建议只保留给裁决和报告阶段",
+                "evidence": long_evidence,
+                "redline_clause": "5.1.1",
+                "rl_ids": ["RL-110"],
+                "verdict_reasoning": "完整裁决理由只保留给裁决和报告阶段",
+            },
+            finding("high-small", "high", "short"),
+        ],
+    )
+
+    result = context.consume("network", ["critical", "high"], 400, compact=True)
+
+    assert [item["id"] for item in result] == ["critical-large", "high-small"]
+    critical = result[0]
+    assert critical["dimension"] == "network"
+    assert critical["file"] == "/src/server.go"
+    assert critical["line"] == 42
+    assert critical["check_item"] == "insecure_protocol"
+    assert critical["redline_clause"] == "5.1.1"
+    assert critical["rl_ids"] == ["RL-110"]
+    assert len(critical["detail"]) < len(long_detail)
+    assert len(critical["evidence"]) < len(long_evidence)
+    assert critical["detail"].endswith("...")
+    assert critical["evidence"].endswith("...")
+    assert "suggestion" not in critical
+    assert "verdict_reasoning" not in critical
+
+    full_result = context.consume("network", ["critical"], 2000)
+    assert full_result[0]["detail"] == long_detail
+    assert full_result[0]["evidence"] == long_evidence

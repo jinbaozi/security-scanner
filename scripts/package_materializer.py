@@ -76,6 +76,19 @@ def _text(value: str | bytes) -> str:
     return value
 
 
+def _summary_line(result: dict[str, Any]) -> str:
+    return (
+        "materialization "
+        f"status={result.get('status')} "
+        f"input_kind={result.get('input_kind')} "
+        f"source_roots={len(result.get('source_roots', []))} "
+        f"binary_roots={len(result.get('binary_roots', []))} "
+        f"specs={len(result.get('srpm_spec_files', []))} "
+        f"patches={len(result.get('applied_patches', []))} "
+        f"errors={len(result.get('errors', []))}"
+    )
+
+
 class PackageMaterializer:
     def __init__(
         self,
@@ -338,6 +351,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Allow dnf builddep after explicit user authorization and root execution.",
     )
+    parser.add_argument(
+        "--output-json",
+        type=Path,
+        help="Write the full materialization JSON to this path and print only a compact status line.",
+    )
     args = parser.parse_args(argv)
 
     result = PackageMaterializer().materialize(
@@ -345,10 +363,17 @@ def main(argv: list[str] | None = None) -> int:
         args.output_dir,
         allow_builddep=args.allow_builddep,
     )
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    if args.output_json:
+        args.output_json.parent.mkdir(parents=True, exist_ok=True)
+        args.output_json.write_text(
+            json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print(_summary_line(result))
+    else:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result["status"] == "ready" else 2
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

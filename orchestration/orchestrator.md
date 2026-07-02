@@ -32,7 +32,7 @@ Orchestrator 必须接收以下输入：
 
 ## 终端摘要格式
 
-每个 Phase 完成后输出终端摘要，格式参见 `SKILL.md` 的执行流程示例。Phase 3 完成后输出完整扫描结果摘要，格式参见 `orchestration/reporter.md`。
+默认采用最小终端输出：每个 Phase 最多输出 1 行终端状态，最终终端摘要最多 8 行。不得向终端输出完整 JSON、原始 findings、大段 stdout/stderr 或文件清单；完整数据必须写入 security-reports/ 下的 JSON、审计日志、Markdown 报告和维度报告。Phase 3 完成后只输出报告目录、关键状态和降级计数，详细摘要以报告产物为准。
 
 ### 顺序执行
 
@@ -40,7 +40,7 @@ Phase -1、Phase -0 和 Phase 0 必须顺序执行，前一 Phase 完成后才�
 
 ### Phase -0：输入物化（Package Materialization）
 
-Phase -1 完成后、Recon 之前必须执行输入物化。Orchestrator 调用 `scripts/package_materializer.py` 或等价逻辑，生成 materialization JSON；Phase 0 只能消费该 JSON 中的 `source_roots`、`binary_roots` 和 `materialization` 状态，不得直接把 SRPM 外层解包目录当成源码树。
+Phase -1 完成后、Recon 之前必须执行输入物化。Orchestrator 调用 `scripts/package_materializer.py --output-json security-reports/materialization-{component_name}-{date}.json` 或等价逻辑，生成 materialization JSON 文件；Phase 0 只能消费该 JSON 中的 `source_roots`、`binary_roots` 和 `materialization` 状态，不得直接把 SRPM 外层解包目录当成源码树。终端只保留一行物化状态摘要。
 
 输入处理规则：
 
@@ -83,7 +83,7 @@ Phase 1 不再枚举固定 scanner 文件路径，也不写死 9 维。Orchestra
 
 ### Phase 1.5：启动各 scanner session
 
-Orchestrator 按 `selected_scanners` 的拓扑顺序启动 scanner。每个 scanner 必须运行在独立 LLM session 中（Q21B），只读取自身目录下的 `meta.yaml` session 配置与 `scanner.md` system prompt。对每个 `meta.consumes` 条目，调用 `context.consume(dim, severity_filter, token_budget)` 取得上游 findings；这些 consumed finding JSON 必须作为 user message 中的数据块附加给下游 scanner，不能写入 system prompt（Q29）。按 `meta.references` 加载 reference 文件并纳入该 session 的用户上下文；scanner 输出后解析 finding JSON，并调用 `context.publish(scanner_id, findings)` 发布本维度结果。
+Orchestrator 按 `selected_scanners` 的拓扑顺序启动 scanner。每个 scanner 必须运行在独立 LLM session 中（Q21B），只读取自身目录下的 `meta.yaml` session 配置与 `scanner.md` system prompt。对每个 `meta.consumes` 条目，调用 `context.consume(dim, severity_filter, token_budget, compact=True)` 取得上游 findings 的紧凑注入数据；这些 consumed finding JSON 必须作为 user message 中的数据块附加给下游 scanner，不能写入 system prompt（Q29）。原始 findings 仍由 `ScanContext` 保留给 Phase 2 Verdict 和 Phase 3 Reporter。按 `meta.references` 加载 reference 文件并纳入该 session 的用户上下文；scanner 输出后解析 finding JSON，并调用 `context.publish(scanner_id, findings)` 发布本维度结果。
 
 ### Phase 2：裁决输入
 
@@ -218,7 +218,7 @@ FAIL -> 进入修复循环（最多 2 次自动修复）-> 仍失败则降级
 | Phase 0 | 终止扫描，输出错误报告和路径检查建议 |
 | Phase 1 | 收集已完成结果，跳过失败维度，输出部分报告 |
 | Phase 2 | 跳过验证，所有 findings 标记为 `unverified` |
-| Phase 3 | 直接输出原始 JSON findings，跳过格式化报告 |
+| Phase 3 | 将原始 JSON findings 和降级原因写入 `security-reports/`，终端仅输出降级状态和报告目录 |
 
 ## 重试约束
 
