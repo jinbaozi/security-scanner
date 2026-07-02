@@ -1,4 +1,4 @@
-# 安全合规扫描综合报告
+# 安全合规扫描汇总报告
 
 ## 基本信息
 
@@ -38,7 +38,22 @@
 | 口令和硬编码 | {secret_total} | {secret_confirmed} | {secret_suspected} | {secret_needs_human} | {secret_unverified} | {secret_rejected} |
 | 未公开接口 | {comment_total} | {comment_confirmed} | {comment_suspected} | {comment_needs_human} | {comment_unverified} | {comment_rejected} |
 | 敏感文件泄露 | {fileleak_total} | {fileleak_confirmed} | {fileleak_suspected} | {fileleak_needs_human} | {fileleak_unverified} | {fileleak_rejected} |
-| 文件权限 | {perm_total} | {perm_confirmed} | {perm_suspected} | {perm_needs_human} | {perm_unverified} | {perm_rejected} |
+| 文件权限 | {permission_total} | {permission_confirmed} | {permission_suspected} | {permission_needs_human} | {permission_unverified} | {permission_rejected} |
+| 密码学 | {crypto_total} | {crypto_confirmed} | {crypto_suspected} | {crypto_needs_human} | {crypto_unverified} | {crypto_rejected} |
+| 网络 | {network_total} | {network_confirmed} | {network_suspected} | {network_needs_human} | {network_unverified} | {network_rejected} |
+| 组件档案 | {component-info_total} | {component-info_confirmed} | {component-info_suspected} | {component-info_needs_human} | {component-info_unverified} | {component-info_rejected} |
+| 依赖与漏洞 | {dependency_total} | {dependency_confirmed} | {dependency_suspected} | {dependency_needs_human} | {dependency_unverified} | {dependency_rejected} |
+| 安全编码 | {secure-coding_total} | {secure-coding_confirmed} | {secure-coding_suspected} | {secure-coding_needs_human} | {secure-coding_unverified} | {secure-coding_rejected} |
+| 完整性 | {integrity_total} | {integrity_confirmed} | {integrity_suspected} | {integrity_needs_human} | {integrity_unverified} | {integrity_rejected} |
+| 内容合规 | {content-compliance_total} | {content-compliance_confirmed} | {content-compliance_suspected} | {content-compliance_needs_human} | {content-compliance_unverified} | {content-compliance_rejected} |
+
+## 专项报告索引
+
+{dimension_report_index}
+
+## 维度执行状态
+
+{dimension_status_summary}
 
 ## 详细发现
 
@@ -64,7 +79,35 @@
 
 ### 文件权限
 
-{perm_findings_detail}
+{permission_findings_detail}
+
+### 密码学
+
+{crypto_findings_detail}
+
+### 网络
+
+{network_findings_detail}
+
+### 组件档案
+
+{component-info_findings_detail}
+
+### 依赖与漏洞
+
+{dependency_findings_detail}
+
+### 安全编码
+
+{secure-coding_findings_detail}
+
+### 完整性
+
+{integrity_findings_detail}
+
+### 内容合规
+
+{content-compliance_findings_detail}
 
 ## 字段完整性说明
 

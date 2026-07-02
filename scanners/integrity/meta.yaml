@@ -11,6 +11,8 @@ consumes:
 references:
   - path: references/redline-clauses.md
     scope: local
+  - path: ../../references/redline-mapping.md
+    scope: shared
   - path: ../../references/allowlists.md
     scope: shared
 

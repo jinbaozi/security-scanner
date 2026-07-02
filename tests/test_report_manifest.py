@@ -64,11 +64,11 @@ def test_comprehensive_template_covers_all_13_dimensions():
         "{permission_",
         "{crypto_",
         "{network_",
-        "{component_info_",
+        "{component-info_",
         "{dependency_",
-        "{secure_coding_",
+        "{secure-coding_",
         "{integrity_",
-        "{content_compliance_",
+        "{content-compliance_",
     )
 
     for prefix in expected_prefixes:

@@ -31,7 +31,7 @@
       "suggestion": "生成并随包提交 package-lock.json、pnpm-lock.yaml 或 yarn.lock。",
       "evidence": "manifest=package.json | lock_file=missing",
       "redline_clause": "2.1.2",
-      "rl_ids": ["RL-211"]
+      "rl_ids": ["RL-201"]
     },
     {
       "id": "DEPENDENCY-002",
@@ -48,7 +48,7 @@
       "suggestion": "升级到受支持版本，并保留 SBOM 与漏洞扫描结果。",
       "evidence": "library=openssl@1.0.2 | trigger=vendored_version",
       "redline_clause": "2.1.1",
-      "rl_ids": ["RL-210"]
+      "rl_ids": ["RL-200"]
     }
   ]
 }

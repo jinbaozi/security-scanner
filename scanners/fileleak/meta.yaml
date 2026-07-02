@@ -9,6 +9,8 @@ references:
     scope: shared
   - path: references/redline-clauses.md
     scope: local
+  - path: ../../references/redline-mapping.md
+    scope: shared
 
 session:
   model: sonnet

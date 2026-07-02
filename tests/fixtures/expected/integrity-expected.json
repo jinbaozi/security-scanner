@@ -20,7 +20,7 @@
       "suggestion": "使用 rpm --checksig/cosign 等工具验证签名，并保留发布记录。",
       "evidence": "package=dist/example.rpm | signature=unverified",
       "redline_clause": "10.1.1",
-      "rl_ids": ["RL-250"]
+      "rl_ids": ["RL-220"]
     },
     {
       "id": "INTEGRITY-002",
@@ -37,7 +37,7 @@
       "suggestion": "为下载文件增加签名或 SHA-256 校验，并校验失败时停止安装。",
       "evidence": "curl https://example.com/pkg.tar.gz | bash",
       "redline_clause": "10.1.1",
-      "rl_ids": ["RL-251"]
+      "rl_ids": ["RL-220"]
     }
   ]
 }

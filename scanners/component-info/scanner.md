@@ -15,6 +15,7 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 - `../../references/red-line-rules.md`: 红线规则库（RL-140 ~ RL-159 个人数据、RL-160 ~ RL-179 默认账号）
 - `../../references/allowlists.md`: 白名单与例外规则
 - `references/architecture-signals.md`: 架构类型推断信号库（Django/Flask/Spring/Express/Gin/Telnet/socket 等）
+- `references/redline-clauses.md`: component-info 维度 redline 条款切片；clause 级映射以本地切片为准，`../../references/red-line-rules.md` 仅作 pattern 库。
 
 ## 输出
 
@@ -34,7 +35,9 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
   "verdict_reasoning": "id_card 字段明文存储，命中红线 RL-140",
   "detail": "身份证号字段以明文 CharField 存储",
   "suggestion": "改用加密存储 + 脱敏显示",
-  "evidence": "id_card = models.CharField(max_length=18)"
+  "evidence": "id_card = models.CharField(max_length=18)",
+  "redline_clause": "9.1.1",
+  "rl_ids": ["RL-140"]
 }
 ```
 
@@ -51,6 +54,10 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 | `confidence` | `high`、`medium`、`low` |
 | `verdict` | 高置信真实问题为 `confirmed`，不确定项为 `needs_human` 或 `unverified`，误报为 `rejected` |
 | `verdict_reasoning` | 简体中文裁决依据，说明架构信号、字段名、上下文用途、白名单命中情况和是否命中红线 |
+| `redline_clause` | 命中的 redline 条款编号；无映射时为 `null` |
+| `rl_ids` | 命中的 RL-ID 数组；无映射时为 `[]` |
+
+Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度切片或全局 `../../references/redline-mapping.md` 不存在的组合。
 
 ## 执行步骤
 
@@ -62,6 +69,7 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 - `../../references/red-line-rules.md`：红线规则库（RL-140 ~ RL-159 个人数据违规处理、RL-160 ~ RL-179 默认账号未披露）
 - `../../references/allowlists.md`：白名单与例外规则
 - `references/architecture-signals.md`：架构类型推断信号库（B/S 框架、DNS 服务、嵌入式 socket 等）
+- `references/redline-clauses.md`：component-info 维度 redline 条款切片，优先用于 clause 映射。
 
 ### Step 2: Layer 1 - 架构类型推断
 

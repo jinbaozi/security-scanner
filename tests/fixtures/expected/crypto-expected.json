@@ -65,13 +65,13 @@
       "status": "WARN",
       "severity": "high",
       "confidence": "high",
-      "verdict": "confirmed",
-      "verdict_reasoning": "Bouncy Castle 1.46 < 1.50，默认启用 MD5withRSA",
+      "verdict": "needs_human",
+      "verdict_reasoning": "Bouncy Castle 1.46 < 1.50，默认启用 MD5withRSA；5.1.2 属人工证明项，需要外部认证或评估材料确认。",
       "detail": "Bouncy Castle 1.46 默认启用 MD5withRSA 签名",
       "suggestion": "升级到 Bouncy Castle ≥ 1.70",
       "evidence": "library=BouncyCastle@1.46 | library_version=1.46 | trigger=MD5withRSA default | cve=null",
-      "redline_clause": "5.1.4",
-      "rl_ids": ["RL-121"]
+      "redline_clause": null,
+      "rl_ids": []
     }
   ]
 }

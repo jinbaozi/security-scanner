@@ -4,6 +4,9 @@ from scanners.registry import discover_scanners
 from scanners.registry.resolver import topological_order
 
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
 def test_discover_finds_valid_scanners(tmp_path: Path):
     # Set up minimal scanner directory structure
     scanners_dir = tmp_path / "scanners"
@@ -128,3 +131,25 @@ failure:
 """)
     with pytest.raises(ValueError, match="scanner.md"):
         discover_scanners(scanners_dir)
+
+
+def test_production_meta_ids_match_scanner_directory_names():
+    scanners = discover_scanners(ROOT / "scanners")
+
+    for scanner in scanners.values():
+        assert scanner.meta.id == scanner.scanner_md_path.parent.name
+
+
+def test_production_reference_paths_resolve_by_scope():
+    scanners = discover_scanners(ROOT / "scanners")
+
+    for scanner in scanners.values():
+        scanner_dir = scanner.scanner_md_path.parent
+        for reference in scanner.meta.references:
+            if reference.scope == "local":
+                resolved = (scanner_dir / reference.path).resolve()
+                assert resolved.is_relative_to(scanner_dir.resolve())
+            else:
+                resolved = (scanner_dir / reference.path).resolve()
+                assert resolved.is_relative_to(ROOT / "references")
+            assert resolved.is_file(), f"{scanner.meta.id}: missing {reference.path}"

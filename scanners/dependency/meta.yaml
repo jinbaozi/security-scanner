@@ -9,6 +9,8 @@ references:
     scope: local
   - path: references/redline-clauses.md
     scope: local
+  - path: ../../references/redline-mapping.md
+    scope: shared
   - path: ../../references/dependency-check.md
     scope: shared
   - path: ../../references/allowlists.md

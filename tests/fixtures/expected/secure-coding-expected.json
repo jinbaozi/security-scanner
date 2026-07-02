@@ -20,7 +20,7 @@
       "suggestion": "改用长度受控接口，并校验目标缓冲区长度和返回值。",
       "evidence": "strcpy(buf, input)",
       "redline_clause": "11.1.2",
-      "rl_ids": ["RL-230"]
+      "rl_ids": ["RL-211"]
     },
     {
       "id": "SECURE-CODING-002",
@@ -37,7 +37,7 @@
       "suggestion": "移除宏降级，保留安全函数边界检查和返回值处理。",
       "evidence": "#define strcpy_s strcpy",
       "redline_clause": "11.1.2",
-      "rl_ids": ["RL-231"]
+      "rl_ids": ["RL-212"]
     },
     {
       "id": "SECURE-CODING-003",
@@ -54,7 +54,7 @@
       "suggestion": "删除无效代码或迁移到明确的测试/示例目录，并在发布包中排除。",
       "evidence": "#if 0 ... check_password(...) ... #endif",
       "redline_clause": "11.1.1",
-      "rl_ids": ["RL-232"]
+      "rl_ids": ["RL-210"]
     }
   ]
 }

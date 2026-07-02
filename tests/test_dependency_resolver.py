@@ -1,5 +1,6 @@
 import pytest
-from scanners.registry.resolver import topological_order, CircularDependencyError
+from scanners.registry import resolver
+from scanners.registry.resolver import CircularDependencyError, topological_order
 from scanners.registry.schema import MetaSchema, ConsumeSpec, ReferenceSpec, SessionSpec, FailureSpec
 
 
@@ -55,3 +56,22 @@ def test_missing_dependency_raises():
     scanners = {"a": make_scanner("a", consumes=["nonexistent"])}
     with pytest.raises(ValueError, match="nonexistent"):
         topological_order(scanners)
+
+
+def test_selected_scanners_expand_to_dependency_closure_before_ordering():
+    scanners = {
+        "component-info": make_scanner("component-info", consumes=["crypto"]),
+        "crypto": make_scanner("crypto", consumes=["network", "dependency"]),
+        "network": make_scanner("network", consumes=["dependency"]),
+        "dependency": make_scanner("dependency"),
+        "url": make_scanner("url"),
+    }
+
+    selected = resolver.selected_with_dependency_closure(scanners, {"component-info"})
+    order = topological_order({scanner_id: scanners[scanner_id] for scanner_id in selected})
+
+    assert selected == {"component-info", "crypto", "network", "dependency"}
+    assert "url" not in selected
+    assert order.index("dependency") < order.index("network")
+    assert order.index("network") < order.index("crypto")
+    assert order.index("crypto") < order.index("component-info")

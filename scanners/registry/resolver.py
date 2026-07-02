@@ -14,6 +14,37 @@ def _meta_for(scanner: Any) -> MetaSchema:
     return scanner.meta
 
 
+def selected_with_dependency_closure(
+    scanners: dict[str, Any],
+    selected_scanner_ids: set[str],
+) -> set[str]:
+    """Return selected scanner IDs plus all transitive consumed dependencies."""
+    missing = sorted(scanner_id for scanner_id in selected_scanner_ids if scanner_id not in scanners)
+    if missing:
+        raise ValueError(f"selected scanners are not registered: {missing}")
+
+    scanner_meta = {
+        scanner_id: _meta_for(scanner)
+        for scanner_id, scanner in scanners.items()
+    }
+    selected = set(selected_scanner_ids)
+    pending = list(selected_scanner_ids)
+
+    while pending:
+        scanner_id = pending.pop()
+        for consume in scanner_meta[scanner_id].consumes:
+            dependency_id = consume.dim
+            if dependency_id not in scanners:
+                raise ValueError(
+                    f"scanner {scanner_id!r} consumes unknown dim {dependency_id!r}"
+                )
+            if dependency_id not in selected:
+                selected.add(dependency_id)
+                pending.append(dependency_id)
+
+    return selected
+
+
 def topological_order(scanners: dict[str, Any]) -> list[str]:
     """Return scanner IDs in dependency-first order."""
     scanner_meta = {

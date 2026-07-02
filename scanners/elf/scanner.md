@@ -13,6 +13,7 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
 - `checksec_available`: boolean，表示 `checksec` 工具是否可用
 - `component_name`: 源码组件名称
 - `references/checksec-guide.md`: checksec 字段含义与 readelf 降级规则
+- `references/redline-clauses.md`: elf 维度 redline 条款切片。
 
 ## 输出
 
@@ -32,7 +33,9 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
   "verdict_reasoning": "checksec 明确输出 NX disabled，且该检查项为确定性二进制保护项。",
   "detail": "NX 位未设置，堆栈可执行，存在安全风险",
   "suggestion": "编译时添加 -Wl,-z,noexecstack 链接参数",
-  "evidence": "checksec 输出: NX disabled"
+  "evidence": "checksec 输出: NX disabled",
+  "redline_clause": "11.2.1",
+  "rl_ids": ["RL-260"]
 }
 ```
 
@@ -53,6 +56,10 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
 | `detail` | 简体中文说明风险和实际状态 |
 | `suggestion` | 简体中文整改建议；PASS 项写“无需整改” |
 | `evidence` | checksec/readelf/file 命令输出片段 |
+| `redline_clause` | 命中的 redline 条款编号；无映射时为 `null` |
+| `rl_ids` | 命中的 RL-ID 数组；无映射时为 `[]` |
+
+Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度切片或全局 `../../references/redline-mapping.md` 不存在的组合。
 
 > redline 11.2.1 的二进制侧由 PIE、NX、RELRO、Canary、BIND_NOW、FORTIFY_SOURCE 等安全编译项覆盖。内核 ASLR（如 `/proc/sys/kernel/randomize_va_space=2`）属于运行时/系统加固配置，本 scanner 不新增 `aslr` check_item；仅对构建或安装脚本中的明显弱化配置输出 WARN。
 

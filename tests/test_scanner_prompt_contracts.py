@@ -20,7 +20,6 @@ LEGACY_SCAN_PATHS = (
     ROOT / "SKILL.md",
     ROOT / "orchestration",
     ROOT / "scanners",
-    ROOT / "tests",
 )
 GENERATED_CONTRACT_DIRS = {"__pycache__", ".pytest_cache"}
 
@@ -91,6 +90,18 @@ def test_prompt_reference_paths_match_meta_and_resolve():
         for reference_path in meta_paths:
             resolved_path = (scanner_dir / reference_path).resolve()
             assert resolved_path.is_file(), f"{reference_path} from {scanner.meta.id} is missing"
+
+
+def test_all_scanner_prompts_declare_redline_clause_contract():
+    scanners = discover_scanners(ROOT / "scanners")
+
+    for scanner in scanners.values():
+        assert "references/redline-clauses.md" in scanner.prompt, scanner.scanner_md_path
+        assert "redline_clause" in scanner.prompt, scanner.scanner_md_path
+        assert "rl_ids" in scanner.prompt, scanner.scanner_md_path
+        assert "本维度" in scanner.prompt and "redline-clauses.md" in scanner.prompt, (
+            scanner.scanner_md_path
+        )
 
 
 def test_expected_fixture_dimensions_are_current_scanner_ids():

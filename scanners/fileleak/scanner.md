@@ -10,6 +10,7 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
 
 - 全部文件列表或扫描目标路径（从 Scan Plan 获取）
 - `component_name`: 源码组件名称
+- `references/redline-clauses.md`: fileleak 维度 redline 条款切片。
 
 ## 输出
 
@@ -29,7 +30,9 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
   "verdict_reasoning": "文件名命中高风险环境变量文件模式，且该类文件通常包含口令或访问密钥。",
   "detail": "交付包中包含环境变量文件，可能泄露数据库口令或访问密钥",
   "suggestion": "从交付包中移除该文件，改用部署环境注入配置",
-  "evidence": "文件名匹配: .env"
+  "evidence": "文件名匹配: .env",
+  "redline_clause": "4.1.1",
+  "rl_ids": ["RL-217"]
 }
 ```
 
@@ -46,6 +49,10 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
 | `confidence` | `high`、`medium`、`low` |
 | `verdict` | `confirmed`、`suspected`、`rejected`、`needs_human`、`unverified` |
 | `verdict_reasoning` | 简体中文裁决依据，说明文件名模式、内容轻量确认结果和是否需要移出交付包 |
+| `redline_clause` | 命中的 redline 条款编号；无映射时为 `null` |
+| `rl_ids` | 命中的 RL-ID 数组；无映射时为 `[]` |
+
+Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度切片或全局 `../../references/redline-mapping.md` 不存在的组合。
 
 ## 检测规则
 

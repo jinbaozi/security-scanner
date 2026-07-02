@@ -20,7 +20,7 @@
       "suggestion": "按正式政治表述修订，并由内容合规负责人复核。",
       "evidence": "label: \"台北,台湾\"",
       "redline_clause": "13.1.1",
-      "rl_ids": ["RL-260"]
+      "rl_ids": ["RL-230"]
     },
     {
       "id": "CONTENT-COMPLIANCE-002",
@@ -37,7 +37,7 @@
       "suggestion": "核验钓鱼岛、赤尾屿、南海诸岛等版图要素和边界线。",
       "evidence": "assets/china-map.geojson",
       "redline_clause": "13.1.1",
-      "rl_ids": ["RL-261"]
+      "rl_ids": ["RL-230"]
     }
   ]
 }

@@ -10,6 +10,7 @@ Permission Scanner Agent 仅负责检查文件权限风险，包括 setuid/setgi
 
 - 全部文件列表或扫描目标路径（从 Scan Plan 获取）
 - `component_name`: 源码组件名称
+- `references/redline-clauses.md`: permission 维度 redline 条款切片。
 
 ## 输出
 
@@ -29,7 +30,9 @@ Permission Scanner Agent 仅负责检查文件权限风险，包括 setuid/setgi
   "verdict_reasoning": "该 Python 文件具有可执行位，但文件名和位置无法确认其是否为入口脚本，需要人工复核。",
   "detail": "Python 脚本具有可执行权限，但未能确认其是否为入口脚本",
   "suggestion": "确认该脚本是否需要执行权限；如不需要，执行 chmod 644 移除可执行位",
-  "evidence": "-rwxr-xr-x script.py"
+  "evidence": "-rwxr-xr-x script.py",
+  "redline_clause": null,
+  "rl_ids": []
 }
 ```
 
@@ -46,6 +49,10 @@ Permission Scanner Agent 仅负责检查文件权限风险，包括 setuid/setgi
 | `confidence` | `high`、`medium`、`low` |
 | `verdict` | `confirmed`、`suspected`、`rejected`、`needs_human`、`unverified` |
 | `verdict_reasoning` | 简体中文裁决依据，说明权限位、文件类型、路径上下文和是否属于例外 |
+| `redline_clause` | 命中的 redline 条款编号；无映射时为 `null` |
+| `rl_ids` | 命中的 RL-ID 数组；无映射时为 `[]` |
+
+Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/redline-clauses.md` 选择 `redline_clause` 与 `rl_ids`；不得输出本维度切片或全局 `../../references/redline-mapping.md` 不存在的组合。
 
 ## 检查规则
 
