@@ -125,7 +125,8 @@ security-scanner/
 ```text
 SKILL.md
 ├── Phase -1 -> references/dependency-check.md
-├── Phase 0  -> orchestration/reconnaissance.md
+├── Phase -0 -> scripts/package_materializer.py（输入物化：SRPM %prep / binary RPM 展开）
+├── Phase 0  -> orchestration/reconnaissance.md（只消费物化后的 source_roots / binary_roots）
 ├── Phase 1  -> 校验 scan_profile（默认 redline-full）
 │              -> discover_scanners() 自动发现 scanners/<dim>/{meta.yaml,scanner.md}
 │              -> 与 profile 维度集合取交集后调度
@@ -154,6 +155,7 @@ SKILL.md
 
 1. 读取 `references/dependency-check.md`。
 2. 执行环境预检：检测运行时、检查依赖。
+   - RPM/SRPM 物化相关工具：`rpm2cpio`、`cpio`、`rpmbuild`、`dnf`、`patch`、`tar`。`dnf` 缺失只影响 builddep 修复路径。
 3. 若检测到缺失工具：
    a. **阻断执行**，使用 `question` 工具向用户展示缺失工具列表及安装方法。
    b. 让用户选择：手动安装 / 自动安装 / 接受降级。
@@ -162,7 +164,7 @@ SKILL.md
    e. 用户拒绝降级 → `blocked`，终止扫描并输出安装指南。
 4. 生成依赖报告：`ready` / `degraded` / `blocked`。
    - `degraded` 仅在用户明确同意降级后才设置。
-5. `ready` 或 `degraded`（用户已同意）时输出摘要并进入 Phase 0。
+5. `ready` 或 `degraded`（用户已同意）时输出摘要并进入 Phase -0。
 
 终端摘要：
 
@@ -173,10 +175,29 @@ Phase -1: 环境预检 PASS
   降级项: [列出降级项]
 ```
 
+### Phase -0: 输入物化（Package Materialization）
+
+1. 对 `target_path` 识别输入类型：`.src.rpm`、binary `.rpm`、包含 RPM/SRPM 的目录或普通已展开源码目录。
+2. 对 `.src.rpm` 使用 `scripts/package_materializer.py` 执行 `rpm2cpio`/`cpio` 解包，并在隔离 `_topdir` 中执行 `rpmbuild -bp --nodeps`，只复现 `%prep`，产出 patch 后的 `source_prepped` 根目录。
+3. 对 binary RPM 展开到 `materialized/binary-root/`，作为 `binary_rpm` 根目录进入后续 ELF、权限、敏感文件和依赖线索扫描。
+4. 若 `%prep` 疑似因构建依赖失败，可在用户明确授权后执行 `dnf builddep <spec>` 并重试；该动作会修改系统包环境。当前用户非 root 或需要 sudo 时必须先阻断并要求 root/sudo 授权或 root 密码，不得静默安装依赖。
+5. 普通目录标记为 `raw_directory`，继续扫描，但报告必须说明未验证 RPM patch 语义。
+6. 输出 materialization JSON，并执行 A-0 审计。SRPM 物化失败时继续输出错误报告，但 `overall_redline_assurance=blocked`，源码相关 redline 覆盖项为 degraded/blocked。
+
+终端摘要：
+
+```text
+Phase -0: 输入物化 PASS|FAIL
+  输入类型: srpm | binary_rpm | package_directory | source_tree
+  源码根: [source_prepped/raw_directory roots]
+  二进制根: [binary_rpm roots]
+  builddep: not_required | authorization_required | root_authorization_required | succeeded | failed
+```
+
 ### Phase 0: 发现阶段（Reconnaissance）
 
 1. 读取 `orchestration/reconnaissance.md`。
-2. 派发 Recon subagent 执行目录探索、文件分类和分片。
+2. 将 Phase -0 的 materialization JSON 传入 Recon；Recon 只扫描 `source_roots` 和 `binary_roots`。
 3. 获取 Scan Plan JSON。
 4. 执行审计点 A0：覆盖率、分片大小、目录完整性。
 5. 审计通过后输出发现摘要并进入 Phase 1。

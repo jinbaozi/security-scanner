@@ -57,6 +57,20 @@ for tool in readelf objdump xxd od python3; do
   fi
 done
 
+for tool in rpm2cpio cpio rpmbuild patch tar; do
+    if ! which "$tool" >/dev/null 2>&1; then
+        echo "MISSING: $tool (RPM/SRPM 输入物化依赖 — 缺失时无法证明 SRPM %prep 覆盖)"
+    else
+        echo "OK: $tool -> $(which "$tool")"
+    fi
+done
+
+if ! which dnf >/dev/null 2>&1; then
+    echo "MISSING: dnf (SRPM builddep 修复路径 — 缺失不影响已满足依赖的 %prep)"
+else
+    echo "OK: dnf -> $(which dnf)"
+fi
+
 for tool in jq xmllint; do
     if ! which "$tool" >/dev/null 2>&1; then
         echo "MISSING: $tool (新维度依赖 — 缺失时降级到 python3 -c 'import json/xml.etree')"
@@ -87,6 +101,12 @@ fi
 失败时记录到 `degraded_dimensions`：
 - `crypto:library-vuln-caps` 标记为 degraded，回落内置知识库
 - 网络拉取失败不阻断扫描
+
+### Step 2.1: RPM/SRPM 物化依赖说明
+
+- `rpm2cpio`、`cpio`、`rpmbuild`、`patch`、`tar` 用于 Phase -0 输入物化；扫描 `.src.rpm` 时缺失这些工具会导致 A-0 blocked，源码相关 redline 覆盖不得标为完整通过。
+- `dnf` 只用于用户授权后的 `dnf builddep <spec>` 修复路径。不得在预检中静默执行 builddep；该命令会修改系统包环境。
+- 如果需要执行 `dnf builddep` 且当前用户不是 root，必须先提示用户提供 root/sudo 授权或 root 密码，再重试 `%prep`。
 
 ### Step 3: 阻断通知（缺失依赖）
 

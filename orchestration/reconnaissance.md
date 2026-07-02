@@ -4,30 +4,34 @@
 
 ## 执行时机
 
-在 Phase -1（环境预检）完成后执行。由 Orchestrator 派发单个 Recon Agent 执行。
+在 Phase -0（输入物化）完成后执行。由 Orchestrator 派发单个 Recon Agent 执行。
 
 ## 输入与输出
 
-- 输入：用户指定的扫描目标绝对路径。
-- 输出：Scan Plan JSON，包含文件分类、分片、排除项和复杂度评估。
+- 输入：Phase -0 生成的 materialization JSON，而不是原始包文件路径。普通目录输入也必须先被标记为 `source_tree` / `raw_directory`。
+- 输出：Scan Plan JSON，包含 `materialization` 对象、物化源码根、二进制根、文件分类、分片、排除项和复杂度评估。
 
-## Step 1: 验证目标路径
+Recon 只能扫描以下根：
+
+- `source_roots[].path`：来源为 `source_prepped` 或 `raw_directory`。
+- `binary_roots[].path`：来源为 `binary_rpm`。
+
+SRPM 外层 `Source*.tar.*`、`Patch*`、`.spec` 是物化证据，Source*.tar 不得当作已扫描源码；只有 `%prep` 后的 `source_prepped` 文件可以进入 `source_shards`。
+
+## Step 1: 验证物化目标路径
 
 ```bash
-if [ ! -e "{target_path}" ]; then
-  echo "ERROR: 目标路径不存在: {target_path}"
+if [ "{materialization.status}" != "ready" ]; then
+  echo "ERROR: 输入物化未完成: {materialization.status}"
   exit 1
 fi
-if [ ! -d "{target_path}" ]; then
-  echo "ERROR: 目标路径不是目录: {target_path}"
-  exit 1
-fi
-file_count=$(find "{target_path}" -type f 2>/dev/null | wc -l)
-if [ "$file_count" -eq 0 ]; then
-  echo "ERROR: 目标目录为空: {target_path}"
-  exit 1
-fi
-echo "OK: 目标路径有效，共 $file_count 个文件"
+
+for scan_root in {source_roots_and_binary_roots}; do
+  if [ ! -d "$scan_root" ]; then
+    echo "ERROR: 物化根目录不存在或不是目录: $scan_root"
+    exit 1
+  fi
+done
 ```
 
 文件数超过 10,000 时必须警告用户，建议缩小扫描范围或确认继续。
@@ -35,7 +39,7 @@ echo "OK: 目标路径有效，共 $file_count 个文件"
 ## Step 2: 目录探索
 
 ```bash
-find "{target_path}" -type f \
+find {source_roots_and_binary_roots} -type f \
   -not -path "*/.git/*" \
   -not -path "*/.svn/*" \
   -not -path "*/.hg/*" \
@@ -46,6 +50,14 @@ find "{target_path}" -type f \
   -not -path "*/.tox/*" \
   2>/dev/null | sort > /tmp/recon_all_files.txt
 ```
+
+Recon 必须为每个文件保留 `origin` 标记：
+
+- `source_prepped`：来自 SRPM `%prep` 后源码树。
+- `binary_rpm`：来自 binary RPM 展开根。
+- `raw_directory`：来自普通已展开目录，未验证 RPM patch 语义。
+
+`all_files`、`elf_files`、`dependency_files` 同时覆盖 source roots 与 binary roots。`source_shards` 只允许使用 `source_prepped` 或 `raw_directory` 源码文件；binary root 中的源码样文件不得混入源码 shard，除非 Orchestrator 明确标记该 binary root 中包含源码交付物并记录原因。
 
 ## Step 3: 文件分类
 
@@ -130,26 +142,41 @@ grep -E "(^|/)(Dockerfile|docker-compose\.yml|docker-compose\.yaml)$" /tmp/recon
 
 ```json
 {
-  "target": "/absolute/path/to/target",
+  "target": {
+    "source_roots": ["/absolute/path/to/materialized/rpmbuild/pkg/BUILD/pkg-1"],
+    "binary_roots": ["/absolute/path/to/materialized/binary-root/pkg.x86_64"]
+  },
+  "materialization": {
+    "input_kind": "srpm|binary_rpm|package_directory|source_tree",
+    "source_roots": [{"path": "/absolute/path/to/materialized/rpmbuild/pkg/BUILD/pkg-1", "origin": "source_prepped"}],
+    "binary_roots": [{"path": "/absolute/path/to/materialized/binary-root/pkg.x86_64", "origin": "binary_rpm"}],
+    "srpm_spec_files": ["/absolute/path/to/pkg.spec"],
+    "applied_patches": ["fix.patch"],
+    "builddep_attempted": false,
+    "builddep_status": "not_required",
+    "status": "ready|blocked",
+    "errors": [],
+    "audit_log": []
+  },
   "component_name": "从目录名提取",
   "total_files": 1234,
   "scan_files": 1100,
-  "elf_files": ["/path/to/binary1", "/path/to/lib.so"],
+  "elf_files": [{"path": "/path/to/binary1", "origin": "binary_rpm"}],
   "source_shards": [
     {
       "id": 0,
-      "files": ["/path/to/file1.c", "/path/to/file2.c"],
+      "files": [{"path": "/path/to/file1.c", "origin": "source_prepped"}],
       "type": "source",
       "dir": "src/core"
     }
   ],
-  "config_files": ["/path/to/config.yaml"],
-  "dependency_files": ["..."],
-  "docker_files": ["..."],
-  "crypto_relevant_files": ["..."],
-  "network_relevant_files": ["..."],
-  "component_profile_relevant_files": ["..."],
-  "all_files": ["/path/to/file1.c"],
+  "config_files": [{"path": "/path/to/config.yaml", "origin": "source_prepped"}],
+  "dependency_files": [{"path": "/path/to/package.json", "origin": "source_prepped"}],
+  "docker_files": [{"path": "/path/to/Dockerfile", "origin": "source_prepped"}],
+  "crypto_relevant_files": [{"path": "/path/to/file1.c", "origin": "source_prepped"}],
+  "network_relevant_files": [{"path": "/path/to/config.yaml", "origin": "source_prepped"}],
+  "component_profile_relevant_files": [{"path": "/path/to/Dockerfile", "origin": "source_prepped"}],
+  "all_files": [{"path": "/path/to/file1.c", "origin": "source_prepped"}],
   "excluded": [
     {"path": "/path/to/vendor/foo.go", "reason": "third_party:vendor"}
   ],
@@ -169,6 +196,8 @@ grep -E "(^|/)(Dockerfile|docker-compose\.yml|docker-compose\.yaml)$" /tmp/recon
 `component_profile_relevant_files` 是 `source_files ∪ config_files ∪ docker_files`。
 
 `component_name` 取目标路径最后一级目录名。
+
+当 `materialization.status=blocked` 时，Recon 不得伪造源码覆盖；应返回包含 materialization 错误的降级 Scan Plan，供 Reporter 输出阻断说明。
 
 ## 审计点 A0
 

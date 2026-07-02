@@ -21,6 +21,7 @@
 - C/C++、Go、Python、Shell、Java、JavaScript、YAML/XML/JSON 等源码和配置。
 - 源码 + ELF 二进制混合目录。
 - 包含脚本、证书、日志、临时文件的交付包目录。
+- `.src.rpm`、binary `.rpm` 以及包含 RPM/SRPM 的目录；扫描前会先物化 SRPM `%prep` 后源码树和 binary RPM 文件系统视图。
 
 ## 扫描维度
 
@@ -76,6 +77,9 @@ Profile 只决定 Phase 1 扫描调度，不决定 Phase 3 报告数量。Report
 | `readelf` / `objdump` | ELF 降级检查 | 降级备选 |
 | `xxd` / `od` | ELF magic bytes 检测 | 降级备选 |
 | `python3` | 注释提取和复杂解析 | 可选/降级备选 |
+| `rpm2cpio` / `cpio` | RPM/SRPM 解包 | RPM 输入核心 |
+| `rpmbuild` / `patch` / `tar` | SRPM `%prep` 源码物化 | SRPM 输入核心 |
+| `dnf` | 用户授权后的 `dnf builddep` 修复路径 | 可选；缺失只影响 builddep |
 
 `checksec` 不可用时，ELF Scanner 会尝试使用 `readelf`、`objdump`、`file` 等方案降级。缺少核心工具时，扫描会进入 blocked 状态并输出安装建议。
 
@@ -105,8 +109,11 @@ Profile 只决定 Phase 1 扫描调度，不决定 Phase 3 报告数量。Report
 Phase -1: 环境预检
   -> 检测依赖、运行时和降级路径
 
+Phase -0: 输入物化
+  -> SRPM 执行 rpmbuild -bp --nodeps，binary RPM 展开为文件系统根
+
 Phase 0: 发现阶段
-  -> 探索目录、排除第三方/生成代码、分类文件、生成 Scan Plan
+  -> 基于物化后的 source_roots / binary_roots 分类文件、生成 Scan Plan
 
 Phase 1: registry 调度扫描
   -> discover_scanners() 自动发现 scanner

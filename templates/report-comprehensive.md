@@ -18,6 +18,10 @@
 - **源码文件数**: {source_count}
 - **配置文件数**: {config_count}
 
+## 输入物化摘要
+
+{materialization_summary}
+
 ## 发现汇总
 
 | 严重度 | 数量 |
