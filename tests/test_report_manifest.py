@@ -170,6 +170,72 @@ def test_readme_documents_fixed_13_dimension_reports_and_paths():
         assert entry["output"] in readme
 
 
+def _readme_section(readme: str, heading: str) -> str:
+    marker = f"### {heading}"
+    start = readme.index(marker)
+    section_starts = [
+        pos
+        for pos in (
+            readme.find("\n### ", start + len(marker)),
+            readme.find("\n## ", start + len(marker)),
+        )
+        if pos != -1
+    ]
+    end = min(section_starts) if section_starts else len(readme)
+    return readme[start:end]
+
+
+def test_readme_documents_tool_specific_usage_examples():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    for heading in ("Claude Code", "Codex", "OpenCode"):
+        assert f"### {heading}" in readme
+
+    claude = _readme_section(readme, "Claude Code")
+    codex = _readme_section(readme, "Codex")
+    opencode = _readme_section(readme, "OpenCode")
+
+    assert ".claude/skills/security-scanner" in claude
+    assert "/security-scanner" in claude
+
+    assert ".agents/skills/security-scanner" in codex
+    assert "$security-scanner" in codex
+
+    assert ".opencode/skills/security-scanner" in opencode
+    assert "opencode run" in opencode
+    assert "使用 security-scanner skill" in opencode
+    assert "\n/security-scanner" not in opencode
+    assert 'opencode run "/security-scanner' not in opencode
+
+
+def test_readme_tool_prompts_include_phase0_and_fixed_report_contract():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    required_phrases = (
+        "Phase -0",
+        "security-reports/",
+        "component-info summary JSON",
+        "13 份维度独立详细 Markdown 报告",
+    )
+
+    for heading in ("Claude Code", "Codex", "OpenCode"):
+        section = _readme_section(readme, heading)
+        for phrase in required_phrases:
+            assert phrase in section, f"{heading}: missing {phrase}"
+
+
+def test_readme_removes_old_profile_scoped_report_language():
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    forbidden_phrases = (
+        "当前 profile 对应的专项报告",
+        "当前 profile 对应的维度专项报告",
+        "当前 profile 对应专项模板",
+    )
+
+    for phrase in forbidden_phrases:
+        assert phrase not in readme
+
+
 def test_new_dimension_report_templates_exist():
     for template_name in ("report-敏感文件泄露.md", "report-文件权限.md"):
         path = TEMPLATES_DIR / template_name
