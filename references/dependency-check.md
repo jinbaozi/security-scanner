@@ -15,6 +15,22 @@ Phase -1 只负责检测运行环境和外部工具可用性；Dependency Scanne
 - OSV/grype/trivy 不可用：Phase -1 可记录外部工具降级；Dependency Scanner 继续使用 manifest/SBOM/内置证据并在 `audit_log` 标注 degraded。
 - Crypto/Network 不重复产出 `MISSING_LOCK_FILE`，只消费 dependency 的 SBOM/漏洞上下文。
 
+## 外部工具状态模型
+
+所有外部工具必须先分类，再决定是否阻断、重试或降级。统一状态如下：
+
+| 状态 | 含义 | 是否允许自动降级 |
+|------|------|------------------|
+| `available` | 工具存在且可执行，输出可被当前 parser 消费 | 否，正常使用 |
+| `missing` | `which`、执行或 `--help` 明确证明命令不存在 | 可作为 `confirmed_unavailable` 的 proof |
+| `broken` | 工具存在但解释器、共享库、权限或运行依赖缺失，无法执行 | 可作为 `confirmed_unavailable` 的 proof |
+| `invocation_error` | 参数错误、usage error、命令构造不兼容或调用方式错误 | 否，必须修复调用 |
+| `parse_error` | 命令成功但输出无法按声明 parser 解析，且无同工具备用 parser 可用 | 否，必须 blocked/unverified |
+| `confirmed_unavailable` | 已有 `missing` 或 `broken` 的可审计证明，允许进入预定义降级路径 | 是 |
+| `user_approved_degraded` | 用户明确接受降级，且记录了 `user_approval_ref` | 是 |
+
+`invocation_error/parse_error 不得静默降级`。任何 `degraded_dimensions` 或工具降级项必须包含 `unavailable_proof`（含 command、exit_code、stderr_summary、audit_log_ref）或 `user_approval_ref`；否则应标记为 `blocked` 或 `unverified`。`confirmed_unavailable` proof 可用于技术降级；是否还需要用户批准，按 Phase -1 阻断通知和用户选择策略执行。
+
 ## 步骤
 
 ### Step 1: 检测运行时环境
@@ -261,7 +277,7 @@ which checksec >/dev/null 2>&1 && checksec --help >/dev/null 2>&1
 判定规则：
 
 - `ready`：所有核心和重要依赖可用，进入 Phase 0。
-- `degraded`：核心依赖可用，部分重要依赖缺失但有降级方案，**且用户已在 Step 3 或 Step 6 中明确同意降级**。
+- `degraded`：核心依赖可用，部分重要依赖缺失但有降级方案，且状态为 `confirmed_unavailable` 或 `user_approved_degraded`。
 - `blocked`：核心依赖缺失且无法安装或用户拒绝降级，终止扫描并输出安装指南。
 
 ## 降级链
@@ -271,10 +287,12 @@ which checksec >/dev/null 2>&1 && checksec --help >/dev/null 2>&1
 
 ```text
 checksec 不可用:
-  -> 尝试自动安装（pip > 系统包管理器 > curl 下载）
-  -> 安装失败 -> 询问用户是否接受降级
-  -> 用户拒绝 -> BLOCKED 终止
-  -> 用户同意 -> 降级到 readelf + objdump 手动解析
+  -> 先分类为 missing/broken/invocation_error/parse_error
+  -> missing/broken 且有 unavailable_proof -> confirmed_unavailable
+  -> invocation_error/parse_error -> BLOCKED，不得 readelf 兜底
+  -> confirmed_unavailable 后可询问用户或按 scanner 合约降级到 readelf + objdump 手动解析
+  -> 用户拒绝降级 -> BLOCKED 终止
+  -> 用户同意 -> user_approved_degraded，记录 user_approval_ref
   -> readelf 也不可用 -> 降级到 python3 ELF header 解析
   -> python3 也不可用 -> ELF 扫描维度跳过（SKIP）
 

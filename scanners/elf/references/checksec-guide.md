@@ -1,35 +1,26 @@
-# checksec 工具使用指南
+# checksec 字段与降级语义指南
 
-> 本文件指导 ELF 二进制安全编译扫描 Agent 如何正确使用 checksec 工具。
+> 本文件说明 checksec 字段含义和 readelf 降级语义。
+> ELF Scanner Agent 不直接调用 checksec；必须通过 `scripts/elf_hardening_probe.py` 生成结构化 JSON 后再映射 finding。
 >
 > 上游地址：<https://github.com/slimm609/checksec>
 
-## 1. checksec 基本用法
+## 1. probe 内部 checksec 模式
 
-### 1.1 检查单个文件
+probe 会先验证 checksec 是否可执行，再按顺序尝试以下模式：
 
-```bash
-checksec --file=/path/to/binary
-```
+- `format_json`：支持 `--format=json` 的版本。
+- `output_json`：支持 `--output=json` 的版本。
+- `text`：JSON 模式不可解析时，回到 checksec 文本输出解析。
 
-输出示例：
+ELF Scanner 只消费 probe JSON，不直接消费下方示例输出。文本输出示例：
 
 ```text
 RELRO           STACK CANARY      NX            PIE             RPATH      RUNPATH      Symbols         FORTIFY  Fortified  Fortifiable  FILE
 Full RELRO      Canary found      NX enabled    PIE enabled     No RPATH   No RUNPATH   No Symbols      Yes      3          5            /usr/bin/ls
 ```
 
-### 1.2 批量检查（按目录）
-
-```bash
-checksec --dir=/path/to/dir
-```
-
-### 1.3 JSON 输出（便于解析）
-
-```bash
-checksec --file=/path/to/binary --output=json
-```
+如果 JSON 模式失败但文本模式可解析，仍视为 `checksec_state=available`。如果参数错误、usage error 或所有 parser 都失败，则 probe 必须返回 `blocked` / `invocation_error` / `parse_error`，不得进入 readelf 降级。`checksec --help` 成功只代表工具初步可执行；若单文件 checksec 调用暴露共享库缺失、bad interpreter、permission denied、cannot execute 等运行依赖错误，应分类为 `broken` 并生成 `unavailable_proof`，可按 confirmed unavailable proof 进入 readelf/file 降级。
 
 ## 2. 各字段含义与判定规则
 
@@ -49,7 +40,9 @@ checksec --file=/path/to/binary --output=json
 
 ## 3. readelf 降级方案
 
-当 checksec 不可用时，使用 readelf 手动检查：
+仅当 probe 已证明 `checksec_state=confirmed_unavailable` 且包含顶层 `unavailable_proof`，或单文件结果包含 `broken/missing` 的 `unavailable_proof` 时，才允许使用 readelf/file 手动检查。
+
+readelf/file 每个子命令必须独立记录状态。只有对应命令成功且输出非空时，才可推导该检查项的 PASS/FAIL；子命令失败或输出为空时，该检查项必须为 `unknown/unverified`，不得推导 `No RELRO`、`No canary` 或 `Not fortified` 等负面结论。顶层 `status=degraded` 只表示进入 confirmed unavailable 降级路径，不表示所有检查项都有可判定证据。
 
 ### 3.1 检查 NX
 

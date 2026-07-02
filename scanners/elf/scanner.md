@@ -10,7 +10,7 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
 
 - `elf_files`: 从 Scan Plan 获取的 ELF 文件路径列表
 - `config_files` / `build_files`（可选）：构建脚本、安装脚本、sysctl 配置片段，用于弱检 ASLR 加固配置
-- `checksec_available`: boolean，表示 `checksec` 工具是否可用
+- `elf_probe_json`: `scripts/elf_hardening_probe.py` 生成的结构化工具执行证据；若尚未生成，本 scanner 必须先调用 probe
 - `component_name`: 源码组件名称
 - `references/checksec-guide.md`: checksec 字段含义与 readelf 降级规则
 - `references/redline-clauses.md`: elf 维度 redline 条款切片。
@@ -77,59 +77,49 @@ for f in {elf_files}; do
 done
 ```
 
-### Step 2: 执行安全编译检查
+### Step 2: 执行确定性安全编译探测
 
-优先读取 `references/checksec-guide.md`，按其字段含义和降级规则执行检查。
-
-#### 方案 A：checksec 可用
-
-对每个 ELF 文件执行：
+ELF Scanner 不得直接拼接或猜测 `checksec` 参数。必须调用确定性适配器，并把完整 JSON 写入 `security-reports/`：
 
 ```bash
-checksec --file="{filepath}" --output=json
+python3 scripts/elf_hardening_probe.py \
+  --file "{filepath}" \
+  --output-json "security-reports/elf-probe-{component_name}.json"
 ```
 
-如 JSON 输出不可解析，切换为文本输出：
+多个 ELF 文件可重复传入 `--file`，或使用 `--list-file PATH`。probe stdout 只允许输出一行摘要；scanner 必须读取 `--output-json` 指向的文件作为唯一工具证据来源。
 
-```bash
-checksec --file="{filepath}"
-```
+probe JSON 必须包含并保留到 scanner audit_log：
 
-#### 方案 B：checksec 不可用，readelf/file 可用
+- `status`: `ready | degraded | blocked`
+- `checksec_state`
+- `selected_mode`（摘要字段）
+- `fallback_used`
+- `fallback_reason`
+- `unavailable_proof`
+- `tool_invocations`
+- `results[]`
 
-按以下方式降级检查：
+`checksec_state` 只表达全局工具能力探测结果；`selected_mode 仅为摘要字段`，多文件扫描的准确模式以 `results[].mode` 为准。每个 `results[]` 必须保留自己的 `mode`、`parser`、`status`、`failure_reason` 和 `tool_invocation_refs`。
 
-```bash
-# NX
-readelf -l "{filepath}" | grep -A1 "GNU_STACK"
+工具降级门禁：
 
-# RELRO + BIND_NOW
-readelf -l "{filepath}" | grep "GNU_RELRO"
-readelf -d "{filepath}" | grep "BIND_NOW"
-
-# PIE / DSO
-readelf -h "{filepath}" | grep "Type:"
-
-# Stack Canary
-readelf -s "{filepath}" | grep "__stack_chk_fail"
-
-# RPATH / RUNPATH
-readelf -d "{filepath}" | grep -E "RPATH|RUNPATH"
-
-# FORTIFY_SOURCE
-readelf -s "{filepath}" | grep "_chk@"
-
-# Strip
-file "{filepath}" | grep -E "stripped|not stripped"
-```
-
-#### 方案 C：检查工具不可用
-
-若 `checksec`、`readelf`、`file` 均不可用，输出 `status=WARN`、`verdict=unverified`，`detail` 写明“ELF 扫描工具不可用，跳过此文件”。
+- `checksec_state=available` 且 `results[].status=ready`、`results[].source=checksec` 时，按 `results[].checks` 映射 finding。
+- `fallback_used=true` 仅在存在 confirmed unavailable proof 时可接受：全局 `checksec_state=confirmed_unavailable` 且顶层存在 `unavailable_proof`，或单文件 checksec 运行依赖错误且该 `results[]` 存在 `unavailable_proof`。此时 `readelf` / `file` 结果为降级证据。
+- `invocation_error`、`parse_error`、参数不兼容、usage error 或 probe `status=blocked` 时，不得改用 readelf 兜底；必须输出 blocked/unverified 证据，要求修复工具调用或安装正确版本。
+- 单个 ELF 不存在或不可读时，只为该文件输出 `verdict=unverified`，不得污染全局 `checksec_state`。
 
 ### Step 3: 映射检查结果
 
-对每个 ELF 文件的每个检查项生成 finding。PASS 项也生成 `status=PASS`、`severity=info` 的 finding，用于报告展示完整检查矩阵。
+读取 `elf_probe_json.results[]`，对每个 ELF 文件的每个检查项生成 finding。PASS 项也生成 `status=PASS`、`severity=info` 的 finding，用于报告展示完整检查矩阵。
+
+映射规则：
+
+- `results[].status=ready`：使用 `source=checksec` 的字段，`evidence` 引用 `tool_invocations` 中的 checksec 命令、exit code 和 parser。
+- `results[].status=degraded`：仅当存在顶层 `unavailable_proof` 或该结果自身的 `unavailable_proof`，且 `fallback_reason=checksec_confirmed_unavailable` 时使用 readelf/file 结果；`confidence` 最高为 `medium`，`evidence` 必须写明降级原因。
+- `results[].status=blocked`：不生成看似通过的 PASS；输出 `status=WARN`、`verdict=unverified` 的工具阻断 finding，`detail` 写明 `failure_reason`。
+- `results[].status=unverified`：输出 `status=WARN`、`verdict=unverified` 的文件级 finding。
+- readelf 输出为空或对应子命令失败时，该检查项输出 `unknown/unverified`，不得推导 PASS/FAIL。
 
 检查项分为两类：
 - **红线项**：发现问题时 `status=FAIL`，报告中标记为 **Error**，必须整改。包括：RELRO、Canary、NX、PIE、RPATH、BIND_NOW、Strip、FORTIFY_SOURCE。
@@ -188,8 +178,10 @@ grep -rnE "randomize_va_space\s*=\s*[01]\|kernel\.randomize_va_space\s*=\s*[01]\
 
 | 异常 | 处理 |
 |------|------|
-| checksec 命令崩溃 | 捕获错误，切换到 readelf 降级方案 |
+| probe `checksec_state=confirmed_unavailable` 且含 `unavailable_proof` | 允许使用 readelf/file 降级结果，并在 evidence 中引用 proof |
+| probe `checksec_state=invocation_error` 或 `parse_error` | 不得 readelf 降级；标记 blocked/unverified 并要求修复工具调用或 parser |
+| probe `status=blocked` | 不进入正常 PASS/FAIL 矩阵；输出工具阻断 finding |
 | 单个 ELF 文件损坏或不可读 | 跳过该文件，生成 `status=WARN`、`verdict=unverified` 的 finding |
 | ELF 文件数 > 20 | 由 Orchestrator 拆分为多个 ELF Scanner Agent，每个处理不超过 20 个文件 |
-| checksec JSON 输出解析失败 | 切换到文本输出模式，正则解析 |
-| readelf 输出为空 | 标记该检查项为 `status=WARN`，`confidence=low` |
+| checksec JSON 输出解析失败 | 由 probe 自动尝试其他 checksec JSON 模式和文本模式；文本也不可解析时 blocked |
+| readelf 输出为空或对应子命令失败 | 仅在 confirmed unavailable 降级路径中将对应检查项标记为 `unknown/unverified`，映射 finding 时使用 `status=WARN`、`confidence=low`，不得推导 PASS/FAIL |

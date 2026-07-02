@@ -7,7 +7,7 @@
 ```text
 Phase -1: Pre-flight Check -> 审计 -> Phase -0: 输入物化 -> 审计 A-0
 -> Phase 0: Recon -> 审计 A0
--> Phase 1: Registry Scheduling -> Phase 1.5: Scanner Sessions -> 审计 A1 -> Phase 2: Verdict -> 审计 A2
+-> Phase 1: Registry Scheduling -> Phase 1.5: Scanner Sessions -> 审计 A1/A1b/A1c -> Phase 2: Verdict -> 审计 A2
 -> Phase 3: Report -> 审计 A3 -> 输出
 ```
 
@@ -33,6 +33,22 @@ Orchestrator 必须接收以下输入：
 ## 终端摘要格式
 
 默认采用最小终端输出：每个 Phase 最多输出 1 行终端状态，最终终端摘要最多 8 行。不得向终端输出完整 JSON、原始 findings、大段 stdout/stderr 或文件清单；完整数据必须写入 security-reports/ 下的 JSON、审计日志、Markdown 报告和维度报告。Phase 3 完成后只输出报告目录、关键状态和降级计数，详细摘要以报告产物为准。
+
+## 外部工具状态模型
+
+所有 scanner 和 Orchestrator 内置工具调用必须先分类，再决定是否继续、重试或降级：
+
+| 状态 | 含义 | 降级规则 |
+|------|------|----------|
+| `available` | 工具可执行，输出可按声明 parser 消费 | 正常使用，不得记为 degraded |
+| `missing` | 命令不存在或执行返回 command not found | 可形成 `confirmed_unavailable` |
+| `broken` | 工具存在但解释器、共享库、权限或运行依赖缺失 | 可形成 `confirmed_unavailable` |
+| `invocation_error` | 参数错误、usage error、调用方式不兼容 | blocked/unverified，不得降级 |
+| `parse_error` | 命令成功但输出无法解析，且同工具备用 parser 也失败 | blocked/unverified，不得降级 |
+| `confirmed_unavailable` | `missing` 或 `broken` 具备可审计证明 | 可按合约进入降级路径 |
+| `user_approved_degraded` | 用户明确接受降级，且记录 `user_approval_ref` | 可按用户授权降级 |
+
+`invocation_error/parse_error 不得静默降级`。任何 `degraded_dimensions`、scanner 降级 finding 或 Phase 降级必须保留 `unavailable_proof`（command、exit_code、stderr_summary、audit_log_ref）或 `user_approval_ref`。
 
 ### 顺序执行
 
@@ -151,12 +167,39 @@ FAIL -> 进入修复循环（最多 2 次自动修复）-> 仍失败则降级
 
 - profile 声明维度均处于 `scheduled_dimensions`、`skipped_by_profile`、`skipped_by_condition`、`missing_profile_dimensions` 或 `degraded_dimensions` 之一：PASS。
 - 任一 profile 维度没有执行结果且没有 skip/degraded 原因：WARN；若影响必检目标则 FAIL。
-- `degraded_dimensions` 必须包含 `dimension`、`reason`、`fallback`、`audit_log_ref`。
+- `degraded_dimensions` 必须包含 `dimension`、`reason`、`fallback`、`audit_log_ref`，并且必须包含 `unavailable_proof` 或 `user_approval_ref`；缺少 `confirmed_unavailable` proof 或 `user_approved_degraded` 审计引用时不得标记 degraded。
 
 ### A1b+（Context Consumes 截断审计）
 
 - 任一 `context.consume()` 因 `token_budget` 截断时，必须在 `audit_log` 记录上游维度、过滤条件、原始数量、注入数量和截断策略。
 - 高严重度 findings 必须优先保留；截断未记录为 WARN。
+
+### A1c（Tool Execution Audit）
+
+A1c 在 Phase 1.5 后、Verdict 前执行。它只复核工具证据链，不替代 scanner 自身判断；审计失败时不得进入正常报告结论，必须输出 blocked/unverified 状态和修复建议。
+
+当前强制复核门禁只有 A1c Tool Execution Audit，由 Orchestrator 执行确定性合约审计。本轮不新增、不调度、不作为 A1c 必需组件的独立 Result Verification Agent。
+
+通用检查：
+
+- 每个声明需要外部工具的 scanner 都必须提供工具 probe JSON、`tool_invocations`、parser 结果和 scanner findings 的引用关系。
+- 每个输入文件必须有结果、明确跳过原因或明确失败原因；缺少任一输入文件的工具结果为 WARN，影响必检维度时为 FAIL。
+- `tool_invocations` 必须记录 command、exit_code、stderr_summary、parser、classification。
+- 降级必须满足 `confirmed_unavailable` + `unavailable_proof`，或 `user_approved_degraded` + `user_approval_ref`。
+- `invocation_error`、`parse_error`、usage error、参数错误、parser 失败不得写成 degraded。
+
+ELF 专项检查：
+
+- 若 `elf_files > 0` 且 `checksec 可用`，则每个 ELF 必须有 checksec 结果；有 ELF 输入、checksec 可用但缺少 checksec 结果：A1c FAIL。
+- 若 ELF probe 使用 `readelf` fallback，必须存在 `checksec_state=confirmed_unavailable`、`fallback_reason=checksec_confirmed_unavailable` 和 `unavailable_proof`；readelf fallback 缺少 confirmed_unavailable proof：A1c FAIL。
+- tool invocation_error 或 parse_error 被写成 degraded：A1c FAIL。
+- probe `status=blocked` 时，ELF scanner 只能产出 blocked/unverified finding，不得产出正常 PASS 矩阵。
+
+未来扩展项：
+
+- Result Verification Agent 仅作为未来扩展项记录，不属于当前执行链路。
+- 当前 Orchestrator 不创建、不调度该 agent，也不得把它作为 A1c PASS 的前置条件。
+- 未来若引入该能力，也只能复核证据链和阻断不合规结论，不替代确定性 probe 或 A1c 合约审计。
 
 ### A2（Verdict 审计）
 
