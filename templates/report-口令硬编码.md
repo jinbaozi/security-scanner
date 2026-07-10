@@ -1,50 +1,52 @@
-# 口令和硬编码扫描报告
+---
+required:
+  - COMPONENT_NAME
+  - SCAN_DATE
+  - DIM_KEY
+  - DISPLAY_NAME
+  - FAIL_COUNT
+  - WARN_COUNT
+  - PASS_COUNT
+  - TOTAL_COUNT
+  - SECTION_DETAIL
+  - SECTION_AUDIT
+optional:
+  - COMPONENT_VERSION
+  - FILES_SCANNED
+  - FAILED_AGENTS
+  - RETRIED_AGENTS
+  - DEGRADATION_NOTE
+  - TIMESTAMP
+---
 
-## 基本信息
+# [[DISPLAY_NAME]] 详细报告
 
-- **源码组件名称**: {component_name}
-- **扫描时间**: {timestamp}
-- **扫描文件数**: {file_count}
-- **报告状态**: {report_status}
+> 组件：[[COMPONENT_NAME]] | 扫描日期：[[SCAN_DATE]] | 维度：`[[DIM_KEY]]`
+>
+> 焦点：API key/密码/私钥/AWS 凭证
 
-## 扫描结果
+## 维度概览
 
-| 源码组件名称 | 发现内容 | 位置（文件/脚本/路径） | 说明 |
-|--------------|----------|-------------------------|------|
-{secret_results_table}
+| 项目 | 数量 |
+|------|------|
+| 失败 (FAIL) | [[FAIL_COUNT]] |
+| 警告 (WARN) | [[WARN_COUNT]] |
+| 通过 (PASS) | [[PASS_COUNT]] |
+| **合计** | **[[TOTAL_COUNT]]** |
 
-## 问题汇总
+## 详细发现
 
-- 确认硬编码凭证: {confirmed_count} 项
-- 疑似硬编码: {suspected_count} 项
-- 低置信度（仅变量名匹配）: {low_count} 项
-- 需人工确认: {needs_human_count} 项
-- 未验证: {unverified_count} 项
+[[SECTION_DETAIL]]
 
-## 字段完整性要求
+## 审计信息
 
-- “发现内容”必须做最小必要脱敏，例如保留类型、键名和可比对前后缀，不得完整暴露真实密钥。
-- “位置”必须包含文件路径和行号；无行号时填写“`不适用：scanner 未提供行号，见 evidence`”。
-- “说明”必须不少于 10 个汉字，并说明为何判定为确认、疑似、低置信度或例外。
-- 空字符串、环境变量引用和占位符不得作为确认硬编码凭证。
+[[SECTION_AUDIT]]
 
-## 数据一致性要求
+## 数据来源
 
-- `confirmed`、`suspected`、`needs_human` 和 `unverified` 的 secret findings 必须出现在本报告或降级说明中。
-- `rejected` secret findings 不计入问题汇总，但必须进入审计日志。
-- 问题汇总数量必须与 JSON 中 `dimension=secret` 的裁决结果一致。
+- JSON 报告：`security-reports/security-scan-report-[[COMPONENT_NAME]]-[[SCAN_DATE]].json`
+- 物化根：`security-reports/materialized/`
+- 维度原始 finding：`security-reports/findings/findings-[[DIM_KEY]].json`
 
-## 质量审计结果
-
-- 字段完整性审计: {field_integrity_audit}
-- 数据一致性审计: {data_consistency_audit}
-- 内容质量审计: {content_quality_audit}
-- 覆盖完整性审计: {coverage_audit}
-- 审计备注: {audit_notes}
-
-## 降级输出说明
-
-- **降级状态**: {degradation_status}
-- **降级原因**: {degradation_reason}
-- **缺失字段或未通过审计项**: {missing_or_failed_items}
-- **后续处理建议**: {degradation_suggestion}
+---
+*本报告由 Security Compliance Scanner 自动生成于 [[TIMESTAMP]]*

@@ -1,40 +1,52 @@
-# 安全编码扫描报告
+---
+required:
+  - COMPONENT_NAME
+  - SCAN_DATE
+  - DIM_KEY
+  - DISPLAY_NAME
+  - FAIL_COUNT
+  - WARN_COUNT
+  - PASS_COUNT
+  - TOTAL_COUNT
+  - SECTION_DETAIL
+  - SECTION_AUDIT
+optional:
+  - COMPONENT_VERSION
+  - FILES_SCANNED
+  - FAILED_AGENTS
+  - RETRIED_AGENTS
+  - DEGRADATION_NOTE
+  - TIMESTAMP
+---
 
-## 基本信息
+# [[DISPLAY_NAME]] 详细报告
 
-- **组件名称**: {component_name}
-- **扫描时间**: {timestamp}
-- **扫描 Profile**: {scan_profile}
-- **报告状态**: {report_status}
+> 组件：[[COMPONENT_NAME]] | 扫描日期：[[SCAN_DATE]] | 维度：`[[DIM_KEY]]`
+>
+> 焦点：gets/strcpy/system 等不安全函数
 
-## 安全编码总览
+## 维度概览
 
-| 类别 | Finding 数量 | 需人工确认 | 备注 |
-|------|--------------|------------|------|
-| 危险函数 | {unsafe_function_count} | {unsafe_function_needs_human} | C/C++ 与命令执行 API |
-| 安全函数失效 | {safe_function_disabled_count} | {safe_function_disabled_needs_human} | 宏降级和错误封装 |
-| 注释失效代码 | {commented_out_code_count} | {commented_out_code_needs_human} | 与 comment scanner 去重 |
-| SAST 结果 | {sast_finding_count} | {sast_finding_needs_human} | 可选工具输入 |
+| 项目 | 数量 |
+|------|------|
+| 失败 (FAIL) | [[FAIL_COUNT]] |
+| 警告 (WARN) | [[WARN_COUNT]] |
+| 通过 (PASS) | [[PASS_COUNT]] |
+| **合计** | **[[TOTAL_COUNT]]** |
 
-## 详细 Findings
+## 详细发现
 
-{secure_coding_findings_table}
+[[SECTION_DETAIL]]
 
-## 修复建议
+## 审计信息
 
-{secure_coding_suggestions}
+[[SECTION_AUDIT]]
 
-## 质量审计结果
+## 数据来源
 
-- 字段完整性审计: {field_integrity_audit}
-- 数据一致性审计: {data_consistency_audit}
-- 内容质量审计: {content_quality_audit}
-- 覆盖完整性审计: {coverage_audit}
-- 审计备注: {audit_notes}
+- JSON 报告：`security-reports/security-scan-report-[[COMPONENT_NAME]]-[[SCAN_DATE]].json`
+- 物化根：`security-reports/materialized/`
+- 维度原始 finding：`security-reports/findings/findings-[[DIM_KEY]].json`
 
-## 降级输出说明
-
-- **降级状态**: {degradation_status}
-- **降级原因**: {degradation_reason}
-- **缺失字段或未通过审计项**: {missing_or_failed_items}
-- **后续处理建议**: {degradation_suggestion}
+---
+*本报告由 Security Compliance Scanner 自动生成于 [[TIMESTAMP]]*

@@ -1,50 +1,52 @@
-# 公网地址扫描报告
+---
+required:
+  - COMPONENT_NAME
+  - SCAN_DATE
+  - DIM_KEY
+  - DISPLAY_NAME
+  - FAIL_COUNT
+  - WARN_COUNT
+  - PASS_COUNT
+  - TOTAL_COUNT
+  - SECTION_DETAIL
+  - SECTION_AUDIT
+optional:
+  - COMPONENT_VERSION
+  - FILES_SCANNED
+  - FAILED_AGENTS
+  - RETRIED_AGENTS
+  - DEGRADATION_NOTE
+  - TIMESTAMP
+---
 
-## 基本信息
+# [[DISPLAY_NAME]] 详细报告
 
-- **源码组件名称**: {component_name}
-- **扫描时间**: {timestamp}
-- **扫描文件数**: {file_count}
-- **报告状态**: {report_status}
+> 组件：[[COMPONENT_NAME]] | 扫描日期：[[SCAN_DATE]] | 维度：`[[DIM_KEY]]`
+>
+> 焦点：源码中硬编码的公网 URL、IP、邮箱
 
-## 扫描结果
+## 维度概览
 
-| 源码组件名称 | 发现地址（IP/URL/邮箱） | 位置（文件/脚本/路径） | 是否需要整改 | 说明 |
-|--------------|--------------------------|-------------------------|--------------|------|
-{url_results_table}
+| 项目 | 数量 |
+|------|------|
+| 失败 (FAIL) | [[FAIL_COUNT]] |
+| 警告 (WARN) | [[WARN_COUNT]] |
+| 通过 (PASS) | [[PASS_COUNT]] |
+| **合计** | **[[TOTAL_COUNT]]** |
 
-## 问题汇总
+## 详细发现
 
-- 需要整改: {need_fix_count} 项
-- 无需整改（例外场景）: {no_fix_count} 项
-- 疑似问题: {suspected_count} 项
-- 需人工确认: {needs_human_count} 项
-- 未验证: {unverified_count} 项
+[[SECTION_DETAIL]]
 
-## 字段完整性要求
+## 审计信息
 
-- “发现地址”必须保留可定位的 IP、URL、域名或邮箱；敏感值如需脱敏，必须保留可比对前后缀。
-- “位置”必须包含文件路径和行号；无行号时填写“`不适用：scanner 未提供行号，见 evidence`”。
-- “是否需要整改”只能填写“是”或“否”，不得填写“待定”。
-- “说明”必须不少于 10 个汉字，并明确说明确认、疑似、例外或降级原因。
+[[SECTION_AUDIT]]
 
-## 数据一致性要求
+## 数据来源
 
-- “需要整改”数量必须等于 `confirmed` 且非例外场景的公网地址 findings 数量。
-- “无需整改”数量必须等于已裁决为例外场景或 `rejected` 的记录数量，并进入审计日志。
-- 所有 `confirmed` 和 `suspected` 的 URL findings 必须出现在本报告表格中。
+- JSON 报告：`security-reports/security-scan-report-[[COMPONENT_NAME]]-[[SCAN_DATE]].json`
+- 物化根：`security-reports/materialized/`
+- 维度原始 finding：`security-reports/findings/findings-[[DIM_KEY]].json`
 
-## 质量审计结果
-
-- 字段完整性审计: {field_integrity_audit}
-- 数据一致性审计: {data_consistency_audit}
-- 内容质量审计: {content_quality_audit}
-- 覆盖完整性审计: {coverage_audit}
-- 审计备注: {audit_notes}
-
-## 降级输出说明
-
-- **降级状态**: {degradation_status}
-- **降级原因**: {degradation_reason}
-- **缺失字段或未通过审计项**: {missing_or_failed_items}
-- **后续处理建议**: {degradation_suggestion}
+---
+*本报告由 Security Compliance Scanner 自动生成于 [[TIMESTAMP]]*

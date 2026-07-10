@@ -1,128 +1,261 @@
+---
+required:
+  - COMPONENT_NAME
+  - SCAN_DATE
+  - TARGET_PATH
+  - TOTAL_FILES
+  - SCAN_FILES
+  - ELF_COUNT
+  - SOURCE_COUNT
+  - TOTAL_FINDINGS
+  - CRITICAL_COUNT
+  - HIGH_COUNT
+  - MEDIUM_COUNT
+  - LOW_COUNT
+  - INFO_COUNT
+  - ELF_TOTAL
+  - ELF_CONFIRMED
+  - ELF_SUSPECTED
+  - ELF_NEEDS_HUMAN
+  - ELF_UNVERIFIED
+  - ELF_REJECTED
+  - URL_TOTAL
+  - URL_CONFIRMED
+  - URL_SUSPECTED
+  - URL_NEEDS_HUMAN
+  - URL_UNVERIFIED
+  - URL_REJECTED
+  - SECRET_TOTAL
+  - SECRET_CONFIRMED
+  - SECRET_SUSPECTED
+  - SECRET_NEEDS_HUMAN
+  - SECRET_UNVERIFIED
+  - SECRET_REJECTED
+  - COMMENT_TOTAL
+  - COMMENT_CONFIRMED
+  - COMMENT_SUSPECTED
+  - COMMENT_NEEDS_HUMAN
+  - COMMENT_UNVERIFIED
+  - COMMENT_REJECTED
+  - FILELEAK_TOTAL
+  - FILELEAK_CONFIRMED
+  - FILELEAK_SUSPECTED
+  - FILELEAK_NEEDS_HUMAN
+  - FILELEAK_UNVERIFIED
+  - FILELEAK_REJECTED
+  - PERMISSION_TOTAL
+  - PERMISSION_CONFIRMED
+  - PERMISSION_SUSPECTED
+  - PERMISSION_NEEDS_HUMAN
+  - PERMISSION_UNVERIFIED
+  - PERMISSION_REJECTED
+  - CRYPTO_TOTAL
+  - CRYPTO_CONFIRMED
+  - CRYPTO_SUSPECTED
+  - CRYPTO_NEEDS_HUMAN
+  - CRYPTO_UNVERIFIED
+  - CRYPTO_REJECTED
+  - NETWORK_TOTAL
+  - NETWORK_CONFIRMED
+  - NETWORK_SUSPECTED
+  - NETWORK_NEEDS_HUMAN
+  - NETWORK_UNVERIFIED
+  - NETWORK_REJECTED
+  - COMPONENT_INFO_TOTAL
+  - COMPONENT_INFO_CONFIRMED
+  - COMPONENT_INFO_SUSPECTED
+  - COMPONENT_INFO_NEEDS_HUMAN
+  - COMPONENT_INFO_UNVERIFIED
+  - COMPONENT_INFO_REJECTED
+  - DEPENDENCY_TOTAL
+  - DEPENDENCY_CONFIRMED
+  - DEPENDENCY_SUSPECTED
+  - DEPENDENCY_NEEDS_HUMAN
+  - DEPENDENCY_UNVERIFIED
+  - DEPENDENCY_REJECTED
+  - SECURE_CODING_TOTAL
+  - SECURE_CODING_CONFIRMED
+  - SECURE_CODING_SUSPECTED
+  - SECURE_CODING_NEEDS_HUMAN
+  - SECURE_CODING_UNVERIFIED
+  - SECURE_CODING_REJECTED
+  - INTEGRITY_TOTAL
+  - INTEGRITY_CONFIRMED
+  - INTEGRITY_SUSPECTED
+  - INTEGRITY_NEEDS_HUMAN
+  - INTEGRITY_UNVERIFIED
+  - INTEGRITY_REJECTED
+  - CONTENT_COMPLIANCE_TOTAL
+  - CONTENT_COMPLIANCE_CONFIRMED
+  - CONTENT_COMPLIANCE_SUSPECTED
+  - CONTENT_COMPLIANCE_NEEDS_HUMAN
+  - CONTENT_COMPLIANCE_UNVERIFIED
+  - CONTENT_COMPLIANCE_REJECTED
+  - SECTION_ELF_FINDINGS
+  - SECTION_URL_FINDINGS
+  - SECTION_SECRET_FINDINGS
+  - SECTION_COMMENT_FINDINGS
+  - SECTION_FILELEAK_FINDINGS
+  - SECTION_PERMISSION_FINDINGS
+  - SECTION_CRYPTO_FINDINGS
+  - SECTION_NETWORK_FINDINGS
+  - SECTION_COMPONENT_INFO_FINDINGS
+  - SECTION_DEPENDENCY_FINDINGS
+  - SECTION_SECURE_CODING_FINDINGS
+  - SECTION_INTEGRITY_FINDINGS
+  - SECTION_CONTENT_COMPLIANCE_FINDINGS
+  - SECTION_MATERIALIZATION
+  - SECTION_DIMENSION_INDEX
+  - SECTION_DIMENSION_STATUS
+  - TABLE_REDLINE_COVERAGE
+  - TABLE_REDLINE_MANUAL
+optional:
+  - COMPONENT_VERSION
+  - DURATION_SECONDS
+  - REPORT_STATUS
+  - SCAN_PROFILE
+  - EXCLUDED_FILES
+  - CONFIG_COUNT
+  - RECON_COVERAGE
+  - FAILED_AGENTS
+  - RETRIED_AGENTS
+  - DEGRADED_DIMENSIONS
+  - REJECTED_FINDINGS
+  - NEEDS_HUMAN_FINDINGS
+  - UNVERIFIED_FINDINGS
+  - FIELD_INTEGRITY_AUDIT
+  - DATA_CONSISTENCY_AUDIT
+  - CONTENT_QUALITY_AUDIT
+  - COVERAGE_AUDIT
+  - AUDIT_NOTES
+  - DEGRADATION_STATUS
+  - DEGRADATION_REASON
+  - MISSING_OR_FAILED_ITEMS
+  - DEGRADATION_SUGGESTION
+  - AUX_COMPONENT_PROFILE
+---
+
 # 安全合规扫描汇总报告
 
 ## 基本信息
 
-- **扫描目标**: {target_path}
-- **组件名称**: {component_name}
-- **扫描时间**: {timestamp}
+- **扫描目标**: [[TARGET_PATH]]
+- **组件名称**: [[COMPONENT_NAME]]
+- **组件版本**: [[COMPONENT_VERSION]]
+- **扫描时间**: [[SCAN_DATE]]
 - **扫描工具版本**: Security Compliance Scanner v1.0
-- **扫描耗时**: {duration} 秒
-- **报告状态**: {report_status}
+- **扫描耗时**: [[DURATION_SECONDS]] 秒
+- **报告状态**: [[REPORT_STATUS]]
+- **扫描 Profile**: [[SCAN_PROFILE]]
 
 ## 扫描统计
 
-- **总文件数**: {total_files}
-- **扫描文件数**: {scan_files}
-- **排除文件数**: {excluded_files}（第三方、生成代码或扫描策略排除）
-- **ELF 文件数**: {elf_count}
-- **源码文件数**: {source_count}
-- **配置文件数**: {config_count}
+- **总文件数**: [[TOTAL_FILES]]
+- **扫描文件数**: [[SCAN_FILES]]
+- **排除文件数**: [[EXCLUDED_FILES]]（第三方、生成代码或扫描策略排除）
+- **ELF 文件数**: [[ELF_COUNT]]
+- **源码文件数**: [[SOURCE_COUNT]]
+- **配置文件数**: [[CONFIG_COUNT]]
 
 ## 输入物化摘要
 
-{materialization_summary}
+[[SECTION_MATERIALIZATION]]
 
 ## 发现汇总
 
 | 严重度 | 数量 |
 |--------|------|
-| 严重（Critical） | {critical_count} |
-| 高（High） | {high_count} |
-| 中（Medium） | {medium_count} |
-| 低（Low） | {low_count} |
-| 信息（Info） | {info_count} |
-| **总计** | **{total_findings}** |
+| 严重（Critical） | [[CRITICAL_COUNT]] |
+| 高（High） | [[HIGH_COUNT]] |
+| 中（Medium） | [[MEDIUM_COUNT]] |
+| 低（Low） | [[LOW_COUNT]] |
+| 信息（Info） | [[INFO_COUNT]] |
+| **总计** | **[[TOTAL_FINDINGS]]** |
 
 ## 各维度发现统计
 
-| 维度 | 发现数 | 确认 | 疑似 | 需人工确认 | 未验证 | 排除 |
-|------|--------|------|------|------------|--------|------|
-| ELF 安全编译 | {elf_total} | {elf_confirmed} | {elf_suspected} | {elf_needs_human} | {elf_unverified} | {elf_rejected} |
-| 公网地址 | {url_total} | {url_confirmed} | {url_suspected} | {url_needs_human} | {url_unverified} | {url_rejected} |
-| 口令和硬编码 | {secret_total} | {secret_confirmed} | {secret_suspected} | {secret_needs_human} | {secret_unverified} | {secret_rejected} |
-| 未公开接口 | {comment_total} | {comment_confirmed} | {comment_suspected} | {comment_needs_human} | {comment_unverified} | {comment_rejected} |
-| 敏感文件泄露 | {fileleak_total} | {fileleak_confirmed} | {fileleak_suspected} | {fileleak_needs_human} | {fileleak_unverified} | {fileleak_rejected} |
-| 文件权限 | {permission_total} | {permission_confirmed} | {permission_suspected} | {permission_needs_human} | {permission_unverified} | {permission_rejected} |
-| 密码学 | {crypto_total} | {crypto_confirmed} | {crypto_suspected} | {crypto_needs_human} | {crypto_unverified} | {crypto_rejected} |
-| 网络 | {network_total} | {network_confirmed} | {network_suspected} | {network_needs_human} | {network_unverified} | {network_rejected} |
-| 组件档案 | {component-info_total} | {component-info_confirmed} | {component-info_suspected} | {component-info_needs_human} | {component-info_unverified} | {component-info_rejected} |
-| 依赖与漏洞 | {dependency_total} | {dependency_confirmed} | {dependency_suspected} | {dependency_needs_human} | {dependency_unverified} | {dependency_rejected} |
-| 安全编码 | {secure-coding_total} | {secure-coding_confirmed} | {secure-coding_suspected} | {secure-coding_needs_human} | {secure-coding_unverified} | {secure-coding_rejected} |
-| 完整性 | {integrity_total} | {integrity_confirmed} | {integrity_suspected} | {integrity_needs_human} | {integrity_unverified} | {integrity_rejected} |
-| 内容合规 | {content-compliance_total} | {content-compliance_confirmed} | {content-compliance_suspected} | {content-compliance_needs_human} | {content-compliance_unverified} | {content-compliance_rejected} |
+| 维度 | 发现数 | 确认 | 疑似 | 需人工 | 未验证 | 排除 |
+|------|--------|------|------|--------|--------|------|
+| ELF 安全编译 | [[ELF_TOTAL]] | [[ELF_CONFIRMED]] | [[ELF_SUSPECTED]] | [[ELF_NEEDS_HUMAN]] | [[ELF_UNVERIFIED]] | [[ELF_REJECTED]] |
+| 公网地址 | [[URL_TOTAL]] | [[URL_CONFIRMED]] | [[URL_SUSPECTED]] | [[URL_NEEDS_HUMAN]] | [[URL_UNVERIFIED]] | [[URL_REJECTED]] |
+| 口令和硬编码 | [[SECRET_TOTAL]] | [[SECRET_CONFIRMED]] | [[SECRET_SUSPECTED]] | [[SECRET_NEEDS_HUMAN]] | [[SECRET_UNVERIFIED]] | [[SECRET_REJECTED]] |
+| 未公开接口 | [[COMMENT_TOTAL]] | [[COMMENT_CONFIRMED]] | [[COMMENT_SUSPECTED]] | [[COMMENT_NEEDS_HUMAN]] | [[COMMENT_UNVERIFIED]] | [[COMMENT_REJECTED]] |
+| 敏感文件泄露 | [[FILELEAK_TOTAL]] | [[FILELEAK_CONFIRMED]] | [[FILELEAK_SUSPECTED]] | [[FILELEAK_NEEDS_HUMAN]] | [[FILELEAK_UNVERIFIED]] | [[FILELEAK_REJECTED]] |
+| 文件权限 | [[PERMISSION_TOTAL]] | [[PERMISSION_CONFIRMED]] | [[PERMISSION_SUSPECTED]] | [[PERMISSION_NEEDS_HUMAN]] | [[PERMISSION_UNVERIFIED]] | [[PERMISSION_REJECTED]] |
+| 密码学 | [[CRYPTO_TOTAL]] | [[CRYPTO_CONFIRMED]] | [[CRYPTO_SUSPECTED]] | [[CRYPTO_NEEDS_HUMAN]] | [[CRYPTO_UNVERIFIED]] | [[CRYPTO_REJECTED]] |
+| 网络 | [[NETWORK_TOTAL]] | [[NETWORK_CONFIRMED]] | [[NETWORK_SUSPECTED]] | [[NETWORK_NEEDS_HUMAN]] | [[NETWORK_UNVERIFIED]] | [[NETWORK_REJECTED]] |
+| 组件档案 | [[COMPONENT_INFO_TOTAL]] | [[COMPONENT_INFO_CONFIRMED]] | [[COMPONENT_INFO_SUSPECTED]] | [[COMPONENT_INFO_NEEDS_HUMAN]] | [[COMPONENT_INFO_UNVERIFIED]] | [[COMPONENT_INFO_REJECTED]] |
+| 依赖与漏洞 | [[DEPENDENCY_TOTAL]] | [[DEPENDENCY_CONFIRMED]] | [[DEPENDENCY_SUSPECTED]] | [[DEPENDENCY_NEEDS_HUMAN]] | [[DEPENDENCY_UNVERIFIED]] | [[DEPENDENCY_REJECTED]] |
+| 安全编码 | [[SECURE_CODING_TOTAL]] | [[SECURE_CODING_CONFIRMED]] | [[SECURE_CODING_SUSPECTED]] | [[SECURE_CODING_NEEDS_HUMAN]] | [[SECURE_CODING_UNVERIFIED]] | [[SECURE_CODING_REJECTED]] |
+| 完整性 | [[INTEGRITY_TOTAL]] | [[INTEGRITY_CONFIRMED]] | [[INTEGRITY_SUSPECTED]] | [[INTEGRITY_NEEDS_HUMAN]] | [[INTEGRITY_UNVERIFIED]] | [[INTEGRITY_REJECTED]] |
+| 内容合规 | [[CONTENT_COMPLIANCE_TOTAL]] | [[CONTENT_COMPLIANCE_CONFIRMED]] | [[CONTENT_COMPLIANCE_SUSPECTED]] | [[CONTENT_COMPLIANCE_NEEDS_HUMAN]] | [[CONTENT_COMPLIANCE_UNVERIFIED]] | [[CONTENT_COMPLIANCE_REJECTED]] |
 
 ## 专项报告索引
 
-本节必须列出 13 个维度独立详细报告路径，顺序和路径以 `templates/report-manifest.yaml` 为准。即使某维度未执行、被 profile 跳过、条件跳过、工具缺失、降级或失败，也必须列出对应占位报告路径。
-
-{dimension_report_index}
+[[SECTION_DIMENSION_INDEX]]
 
 ## 维度执行状态
 
-本节必须列出 13 个维度状态，状态来源包括 executed、skipped_by_profile、skipped_by_condition、degraded、failed、missing_profile_dimension。每个状态必须写明原因、输入条件、降级路径或审计引用。
-
-{dimension_status_summary}
+[[SECTION_DIMENSION_STATUS]]
 
 ## 详细发现
 
-以下每个维度详细区块必须保留。无 finding 时填写“未发现问题”或“不适用/降级原因：{reason}”，不得留空。
-
 ### ELF 安全编译
 
-{elf_findings_detail}
+[[SECTION_ELF_FINDINGS]]
 
 ### 公网地址
 
-{url_findings_detail}
+[[SECTION_URL_FINDINGS]]
 
 ### 口令和硬编码
 
-{secret_findings_detail}
+[[SECTION_SECRET_FINDINGS]]
 
 ### 未公开接口
 
-{comment_findings_detail}
+[[SECTION_COMMENT_FINDINGS]]
 
 ### 敏感文件泄露
 
-{fileleak_findings_detail}
+[[SECTION_FILELEAK_FINDINGS]]
 
 ### 文件权限
 
-{permission_findings_detail}
+[[SECTION_PERMISSION_FINDINGS]]
 
 ### 密码学
 
-{crypto_findings_detail}
+[[SECTION_CRYPTO_FINDINGS]]
 
 ### 网络
 
-{network_findings_detail}
+[[SECTION_NETWORK_FINDINGS]]
 
 ### 组件档案
 
-{component-info_findings_detail}
+[[SECTION_COMPONENT_INFO_FINDINGS]]
 
 ### 依赖与漏洞
 
-{dependency_findings_detail}
+[[SECTION_DEPENDENCY_FINDINGS]]
 
 ### 安全编码
 
-{secure-coding_findings_detail}
+[[SECTION_SECURE_CODING_FINDINGS]]
 
 ### 完整性
 
-{integrity_findings_detail}
+[[SECTION_INTEGRITY_FINDINGS]]
 
 ### 内容合规
 
-{content-compliance_findings_detail}
+[[SECTION_CONTENT_COMPLIANCE_FINDINGS]]
 
 ## 字段完整性说明
 
 - 所有 finding 记录必须包含 `id`、`dimension`、`file`、`line`、`check_item`、`status`、`severity`、`confidence`、`verdict`、`verdict_reasoning`、`detail`、`suggestion`、`evidence`。
-- 无行号或不适用字段必须填写“`不适用：{reason}`”，不得使用空值、`-`、`N/A` 或单独的“无”作为占位符。
+- 无行号或不适用字段必须填写"不适用：（原因说明）"，不得使用空值、`-`、`N/A` 或单独的"无"作为占位符。
 - 所有 `confirmed`、`suspected`、`needs_human`、`unverified` 记录必须在本报告或审计日志中可追溯到原始 evidence。
 
 ## 数据一致性说明
@@ -137,7 +270,7 @@
 
 | 条款 | 自动化 | 最低 Profile | 主责维度 | 覆盖状态 | Finding / 说明 |
 |------|--------|--------------|----------|----------|----------------|
-{redline_coverage_matrix}
+[[TABLE_REDLINE_COVERAGE]]
 
 覆盖状态说明：
 
@@ -149,39 +282,39 @@
 
 ## Redline 人工合规项
 
-以下条款需要运行时、资料、流程或人工内容审核确认。Reporter 必须列出全部 `automation=manual` 条款；`automation=partial` 且需要人工复核的说明也应保留在覆盖矩阵中。
-
 | 条款 | 人工检查说明 | 建议责任方 | 状态 |
 |------|--------------|------------|------|
-{redline_manual_checklist}
+[[TABLE_REDLINE_MANUAL]]
 
 ## 审计日志
 
-- Recon 覆盖率: {recon_coverage}
-- 失败的 Agent: {failed_agents}
-- 重试的 Agent: {retried_agents}
-- 降级的维度: {degraded_dimensions}
-- 被排除的 findings: {rejected_findings}
-- 需人工确认的 findings: {needs_human_findings}
-- 未验证的 findings: {unverified_findings}
+- Recon 覆盖率: [[RECON_COVERAGE]]
+- 失败的 Agent: [[FAILED_AGENTS]]
+- 重试的 Agent: [[RETRIED_AGENTS]]
+- 降级的维度: [[DEGRADED_DIMENSIONS]]
+- 被排除的 findings: [[REJECTED_FINDINGS]]
+- 需人工确认的 findings: [[NEEDS_HUMAN_FINDINGS]]
+- 未验证的 findings: [[UNVERIFIED_FINDINGS]]
 
 ## 质量审计结果
 
-- 字段完整性审计: {field_integrity_audit}
-- 数据一致性审计: {data_consistency_audit}
-- 内容质量审计: {content_quality_audit}
-- 覆盖完整性审计: {coverage_audit}
-- 审计备注: {audit_notes}
+- 字段完整性审计: [[FIELD_INTEGRITY_AUDIT]]
+- 数据一致性审计: [[DATA_CONSISTENCY_AUDIT]]
+- 内容质量审计: [[CONTENT_QUALITY_AUDIT]]
+- 覆盖完整性审计: [[COVERAGE_AUDIT]]
+- 审计备注: [[AUDIT_NOTES]]
+
+## 组件档案概览
+
+[[AUX_COMPONENT_PROFILE]]
 
 ## 降级输出说明
 
-当 findings 数据不完整、JSON schema 校验失败、Markdown 渲染失败或输出文件写入失败时，本报告必须保留已完成结果，并在本节标记降级原因：
-
-- **降级状态**: {degradation_status}
-- **降级原因**: {degradation_reason}
-- **受影响维度**: {degraded_dimensions}
-- **缺失字段或未通过审计项**: {missing_or_failed_items}
-- **后续处理建议**: {degradation_suggestion}
+- **降级状态**: [[DEGRADATION_STATUS]]
+- **降级原因**: [[DEGRADATION_REASON]]
+- **受影响维度**: [[DEGRADED_DIMENSIONS]]
+- **缺失字段或未通过审计项**: [[MISSING_OR_FAILED_ITEMS]]
+- **后续处理建议**: [[DEGRADATION_SUGGESTION]]
 
 ## 免责声明
 
