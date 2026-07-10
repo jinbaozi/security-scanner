@@ -21,6 +21,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Allow `python3 scripts/audit_render.py ...` from the project root by
+# ensuring the project root is on sys.path when this file is invoked
+# directly.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
 from scripts.render_template import (
     PLACEHOLDER_PATTERN,
     collect_placeholders,
