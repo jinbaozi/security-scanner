@@ -327,3 +327,20 @@ Reporter 必须为 `reporting_dimensions` 中全部 13 个维度生成独立详�
 7. 执行报告完整性检查（§5）；缺失则重新生成对应报告，最多 2 次。
 8. 执行 A3/A3b/A3c 报告内容审计。
 9. 根据审计结果输出正式报告、WARN 报告或降级报告。
+
+## 渲染器与审计门禁（§6）
+
+Phase 3 渲染阶段必须使用 `scripts/render_template.py`，不得使用内嵌 f-string 或 `.format()` 调用。完成渲染后必须执行 `scripts/audit_render.py`（A4 审计），任何残留 `[[UPPER_SNAKE_CASE]]` 占位符必须可追溯到 `*.missing.json` sidecar。
+
+A4 与 A3 合并判定表：
+
+| A3 | A4 | 最终状态 |
+|----|----|----------|
+| PASS | pass | `PASS` |
+| PASS | warn | `PASS + 渲染备注` |
+| PASS | fail | `WARN + 重新渲染（最多 2 次）` |
+| WARN | pass / warn | `WARN` |
+| WARN | fail | `FAIL` |
+| FAIL | * | `FAIL` |
+
+重新渲染超过 2 次仍失败时，必须在报告降级输出章节标注 `degraded`，并在 `audit_log` 保留渲染失败原因（必填占位符名 + 缺失上下文）。详见 `references/render-audit.md`。

@@ -223,6 +223,12 @@ ELF 专项检查：
 - 部分字段需补充：WARN，标记后输出。
 - 缺失 finding 或 schema 校验失败：FAIL，重新生成。
 
+### A4（渲染审计）
+
+- 完成后必须调用 `scripts/render_template.py` 渲染所有模板（仅依赖 `[[UPPER_SNAKE_CASE]]` 占位符），并调用 `scripts/audit_render.py` 扫描残留。详细说明见 `references/render-audit.md`。
+- 渲染输出中残留任何 `[[NAME]]` 占位符：必填缺失记 FAIL，可选 / 未知缺失记 WARN。必要信息全部写入 `*.missing.json` sidecar。
+- 与 A3 合并判定：A3 PASS + A4 warn 仍可发布为 `PASS + 渲染备注`；A3 PASS + A4 fail 需重渲（最多 2 次），仍失败则报告记为 `degraded`。
+
 ### A3b（Redline 40 条覆盖矩阵审计）
 
 - 综合报告必须根据 `references/redline-mapping.md` 输出 40 条覆盖矩阵：`clause_id`、`automation`、`profile_min`、`scanner_dims`、`finding_ids`、`manual_note`、`coverage_status`。

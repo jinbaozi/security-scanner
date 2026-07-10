@@ -96,3 +96,11 @@ Finding 字段定义：见 `references/finding-schema.md`（勿在此内嵌全�
 ## 报告语言
 
 所有报告、说明、发现详情、修复建议、裁决理由均以**简体中文**编写。
+
+## 报告渲染约束（强制）
+
+- 模板占位符统一为 `[[UPPER_SNAKE_CASE]]` 双中括号格式（如 `[[COMPONENT_NAME]]`）。
+- **禁止使用 f-string 或 `.format()` 渲染模板**——`{}` 在模板里会与 f-string 冲突，未定义变量会触发 `NameError`。
+- Phase 3 报告生成必须调用 `scripts/render_template.py`，完成后必须调用 `scripts/audit_render.py` 校验（详见 `references/render-audit.md` 的 A4 审计点）。
+- 必填占位符缺失时 `--strict` 模式返回非零退出码；非 strict 模式下缺失保留为 `[[NAME]]` 字面量并写入 `*.missing.json` 供审计追溯。
+- 缺失必填占位符连续 2 次渲染仍失败时，报告状态必须记为 `degraded` 并在 `audit_log` 中保留追溯记录。

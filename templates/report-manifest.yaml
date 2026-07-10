@@ -59,3 +59,7 @@ summary:
   template: report-comprehensive.md
   output: security-reports/security-scan-report-{component_name}-{date}.md
   title: 安全合规扫描汇总报告
+
+# Renderer contract: all templates use [[UPPER_SNAKE_CASE]] placeholders.
+# Use scripts/render_template.py and scripts/audit_render.py for Phase 3.
+# See references/render-audit.md for the A4 audit checkpoint.
