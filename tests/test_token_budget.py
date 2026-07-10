@@ -90,4 +90,4 @@ def test_production_scanner_session_budgets_are_compact():
             assert scanner.meta.session.references_token_budget <= 6000, scanner_id
         else:
             assert scanner.meta.session.max_tokens <= 16000, scanner_id
-            assert scanner.meta.session.references_token_budget <= 10000, scanner_id
+            assert scanner.meta.session.references_token_budget <= 8000, scanner_id

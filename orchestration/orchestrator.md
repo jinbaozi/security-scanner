@@ -2,16 +2,29 @@
 
 > 本文件定义 Orchestrator 的 Phase 调度逻辑、审计检查点和错误处理策略。
 
+## 渐进式披露加载白名单（不可协商）
+
+| 阶段 | 允许加载 | 禁止加载 |
+|------|----------|----------|
+| 激活 | `SKILL.md`、本文件 | 任意 `scanners/*`、`templates/*`、`redline-spec.md`、`README.md` |
+| Phase -1 | `references/dependency-check.md` | recon/scanners/templates/verdict |
+| Phase -0 | `scripts/package_materializer.py` 及其帮助/输出 | scanner prompts |
+| Phase 0 | `orchestration/reconnaissance.md` | verdict/reporter/templates |
+| Phase 1 | registry API、入选维 `meta.yaml` | 未入选维 scanner、templates |
+| Phase 1.5 | 当前维 `scanner.md` + `meta.references` + `references/finding-schema.md` + 分片文件列表 + compact consumes | 其他维 scanner、全量 findings、`redline-spec.md`、`redline-mapping.md` |
+| Phase 2 | `references/verdict-rules.md` + `references/finding-schema.md` + findings | templates 全文、未选中维 references |
+| Phase 3 | `orchestration/reporter.md` + manifest/templates + `redline-mapping.md`/`redline-spec.md` | 重新加载全部 scanner prompts |
+
+不得向用户回显已读文件全文、完整文件清单或原始 JSON；审计细节只写入 `security-reports/`。
+
 ## 整体流程
 
 ```text
 Phase -1: Pre-flight Check -> 审计 -> Phase -0: 输入物化 -> 审计 A-0
 -> Phase 0: Recon -> 审计 A0
--> Phase 1: Registry Scheduling -> Phase 1.5: Scanner Sessions -> 审计 A1/A1b/A1c -> Phase 2: Verdict -> 审计 A2
+    -> Phase 1: Registry Scheduling -> Phase 1.5: Scanner Sessions -> 审计 A1/A1b/A1c -> Phase 2: Verdict -> 审计 A2
 -> Phase 3: Report -> 审计 A3 -> 输出
 ```
-
-## Phase 调度规则
 
 ## 输入参数
 
@@ -88,7 +101,7 @@ Phase 0 的 `target` 必须改为物化后的源码根和二进制根集合；`s
 
 ### Phase 1：注册表加载与拓扑调度
 
-Phase 1 不再枚举固定 scanner 文件路径，也不写死 9 维。Orchestrator 必须先校验 `scan_profile`，再通过 `scanners/registry/` 提供的 registry API 加载生产布局：调用 `discover_scanners(Path("scanners"))` 发现 scanner 元数据和 prompt；取得 profile 允许维度集合；计算 `selected_scanners = discovered_scanners ∩ profile_dimensions`；调用 `selected_with_dependency_closure(discovered_scanners, selected_scanners)` 自动补齐 `meta.consumes` 的依赖闭包；对补齐后的 scanner 集合调用 `topological_order(...)` 生成依赖优先的执行顺序，并确认不存在循环依赖；随后初始化 `ScanContext()` 作为本次扫描中 scanner findings 的唯一交换上下文。若某个依赖维度因 profile、输入条件或工具不可用未执行，下游 scanner 必须记录 degraded context（包含依赖维度、原因和 fallback），但不阻断主维度扫描。
+Phase 1 通过目录发现调度，不枚举固定 scanner 路径。Orchestrator 必须先校验 `scan_profile`，再通过 `scanners/registry/` 提供的 registry API 加载生产布局：调用 `discover_scanners(Path("scanners"))` 发现 scanner 元数据和 prompt；取得 profile 允许维度集合；计算 `selected_scanners = discovered_scanners ∩ profile_dimensions`；调用 `selected_with_dependency_closure(discovered_scanners, selected_scanners)` 自动补齐 `meta.consumes` 的依赖闭包；对补齐后的 scanner 集合调用 `topological_order(...)` 生成依赖优先的执行顺序，并确认不存在循环依赖；随后初始化 `ScanContext()` 作为本次扫描中 scanner findings 的唯一交换上下文。若某个依赖维度因 profile、输入条件或工具不可用未执行，下游 scanner 必须记录 degraded context（包含依赖维度、原因和 fallback），但不阻断主维度扫描。
 
 调度状态必须区分：
 
@@ -99,7 +112,7 @@ Phase 1 不再枚举固定 scanner 文件路径，也不写死 9 维。Orchestra
 
 ### Phase 1.5：启动各 scanner session
 
-Orchestrator 按 `selected_scanners` 的拓扑顺序启动 scanner。每个 scanner 必须运行在独立 LLM session 中（Q21B），只读取自身目录下的 `meta.yaml` session 配置与 `scanner.md` system prompt。对每个 `meta.consumes` 条目，调用 `context.consume(dim, severity_filter, token_budget, compact=True)` 取得上游 findings 的紧凑注入数据；这些 consumed finding JSON 必须作为 user message 中的数据块附加给下游 scanner，不能写入 system prompt（Q29）。原始 findings 仍由 `ScanContext` 保留给 Phase 2 Verdict 和 Phase 3 Reporter。按 `meta.references` 加载 reference 文件并纳入该 session 的用户上下文；scanner 输出后解析 finding JSON，并调用 `context.publish(scanner_id, findings)` 发布本维度结果。
+Orchestrator 按 `selected_scanners` 的拓扑顺序启动 scanner。每个 scanner 必须运行在独立 LLM session 中，只读取自身目录下的 `meta.yaml` session 配置与 `scanner.md` system prompt，并注入 `references/finding-schema.md`。对每个 `meta.consumes` 条目，调用 `context.consume(dim, severity_filter, token_budget, compact=True)` 取得上游 findings 的紧凑注入数据；这些 consumed finding JSON 必须作为 user message 中的数据块附加给下游 scanner，不能写入 system prompt。原始 findings 仍由 `ScanContext` 保留给 Phase 2 Verdict 和 Phase 3 Reporter。按 `meta.references` 加载 reference 文件并纳入该 session 的用户上下文；scanner 输出后解析 finding JSON，并调用 `context.publish(scanner_id, findings)` 发布本维度结果。
 
 ### Phase 2：裁决输入
 
@@ -176,9 +189,7 @@ FAIL -> 进入修复循环（最多 2 次自动修复）-> 仍失败则降级
 
 ### A1c（Tool Execution Audit）
 
-A1c 在 Phase 1.5 后、Verdict 前执行。它只复核工具证据链，不替代 scanner 自身判断；审计失败时不得进入正常报告结论，必须输出 blocked/unverified 状态和修复建议。
-
-当前强制复核门禁只有 A1c Tool Execution Audit，由 Orchestrator 执行确定性合约审计。本轮不新增、不调度、不作为 A1c 必需组件的独立 Result Verification Agent。
+A1c 在 Phase 1.5 后、Verdict 前执行。它只复核工具证据链，不替代 scanner 自身判断；审计失败时不得进入正常报告结论，必须输出 blocked/unverified 状态和修复建议。强制复核门禁仅有 A1c，由 Orchestrator 执行确定性合约审计。
 
 通用检查：
 
@@ -195,12 +206,6 @@ ELF 专项检查：
 - tool invocation_error 或 parse_error 被写成 degraded：A1c FAIL。
 - probe `status=blocked` 时，ELF scanner 只能产出 blocked/unverified finding，不得产出正常 PASS 矩阵。
 
-未来扩展项：
-
-- Result Verification Agent 仅作为未来扩展项记录，不属于当前执行链路。
-- 当前 Orchestrator 不创建、不调度该 agent，也不得把它作为 A1c PASS 的前置条件。
-- 未来若引入该能力，也只能复核证据链和阻断不合规结论，不替代确定性 probe 或 A1c 合约审计。
-
 ### A2（Verdict 审计）
 
 - 所有裁决包含 `confidence` 和 `verdict_reasoning`：PASS。
@@ -210,17 +215,7 @@ ELF 专项检查：
 ### A2b（Redline 去重与追溯审计）
 
 - 每条 `FAIL` / `WARN` finding 应包含 `redline_clause` 或可追溯的 `rl_ids`；缺少少量字段为 WARN，大面积缺失为 FAIL。
-- `crypto` 与 `secret` 共享同一凭证字符串时，`secret` 优先；`crypto` 仅保留算法/协议类 finding。
-- `MISSING_LOCK_FILE` 仅由 `dependency` 主责产出；Crypto/Network 不重复产出。
-- `secret` 与 `fileleak` 同时命中认证密钥路径时，文件泄露/权限路径证据优先保留，源码凭据 finding 合并为补充 evidence。
-- `secure-coding` 负责注释包裹代码，`comment` 负责注释描述隐藏接口，不重复报告同一注释块。
-
-### Verdict 阶段去重规则
-
-`crypto` 与 `secret` 两个 scanner 都会在源码中检测同一类模式（如 MD5 调用、AES 调用、加密库导入），verdict 阶段按以下规则去重：
-
-- 同一 `file + line + check_item`（如 `foo.c:42:insecure_hash`）出现在两个 scanner 的 findings 中时，保留 severity 更高的一条；若 severity 相同，保留 `confidence` 更高的一条；若都相同则保留 `crypto` 的 finding。
-- 同一 `file + line` 范围内（±5 行）出现多个相关 finding（如一个 MD5() 调用既被 `secret` 识别为弱哈希又被 `crypto` 识别为不安全算法），合并为一条 finding，evidence 拼接两者的证据。
+- 跨维度去重与优先级以 `references/verdict-rules.md` 为准（本文件不重复展开）。
 
 ### A3（Report 审计）
 
@@ -237,11 +232,12 @@ ELF 专项检查：
 
 ## Agent 派发约束
 
-- 每个 scanner session 只加载自己负责的 scanner 或 reporter 文件。
-- scanner session 上下文只包含自身规则、分配文件列表、必要白名单、reference 数据、consumed finding 数据块和统一输出 schema。
+- 每个 scanner session 只加载自己负责的 scanner 文件（见上方加载白名单）。
+- scanner session 上下文只包含自身规则、分配文件列表、`meta.references`、finding-schema、compact consumed findings。
 - 单个分片不超过 50 个文件。
 - 每个维度最多 8 个并发 agent，总 agent 上限 16。
 - 每个 agent 最多重试 2 次，退避时间为 0s、5s、15s。
+- 不得向终端或用户回显已读 reference/scanner 全文。
 
 ## 错误传播
 

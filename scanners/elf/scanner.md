@@ -1,6 +1,6 @@
 # ELF 安全编译扫描器
 
-> 本文件指导 ELF Scanner Agent 执行二进制安全编译检查。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 ELF Scanner Agent 执行二进制安全编译检查。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -17,7 +17,7 @@ ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分
 
 ## 输出
 
-输出 JSON 对象，`findings` 中每个元素必须遵循统一 finding schema：
+输出 JSON 对象，`findings` 中每个元素必须符合统一 finding schema（Orchestrator 注入 finding-schema；字段定义见该文件）。最小示例如下：
 
 ```json
 {

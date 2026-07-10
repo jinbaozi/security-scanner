@@ -1,6 +1,6 @@
 # 组件信息扫描器
 
-> 本文件指导 Component-Info Scanner Agent 执行组件级元数据检测，包括架构类型推断、默认账号识别、个人数据字段违规处理（明文存储 / HTTP 传输 / 日志明文）、以及是否需要 root 权限运行（SUID / privileged / capabilities 多源交集）。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Component-Info Scanner Agent 执行组件级元数据检测，包括架构类型推断、默认账号识别、个人数据字段违规处理（明文存储 / HTTP 传输 / 日志明文）、以及是否需要 root 权限运行（SUID / privileged / capabilities 多源交集）。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -12,14 +12,13 @@ Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、
 - `config_files`: 配置文件列表
 - `component_name`: 源码组件名称
 - `references/personal-data-patterns.md`: 个人数据字段名与违规处理 pattern 库
-- `../../references/red-line-rules.md`: 红线规则库（RL-140 ~ RL-159 个人数据、RL-160 ~ RL-179 默认账号）
 - `../../references/allowlists.md`: 白名单与例外规则
 - `references/architecture-signals.md`: 架构类型推断信号库（Django/Flask/Spring/Express/Gin/Telnet/socket 等）
-- `references/redline-clauses.md`: component-info 维度 redline 条款切片；clause 级映射以本地切片为准，`../../references/red-line-rules.md` 仅作 pattern 库。
+- `references/redline-clauses.md`: component-info 维度 redline 条款切片（唯一可绑定条款源）
 
 ## 输出
 
-输出 JSON 对象，`findings` 中每个元素必须遵循统一 finding schema：
+输出 JSON 对象，`findings` 中每个元素必须符合统一 finding schema（Orchestrator 注入 finding-schema；字段定义见该文件）。最小示例如下：
 
 ```json
 {
@@ -66,7 +65,7 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 读取以下参考文件以加载检测规则：
 
 - `references/personal-data-patterns.md`：个人数据字段名 pattern 库（姓名、手机号、身份证、邮箱、位置、设备标识、银行卡、出生日期、头像、IP 地址），覆盖 snake_case / camelCase / PascalCase 三种命名约定；违规处理 pattern（明文存储 RL-140/RL-141/RL-142、HTTP 明文传输 RL-143、邮箱明文日志 RL-144）
-- `../../references/red-line-rules.md`：红线规则库（RL-140 ~ RL-159 个人数据违规处理、RL-160 ~ RL-179 默认账号未披露）
+- `references/personal-data-patterns.md` / `references/architecture-signals.md`：本地 pattern
 - `../../references/allowlists.md`：白名单与例外规则
 - `references/architecture-signals.md`：架构类型推断信号库（B/S 框架、DNS 服务、嵌入式 socket 等）
 - `references/redline-clauses.md`：component-info 维度 redline 条款切片，优先用于 clause 映射。
@@ -95,7 +94,7 @@ grep -rnE "socket\.socket|telnetlib\.|net\.Listen|ServerSocket|TcpListener" {all
 
 ### Step 3: Layer 2 - 默认账号识别
 
-执行默认账号 pattern 匹配（`../../references/red-line-rules.md` RL-160 ~ RL-162）：
+执行默认账号 pattern 匹配（本地 personal-data / architecture 信号与 RL-160 ~ RL-162）：
 
 ```bash
 # RL-160: admin/admin123/password

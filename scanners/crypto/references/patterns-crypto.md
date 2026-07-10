@@ -14,7 +14,7 @@
 | SM4 | `SM4\|sm4_crypt\|sms4` | 国密对称 |
 | ChaCha20-Poly1305 | `ChaCha20\|chacha20-poly1305\|XChaCha20` | 推荐模式 |
 
-### 1.2 不安全对称算法（红线 2）
+### 1.2 不安全对称算法（条款 5.1.4）
 
 | 算法 | Pattern | severity |
 |------|---------|---------|
@@ -49,7 +49,7 @@
 | SM2 | `\bSM2\|sm2_` |
 | X25519 | `X25519\|x25519` |
 
-### 2.2 不安全非对称算法（红线 2）
+### 2.2 不安全非对称算法（条款 5.1.4）
 
 | 算法 | Pattern | severity |
 |------|---------|---------|
@@ -74,7 +74,7 @@
 | BLAKE2 | `BLAKE2\|blake2` |
 | BLAKE3 | `BLAKE3\|blake3` |
 
-### 3.2 不安全 Hash（红线 2，需结合用途判断）
+### 3.2 不安全 Hash（条款 5.1.4，需结合用途判断）
 
 | 算法 | Pattern | 安全用途 | 非安全用途 |
 |------|---------|---------|-----------|
@@ -94,7 +94,7 @@
 | SM2 | `\bSM2\|sm2_` | 国密非对称算法推荐项，作为 INFO 记录，不作为 FAIL |
 | SM3 | `\bSM3\|sm3_` | 国密 Hash 推荐项，作为 INFO 记录，不作为 FAIL |
 
-## 4. 伪加密 Pattern（红线 1）
+## 4. 伪加密 Pattern（条款 5.1.1）
 
 ### 4.1 Base64 充当密码加密（critical）
 
@@ -143,7 +143,7 @@ chr\s*\(\s*ord\s*\([^)]+\)\s*[+\-]\s*[0-9]+[\s\S]{0,50}password
 | VPP `IPSI_CRYPT_rand_bytes` | `IPSI_CRYPT_rand_bytes` |
 | TEE `TEE_GenerateRandom` | `TEE_GenerateRandom` |
 
-### 5.2 伪 RNG（红线 3，需结合用途判断）
+### 5.2 伪 RNG（条款 5.1.3，需结合用途判断）
 
 | API | Pattern | severity |
 |-----|---------|---------|

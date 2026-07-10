@@ -150,17 +150,29 @@ def test_reporter_removes_old_profile_scoped_report_rules():
 def test_skill_phase3_documents_fixed_13_dimension_reports():
     skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
 
-    assert "支持 Claude Code / Codex / OpenCode 时遵循同一共享报告契约" in skill
+    assert "支持 Claude Code / Codex / OpenCode / Pi Agent 时遵循同一共享报告契约" in skill
     assert "最终汇总报告 + 13 个维度独立详细报告" in skill
     assert "scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量" in skill
     assert "当前 profile 对应的维度专项报告" not in skill
+
+
+def test_skill_is_progressive_disclosure_toc():
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    lines = skill.splitlines()
+
+    assert len(lines) <= 180
+    assert "渐进式披露" in skill
+    assert "### Phase -1:" not in skill
+    assert '"id": "{DIMENSION}-{SEQ}"' not in skill
+    assert "orchestration/orchestrator.md" in skill
+    assert "references/finding-schema.md" in skill
 
 
 def test_readme_documents_fixed_13_dimension_reports_and_paths():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     manifest = _load_manifest()
 
-    assert "Claude Code、Codex、OpenCode 使用同一共享报告契约" in readme
+    assert "Claude Code、Codex、OpenCode、Pi Agent 使用同一共享报告契约" in readme
     assert "最终汇总报告 + 13 个维度独立详细报告" in readme
     assert "报告固定 13 份维度独立详细报告" in readme
     assert "profile 跳过的维度也会生成占位报告" in readme
@@ -188,12 +200,13 @@ def _readme_section(readme: str, heading: str) -> str:
 def test_readme_documents_tool_specific_usage_examples():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-    for heading in ("Claude Code", "Codex", "OpenCode"):
+    for heading in ("Claude Code", "Codex", "OpenCode", "Pi Agent"):
         assert f"### {heading}" in readme
 
     claude = _readme_section(readme, "Claude Code")
     codex = _readme_section(readme, "Codex")
     opencode = _readme_section(readme, "OpenCode")
+    pi = _readme_section(readme, "Pi Agent")
 
     assert ".claude/skills/security-scanner" in claude
     assert "/security-scanner" in claude
@@ -207,6 +220,10 @@ def test_readme_documents_tool_specific_usage_examples():
     assert "\n/security-scanner" not in opencode
     assert 'opencode run "/security-scanner' not in opencode
 
+    assert "~/.pi/agent/skills/security-scanner" in pi
+    assert ".pi/skills/security-scanner" in pi
+    assert "pi --skill" in pi
+
 
 def test_readme_tool_prompts_include_phase0_and_fixed_report_contract():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -217,7 +234,7 @@ def test_readme_tool_prompts_include_phase0_and_fixed_report_contract():
         "13 份维度独立详细 Markdown 报告",
     )
 
-    for heading in ("Claude Code", "Codex", "OpenCode"):
+    for heading in ("Claude Code", "Codex", "OpenCode", "Pi Agent"):
         section = _readme_section(readme, heading)
         for phrase in required_phrases:
             assert phrase in section, f"{heading}: missing {phrase}"

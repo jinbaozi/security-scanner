@@ -28,12 +28,15 @@ def test_manual_redline_items_do_not_inject_scanner_dims():
 
 
 def test_orchestrator_documents_redline_dedup_rules():
+    verdict_rules = (ROOT / "references" / "verdict-rules.md").read_text()
     orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text()
 
-    assert "`secret` 优先" in orchestrator
-    assert "`MISSING_LOCK_FILE` 仅由 `dependency` 主责产出" in orchestrator
-    assert "`secret` 与 `fileleak` 同时命中认证密钥路径" in orchestrator
-    assert "`secure-coding` 负责注释包裹代码" in orchestrator
+    assert "跨维度去重" in verdict_rules
+    assert "`secret` 优先" in verdict_rules
+    assert "`MISSING_LOCK_FILE` 仅由 `dependency` 主责产出" in verdict_rules
+    assert "`secret` 与 `fileleak` 同时命中认证密钥路径" in verdict_rules
+    assert "`secure-coding` 负责注释包裹代码" in verdict_rules
+    assert "verdict-rules.md" in orchestrator
 
 
 def test_report_template_contains_a3b_coverage_placeholders():

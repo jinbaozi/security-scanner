@@ -1,6 +1,6 @@
 # 敏感文件泄露扫描器
 
-> 本文件指导 FileLeak Scanner Agent 检测不应出现在交付包中的敏感文件。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 FileLeak Scanner Agent 检测不应出现在交付包中的敏感文件。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -14,7 +14,7 @@ FileLeak Scanner Agent 仅负责按文件路径、文件名和必要的轻量内
 
 ## 输出
 
-输出 JSON 对象，`findings` 中每个元素必须遵循统一 finding schema：
+输出 JSON 对象，`findings` 中每个元素必须符合统一 finding schema（Orchestrator 注入 finding-schema；字段定义见该文件）。最小示例如下：
 
 ```json
 {

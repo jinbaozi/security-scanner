@@ -67,10 +67,12 @@ def test_a1c_contract_fails_missing_checksec_results_and_unproven_readelf_fallba
 def test_result_verification_agent_is_future_extension_not_current_gate():
     orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")
 
-    assert "未来扩展项" in orchestrator
-    assert "本轮不新增、不调度、不作为 A1c 必需组件" in orchestrator
-    assert "当前强制复核门禁只有 A1c Tool Execution Audit" in orchestrator
+    # Result Verification Agent 已从当前执行链路移除；A1c 为唯一强制工具审计门禁。
+    assert "Result Verification Agent" not in orchestrator
+    assert "未来扩展项" not in orchestrator
     assert "可增加 Result Verification Agent 作为 A1c 的独立复核者" not in orchestrator
+    assert "A1c（Tool Execution Audit）" in orchestrator
+    assert "强制复核门禁仅有 A1c" in orchestrator
     assert "高风险维度 `elf`、`secret`、`crypto`、`dependency` 优先强制复核" not in orchestrator
 
 

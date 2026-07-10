@@ -18,8 +18,6 @@ references:
     scope: local
   - path: references/architecture-signals.md
     scope: local
-  - path: ../../references/red-line-rules.md
-    scope: shared
   - path: ../../references/allowlists.md
     scope: shared
   - path: references/redline-clauses.md
@@ -28,7 +26,7 @@ references:
 session:
   model: sonnet
   max_tokens: 16000
-  references_token_budget: 10000
+  references_token_budget: 8000
 
 failure:
   max_retries: 2

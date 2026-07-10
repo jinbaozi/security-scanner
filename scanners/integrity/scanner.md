@@ -1,6 +1,6 @@
 # 完整性校验扫描器
 
-> 本文件指导 Integrity Scanner Agent 执行交付物完整性检查，包括 RPM/DEB 签名元数据、构建/安装脚本中的 gpg/cosign/sha256sum 校验以及来源可信证据。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Integrity Scanner Agent 执行交付物完整性检查，包括 RPM/DEB 签名元数据、构建/安装脚本中的 gpg/cosign/sha256sum 校验以及来源可信证据。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 

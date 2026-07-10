@@ -17,7 +17,7 @@ references:
 session:
   model: sonnet
   max_tokens: 14000
-  references_token_budget: 9000
+  references_token_budget: 8000
 
 failure:
   max_retries: 2

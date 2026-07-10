@@ -15,13 +15,12 @@ COMPACT_FINDING_FIELDS = (
     "severity",
     "confidence",
     "verdict",
-    "description",
     "detail",
     "evidence",
     "redline_clause",
     "rl_ids",
 )
-COMPACT_TEXT_LIMIT = 240
+COMPACT_TEXT_LIMIT = 160
 
 
 def _truncate_text(value: str, limit: int = COMPACT_TEXT_LIMIT) -> str:
@@ -36,7 +35,7 @@ def _compact_finding(finding: dict[str, Any]) -> dict[str, Any]:
         if field not in finding:
             continue
         value = finding[field]
-        if field in {"description", "detail", "evidence"} and isinstance(value, str):
+        if field in {"detail", "evidence"} and isinstance(value, str):
             value = _truncate_text(value)
         compact[field] = deepcopy(value)
     return compact

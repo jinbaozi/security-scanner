@@ -1,6 +1,6 @@
 # 未公开接口/注释扫描器
 
-> 本文件指导 Comment Scanner Agent 执行未公开接口、隐藏调试能力、后门说明和敏感注释扫描。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Comment Scanner Agent 执行未公开接口、隐藏调试能力、后门说明和敏感注释扫描。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -14,7 +14,7 @@ Comment Scanner Agent 仅负责检测源码中的大段注释及其安全含义�
 
 ## 输出
 
-输出 JSON 对象，`findings` 中每个元素必须遵循统一 finding schema：
+输出 JSON 对象，`findings` 中每个元素必须符合统一 finding schema（Orchestrator 注入 finding-schema；字段定义见该文件）。最小示例如下：
 
 ```json
 {

@@ -1,6 +1,6 @@
 # 依赖与漏洞扫描器
 
-> 本文件指导 Dependency Scanner Agent 执行依赖清单、锁文件、SBOM 与公开漏洞检查。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Dependency Scanner Agent 执行依赖清单、锁文件、SBOM 与公开漏洞检查。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -18,7 +18,7 @@ Dependency Scanner Agent 负责识别组件依赖、锁文件完整性、嵌入�
 
 ## 输出
 
-输出 JSON 对象，包含 `findings` 与 `artifacts.sbom`。每个 finding 必须遵循统一 schema：
+输出 JSON 对象，包含 `findings` 与 `artifacts.sbom`。每个 finding 必须符合统一 finding schema（Orchestrator 注入 finding-schema）。最小示例如下：
 
 ```json
 {

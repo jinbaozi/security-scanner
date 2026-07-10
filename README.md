@@ -1,6 +1,6 @@
 # 安全合规扫描器（Security Compliance Scanner）
 
-面向 AI 编码工具的安全合规扫描 SKILL。它不是独立 CLI 程序，而是一组结构化 Markdown 指令文件，由 Claude Code、Codex、OpenCode 等 AI 编码助手按阶段加载并执行。Claude Code、Codex、OpenCode 使用同一共享报告契约。
+面向 AI 编码工具的安全合规扫描 SKILL。它不是独立 CLI 程序，而是一组结构化 Markdown 指令文件，由 Claude Code、Codex、OpenCode、Pi Agent 等 AI 编码助手按阶段加载并执行。Claude Code、Codex、OpenCode、Pi Agent 使用同一共享报告契约。
 
 ## 项目简介
 
@@ -170,6 +170,35 @@ opencode
 opencode run "使用 security-scanner skill 对当前目录执行 redline-full 安全合规扫描。请严格按 Phase -1 环境预检、Phase -0 输入物化、Phase 0 发现、Phase 1 扫描、Phase 2 裁决、Phase 3 报告生成执行。无论 scan_profile 是否跳过部分维度，最终必须在 security-reports/ 生成综合 Markdown、JSON、component-info summary JSON 和 13 份维度独立详细 Markdown 报告；跳过、降级或失败维度也要生成占位报告并写明原因。"
 ```
 
+### Pi Agent
+
+全局或项目挂载 skill：
+
+```bash
+# 全局
+mkdir -p ~/.pi/agent/skills
+ln -s /abs/path/to/security-scanner ~/.pi/agent/skills/security-scanner
+
+# 或项目内（需信任项目）
+cd /path/to/project
+mkdir -p .pi/skills
+ln -s /abs/path/to/security-scanner .pi/skills/security-scanner
+```
+
+亦兼容 `.agents/skills/security-scanner`。会话内由 skill 发现触发，或：
+
+```bash
+pi --skill /abs/path/to/security-scanner
+```
+
+提示词：
+
+```text
+请使用 security-scanner 对当前目录执行 redline-full 安全合规扫描。
+请严格按 Phase -1 环境预检、Phase -0 输入物化、Phase 0 发现、Phase 1 扫描、Phase 2 裁决、Phase 3 报告生成执行。
+无论 scan_profile 是否跳过部分维度，最终必须在 security-reports/ 生成综合 Markdown、JSON、component-info summary JSON 和 13 份维度独立详细 Markdown 报告；跳过、降级或失败维度也要生成占位报告并写明原因。
+```
+
 ## 执行流程
 
 ```text
@@ -293,7 +322,6 @@ Reporter 指令定义三类输出：
 security-scanner/
 ├── README.md
 ├── SKILL.md
-├── component-info.md
 ├── scripts/
 │   ├── export_redline_spec.py
 │   ├── package_materializer.py
@@ -357,9 +385,12 @@ security-scanner/
 ├── references/
 │   ├── allowlists.md
 │   ├── dependency-check.md
+│   ├── finding-schema.md
 │   ├── verdict-rules.md
 │   ├── library-vuln-caps.md
-│   └── red-line-rules.md
+│   ├── red-line-rules.md
+│   ├── redline-mapping.md
+│   └── redline-spec.md
 ├── templates/
 │   ├── report-manifest.yaml
 │   ├── report-comprehensive.md
@@ -393,11 +424,13 @@ security-scanner/
 
 | 共享 reference | 引用者 |
 |----------------|--------|
-| `references/allowlists.md` | 由各 scanner `meta.yaml` 声明引用，常见于文本、权限、ELF、网络、密码学、组件档案及新增维度 |
-| `references/red-line-rules.md` | 红线相关维度按 `meta.yaml` 声明引用 |
-| `references/library-vuln-caps.md` | 依赖、网络、密码学等需要库版本知识库的维度按 `meta.yaml` 声明引用 |
-| `references/dependency-check.md` | `orchestration/orchestrator.md` 在 Phase -1 环境预检中加载 |
-| `references/verdict-rules.md` | 裁决阶段（Phase 2）由 orchestration 流程加载 |
+| `references/allowlists.md` | 由各 scanner `meta.yaml` 声明引用 |
+| `references/finding-schema.md` | Phase 1.5 / 2 / 3 按需注入 |
+| `references/red-line-rules.md` | Pattern 权威源；**不**注入 scanner session，由维内 patterns 使用 |
+| `references/library-vuln-caps.md` | crypto、network 等按 `meta.yaml` 声明引用 |
+| `references/dependency-check.md` | Phase -1 环境预检 |
+| `references/verdict-rules.md` | Phase 2 裁决 |
+| `references/redline-mapping.md` / `redline-spec.md` | Phase 3 A3b 仅 |
 
 ### 白名单和排除规则
 

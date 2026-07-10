@@ -2,7 +2,7 @@
 
 > 来源：`references/redline-spec.md`（Sheet1 40 条），并依据 2026-06-30 redline gap design 的 profile、automation 边界整理。
 >
-> 说明：`RL-001` 至 `RL-199` 优先沿用现有 `references/red-line-rules.md`；`RL-200` 及以后为本轮 redline 扩展计划中的稳定预留 ID，后续任务会补入规则库或 scanner 切片。
+> 说明：可绑定 RL-ID 必须以本 mapping 的 `rl_ids` 为唯一合法集合。`references/red-line-rules.md` 中的可执行 pattern 只能覆盖 mapping 已声明的 RL；INFO 推荐项（RL-300+）不进入绑定路径。RL-200+ 扩展 ID 在 mapping 中占位，无 pattern 时不得虚构命中。
 >
 > Mapping schema：
 > - `clause_id`：Sheet1 条款编号，必须覆盖 40 条且唯一。
@@ -132,7 +132,7 @@ redline_mapping:
     profile_min: "redline-p0"
 
   - clause_id: "5.1.4"
-    rl_ids: ["RL-001", "RL-002", "RL-003", "RL-004", "RL-005", "RL-020", "RL-021", "RL-022", "RL-040", "RL-041", "RL-042", "RL-043", "RL-044", "RL-100", "RL-101", "RL-102", "RL-103", "RL-104", "RL-105", "RL-106", "RL-107", "RL-108", "RL-109", "RL-110", "RL-111", "RL-112", "RL-113", "RL-114", "RL-115", "RL-116", "RL-117", "RL-118", "RL-119"]
+    rl_ids: ["RL-001", "RL-002", "RL-003", "RL-004", "RL-005", "RL-006", "RL-007", "RL-008", "RL-020", "RL-021", "RL-022", "RL-023", "RL-024", "RL-040", "RL-041", "RL-042", "RL-043", "RL-044", "RL-045", "RL-046", "RL-047", "RL-100", "RL-101", "RL-102", "RL-103", "RL-104", "RL-105", "RL-106", "RL-107", "RL-108", "RL-109", "RL-110", "RL-111", "RL-112", "RL-113", "RL-114", "RL-115", "RL-116", "RL-117", "RL-118", "RL-119"]
     scanner_dims: ["crypto", "network"]
     automation: partial
     profile_min: "redline-p0"

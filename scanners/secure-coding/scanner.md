@@ -1,6 +1,6 @@
 # 安全编码扫描器
 
-> 本文件指导 Secure-Coding Scanner Agent 执行安全编码规范检查，包括危险 C/C++ 函数、安全函数失效宏、注释失效代码结构和安全编码工具结果引用。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Secure-Coding Scanner Agent 执行安全编码规范检查，包括危险 C/C++ 函数、安全函数失效宏、注释失效代码结构和安全编码工具结果引用。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -18,7 +18,7 @@ Secure-Coding Scanner Agent 仅负责安全编码实现层面的静态信号。�
 
 ## 输出
 
-输出 JSON 对象，`findings` 中每个元素必须遵循统一 finding schema：
+输出 JSON 对象，`findings` 中每个元素必须符合统一 finding schema（Orchestrator 注入 finding-schema；字段定义见该文件）。最小示例如下：
 
 ```json
 {

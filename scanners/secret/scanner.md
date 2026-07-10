@@ -1,6 +1,6 @@
 # 口令和硬编码扫描器
 
-> 本文件指导 Secret Scanner Agent 执行口令、密钥、Token、私钥等硬编码凭证扫描。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Secret Scanner Agent 执行口令、密钥、Token、私钥等硬编码凭证扫描。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -15,7 +15,7 @@ Secret Scanner Agent 仅负责检测源码和配置文件中的硬编码凭证�
 
 ## 输出
 
-输出 JSON 对象，`findings` 中每个元素必须遵循统一 finding schema：
+输出 JSON 对象，`findings` 中每个元素必须符合统一 finding schema（Orchestrator 注入 finding-schema；字段定义见该文件）。最小示例如下：
 
 ```json
 {

@@ -67,7 +67,7 @@ def validate_meta(meta_path: Path) -> MetaSchema:
             raise ValueError(f"consume entries must be mappings in {meta_path}")
         if consume.get("inject_as") != "data":
             raise ValueError(
-                f"inject_as must be 'data' (Q29), got {consume.get('inject_as')!r} "
+                f"inject_as must be 'data', got {consume.get('inject_as')!r} "
                 f"in {meta_path}"
             )
 

@@ -37,7 +37,7 @@ version: 1.0.0
 description: x
 consumes:
   - dim: elf
-    inject_as: prompt  # FORBIDDEN per Q29
+    inject_as: prompt  # FORBIDDEN: must be data
     severity_filter: [high]
     token_budget: 1000
 references: []

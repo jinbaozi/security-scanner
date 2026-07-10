@@ -19,9 +19,7 @@ Reporter Agent 负责把 Verdict 阶段输出转换为可审计报告。报告�
 - 执行维度清单：`executed_dimensions`，只表示 Phase 1 实际扫描执行结果，包括实际执行、条件跳过、profile 跳过、工具缺失、降级或失败状态；它不得决定 Phase 3 维度报告文件数量。
 - 口径约束：executed_dimensions 只表示 Phase 1 实际扫描执行结果；reporting_dimensions 才决定 Phase 3 维度报告产物。
 
-`scan_profile` 只影响扫描调度强度，不影响最终 13 份维度独立详细报告产物数量。无论使用 Claude Code / Codex / OpenCode，Reporter 都必须遵循同一共享报告契约。
-
-报告口径：scan_profile 只影响扫描调度强度，不影响最终 13 份维度独立详细报告产物数量。
+`scan_profile` 只影响扫描调度强度，不影响最终 13 份维度独立详细报告产物数量。无论使用 Claude Code / Codex / OpenCode / Pi Agent，Reporter 都必须遵循同一共享报告契约。
 
 Phase 3 的固定 Markdown 产物契约是：综合 Markdown 报告 + JSON 结构化数据 + 13 份维度独立详细 Markdown 报告。
 
@@ -163,7 +161,7 @@ Reporter 必须根据 `references/redline-mapping.md` 生成综合报告附录�
 | `scanner_dims` | 自动/半自动主责维度；manual 项为空 |
 | `finding_ids` | 命中的 confirmed/suspected finding ID；无命中时写明“未发现问题”或“无适用输入” |
 | `manual_note` | manual 或 partial 项的人工复核说明 |
-| `coverage_status` | `covered` / `no finding` / `manual` / `degraded` / `not applicable` |
+| `coverage_status` | `covered` / `no finding` / `manual` / `degraded` / `not applicable` / `skipped_by_profile` |
 
 统计口径：
 
@@ -171,6 +169,9 @@ Reporter 必须根据 `references/redline-mapping.md` 生成综合报告附录�
 - partial 项若没有可自动确认的 finding，必须保留人工复核说明。
 - `needs_human` 和 `unverified` 不得计入 confirmed 问题总数，但必须在覆盖矩阵中可追溯。
 - 当 `materialization.status=blocked` 或 SRPM 没有 prepped source root 时，源码相关 automated/partial redline 条目的 `coverage_status` 必须为 `degraded`，并在 `manual_note` 或降级说明中引用物化错误；不得写成 `covered` 或 `no finding`。
+- scan_profile 只影响扫描调度强度，不影响最终 13 份维度独立详细报告产物数量
+- 因 `scan_profile`（如 `redline-binary` / `redline-p0`）未调度相关维度时，对应条款 `coverage_status` 必须为 `skipped_by_profile` 或 `not applicable`，不得写成“完整通过”或 `covered`。
+- `redline_clause=null` 的非红线检查项不进入 40 条矩阵计数。
 - 40 条条款必须全部出现；缺失任一条为 A3b FAIL。
 - `redline_manual_checklist` 必须由 `automation=manual` 条款生成，字段至少包含 clause、manual_note、建议责任方和状态。
 

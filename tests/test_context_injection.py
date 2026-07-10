@@ -182,6 +182,7 @@ def test_consume_compact_keeps_trace_fields_and_truncates_large_payloads():
                 "severity": "critical",
                 "confidence": "high",
                 "verdict": "confirmed",
+                "description": "不应注入下游的冗余字段",
                 "detail": long_detail,
                 "suggestion": "完整修复建议只保留给裁决和报告阶段",
                 "evidence": long_evidence,
@@ -203,6 +204,7 @@ def test_consume_compact_keeps_trace_fields_and_truncates_large_payloads():
     assert critical["check_item"] == "insecure_protocol"
     assert critical["redline_clause"] == "5.1.1"
     assert critical["rl_ids"] == ["RL-110"]
+    assert "description" not in critical
     assert len(critical["detail"]) < len(long_detail)
     assert len(critical["evidence"]) < len(long_evidence)
     assert critical["detail"].endswith("...")

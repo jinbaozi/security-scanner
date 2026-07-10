@@ -1,6 +1,6 @@
 # 内容合规扫描器
 
-> 本文件指导 Content-Compliance Scanner Agent 执行文字、地图、图表、UI 资源和文档中的政治敏感表述检查。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Content-Compliance Scanner Agent 执行文字、地图、图表、UI 资源和文档中的政治敏感表述检查。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 

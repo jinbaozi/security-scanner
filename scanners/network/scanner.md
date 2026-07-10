@@ -1,6 +1,6 @@
 # 网络协议扫描器
 
-> 本文件指导 Network Scanner Agent 执行网络通信相关检测，包括不安全协议（SSLv3/SSLv2/TLSv1.0/TLSv1.1/Telnet/HTTP 明文）、监听端口识别、端口-协议交叉验证、以及特权端口使用情况。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Network Scanner Agent 执行网络通信相关检测，包括不安全协议（SSLv3/SSLv2/TLSv1.0/TLSv1.1/Telnet/HTTP 明文）、监听端口识别、端口-协议交叉验证、以及特权端口使用情况。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -14,14 +14,13 @@ Network Scanner Agent 仅负责检测源码、配置文件和依赖声明中的�
 - `component_name`: 源码组件名称
 - `communication_matrix_path`（可选）：用户提供的通信矩阵/端口声明文件；不存在或格式错误时输出 WARN，不阻断扫描
 - `references/patterns-network.md`: 网络协议与端口 pattern 库
-- `../../references/red-line-rules.md`: 红线规则库
 - `../../references/library-vuln-caps.md`: 库版本与默认不安全能力知识库
 - `../../references/allowlists.md`: 白名单与例外规则
-- `references/redline-clauses.md`: network 维度 redline 条款切片；clause 级映射以本地切片为准，`../../references/red-line-rules.md` 仅作 pattern 库。
+- `references/redline-clauses.md`: network 维度 redline 条款切片（唯一可绑定条款源）
 
 ## 输出
 
-输出 JSON 对象，包含 `findings` 与 `artifacts`。`findings` 中每个元素必须遵循统一 finding schema：
+输出 JSON 对象，包含 `findings` 与 `artifacts`。`findings` 中每个元素必须符合统一 finding schema（Orchestrator 注入 finding-schema；字段定义见该文件）。最小示例如下：
 
 ```json
 {
@@ -86,7 +85,7 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 读取以下参考文件以加载检测规则：
 
 - `references/patterns-network.md`：网络协议与端口 pattern 库（不安全协议、端口识别、协议-端口交叉验证、端口-用途对照）
-- `../../references/red-line-rules.md`：红线规则库（RL-100 ~ RL-119 不安全协议、RL-120 ~ RL-139 库默认不安全能力）
+- `references/patterns-network.md`：可执行 pattern
 - `../../references/library-vuln-caps.md`：库版本与默认不安全能力知识库
 - `../../references/allowlists.md`：白名单与例外规则
 - `references/redline-clauses.md`：network 维度 redline 条款切片，优先用于 clause 映射。

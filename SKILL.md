@@ -3,7 +3,7 @@ name: security-scanner
 description: >
   AI 辅助安全合规扫描工具。扫描软件包的 13 个维度：ELF 安全编译、公网地址、口令硬编码、
   未公开接口、敏感文件泄露、文件权限、密码学合规、网络协议与端口、组件基础档案、
-  依赖组件风险、安全编码规范、完整性校验、内容合规。支持 Claude Code / Codex / OpenCode。
+  依赖组件风险、安全编码规范、完整性校验、内容合规。支持 Claude Code / Codex / OpenCode / Pi Agent。
 triggers:
   - 安全扫描
   - 合规检查
@@ -21,314 +21,77 @@ triggers:
 
 # 安全合规扫描器 (Security Compliance Scanner)
 
-支持 Claude Code / Codex / OpenCode 时遵循同一共享报告契约：`scan_profile` 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量；Phase 3 必须生成最终汇总报告 + 13 个维度独立详细报告。
-
-报告口径：scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量。
+支持 Claude Code / Codex / OpenCode / Pi Agent 时遵循同一共享报告契约：`scan_profile` 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量；Phase 3 必须生成最终汇总报告 + 13 个维度独立详细报告。
 
 ## 终端输出契约
 
-默认采用最小终端输出：每个 Phase 最多输出 1 行终端状态，最终终端摘要最多 8 行。不得向终端输出完整 JSON、原始 findings、大段 stdout/stderr 或文件清单；完整数据必须写入 security-reports/ 下的 JSON、审计日志、Markdown 报告和维度报告。调试、失败、降级和审计细节也写入结构化产物，不在终端展开。
+默认采用最小终端输出：每个 Phase 最多输出 1 行终端状态，最终终端摘要最多 8 行。不得向终端输出完整 JSON、原始 findings、大段 stdout/stderr 或文件清单；完整数据必须写入 security-reports/ 下的 JSON、审计日志、Markdown 报告和维度报告。不得向用户回显已读文件全文。调试、失败、降级和审计细节写入结构化产物，不在终端展开。
 
 ## 触发条件
 
-当用户请求对代码或软件包进行以下操作时激活本 SKILL：
-
-- 安全扫描 / 安全合规检查 / 安全审计
-- ELF 安全编译检查
-- 公网地址扫描 / 硬编码检查
-- 口令扫描 / 密钥扫描
-- 未公开接口扫描
-
-用户必须提供扫描目标路径。路径可以是绝对路径；若用户提供相对路径，先转换为绝对路径再进入流程。
+用户请求安全扫描 / 合规检查 / 安全审计，或 ELF / 公网地址 / 口令 / 未公开接口等专项检查时激活。用户必须提供扫描目标路径（相对路径先转为绝对路径）。
 
 ## 扫描维度
 
-1. **ELF 安全编译**：栈保护、NX、RELRO、PIE、BIND_NOW、Strip、RPATH、FORTIFY_SOURCE。
-2. **公网地址**：硬编码公网 IP、URL、域名、邮箱。
-3. **口令和硬编码**：密码、密钥、Token、私钥等硬编码凭证。
-4. **未公开接口**：大段注释中隐藏的未文档化功能或接口。
-5. **敏感文件泄露**：`.env`、私钥、日志、临时文件等交付包污染。
-6. **文件权限**：setuid/setgid、world-writable、异常可执行权限。
-7. **密码学合规**（crypto）：对称/非对称/Hash 算法、伪加密、随机数 API、不安全协议。
-8. **网络协议与端口**（network）：通信协议（SSHv2/TLS1.2/TLS1.3 等）、监听端口。
-9. **组件基础档案**（component-info）：架构类型、默认账号、个人数据、root 启动需求。
-10. **依赖组件风险**（dependency）：依赖清单、锁文件、嵌入库、版本与已知漏洞风险。
-11. **安全编码规范**（secure-coding）：危险 API、输入校验、资源管理、异常处理等编码风险。
-12. **完整性校验**（integrity）：交付物校验和、签名、来源可信与篡改风险。
-13. **内容合规**（content-compliance）：交付包中的许可证、敏感文本、违规内容和合规声明风险。
+1. **ELF 安全编译**（elf）
+2. **公网地址**（url）
+3. **口令和硬编码**（secret）
+4. **未公开接口**（comment）
+5. **敏感文件泄露**（fileleak）
+6. **文件权限**（permission）
+7. **密码学合规**（crypto）
+8. **网络协议与端口**（network）
+9. **组件基础档案**（component-info）
+10. **依赖组件风险**（dependency）
+11. **安全编码规范**（secure-coding）
+12. **完整性校验**（integrity）
+13. **内容合规**（content-compliance）
 
 ## Scan Profiles
 
-Orchestrator 必须接受 `scan_profile` 输入，并按以下合法 profile 调度。未显式指定时默认使用 `redline-full`。任何其他 profile 名称均为非法输入，必须 `FAIL` 并停止进入 Phase 1。Profile 定义的是最终目标维度集合；实际执行时仍以 `discover_scanners()` 发现结果与 profile 集合取交集，未落地或不可发现的维度必须记录为覆盖缺口，不得虚构 scanner。
+未显式指定时默认 `redline-full`。非法 profile 必须 `FAIL` 并停止进入 Phase 1。实际执行 = `discover_scanners()` ∩ profile；未发现维度记为覆盖缺口，不得虚构 scanner。
 
-| Profile | 维度范围 | 用途 |
-|---------|----------|------|
-| `redline-p0` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency` | 红线扫描，覆盖 10 个核心维度 |
-| `redline-full` | `elf`、`url`、`secret`、`comment`、`fileleak`、`permission`、`crypto`、`network`、`component-info`、`dependency`、`secure-coding`、`integrity`、`content-compliance` | 完整红线扫描（默认），覆盖全部 13 维 |
-| `redline-binary` | `elf`、`fileleak`、`permission`、`dependency` | 面向二进制或交付包的快速扫描 |
+| Profile | 维度范围 |
+|---------|----------|
+| `redline-p0` | elf、url、secret、comment、fileleak、permission、crypto、network、component-info、dependency |
+| `redline-full` | 全部 13 维（默认） |
+| `redline-binary` | elf、fileleak、permission、dependency |
 
-## 文件结构
+scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量
 
-本 SKILL 使用 γ-sidecar（gamma sidecar）结构组织 scanner：每个维度位于 `scanners/<dim>/`，由 `scanner.md`、`meta.yaml` 和可选 `references/` 组成。新增 scanner 即 drop a directory；registry 发现的是维度目录，不使用旧式扁平 scanner 文件路径。
+## 渐进式披露（强制）
 
-```text
-security-scanner/
-├── SKILL.md
-├── scanners/
-│   ├── __init__.py
-│   ├── registry/
-│   │   ├── __init__.py
-│   │   ├── schema.py
-│   │   ├── resolver.py
-│   │   ├── context.py
-│   │   └── tokens.py
-│   ├── elf/{meta.yaml,scanner.md}
-│   ├── url/{meta.yaml,scanner.md}
-│   ├── secret/{meta.yaml,scanner.md}
-│   ├── comment/{meta.yaml,scanner.md}
-│   ├── fileleak/{meta.yaml,scanner.md}
-│   ├── permission/{meta.yaml,scanner.md}
-│   ├── network/{meta.yaml,scanner.md}
-│   ├── crypto/{meta.yaml,scanner.md}
-│   ├── component-info/{meta.yaml,scanner.md}
-│   ├── dependency/{meta.yaml,scanner.md}
-│   ├── secure-coding/{meta.yaml,scanner.md}
-│   ├── integrity/{meta.yaml,scanner.md}
-│   └── content-compliance/{meta.yaml,scanner.md}
-├── orchestration/
-│   ├── orchestrator.md
-│   ├── reconnaissance.md
-│   └── reporter.md
-├── references/
-│   ├── allowlists.md
-│   ├── dependency-check.md
-│   ├── verdict-rules.md
-│   ├── library-vuln-caps.md
-│   └── red-line-rules.md
-└── templates/
-    ├── report-comprehensive.md
-    ├── report-安全编译.md
-    ├── report-公网地址.md
-    ├── report-口令硬编码.md
-    ├── report-未公开接口.md
-    ├── report-密码学.md
-    ├── report-网络.md
-    ├── report-组件档案.md
-    ├── report-依赖与漏洞.md
-    ├── report-安全编码.md
-    ├── report-完整性.md
-    └── report-内容合规.md
-```
-
-## 执行流程
-
-严格按以下顺序执行。每个 Phase 只在需要时加载对应模块，保证渐进式披露。
-
-渐进式披露路径：
+激活后只读本文件与 `orchestration/orchestrator.md` 的加载白名单。每个 Phase **只在需要时** Read 对应文件；禁止预读全部 scanners、templates、`redline-spec.md`。
 
 ```text
-SKILL.md
+SKILL.md（本文件）
 ├── Phase -1 -> references/dependency-check.md
-├── Phase -0 -> scripts/package_materializer.py（输入物化：SRPM %prep / binary RPM 展开）
-├── Phase 0  -> orchestration/reconnaissance.md（只消费物化后的 source_roots / binary_roots）
-├── Phase 1  -> 校验 scan_profile（默认 redline-full）
-│              -> discover_scanners() 自动发现 scanners/<dim>/{meta.yaml,scanner.md}
-│              -> 与 profile 维度集合取交集后调度
-│              -> topological_order() 按 consumes 依赖调度
-│              -> ScanContext 中转 scanner findings
-├── Phase 2  -> references/verdict-rules.md
-└── Phase 3  -> orchestration/reporter.md（最终汇总报告 + 13 个维度独立详细报告）
-              -> templates/report-comprehensive.md
-              -> templates/report-安全编译.md
-              -> templates/report-公网地址.md
-              -> templates/report-口令硬编码.md
-              -> templates/report-未公开接口.md
-              -> templates/report-敏感文件泄露.md
-              -> templates/report-文件权限.md
-              -> templates/report-密码学.md
-              -> templates/report-网络.md
-              -> templates/report-组件档案.md
-              -> templates/report-依赖与漏洞.md
-              -> templates/report-安全编码.md
-              -> templates/report-完整性.md
-              -> templates/report-内容合规.md
-              -> references/redline-spec.md（仅综合报告/A3b 阶段加载）
+├── Phase -0 -> scripts/package_materializer.py（rpm2cpio/cpio/rpmbuild；可选 dnf/patch/tar）
+├── Phase 0  -> orchestration/reconnaissance.md
+├── Phase 1  -> scanners/registry + scanners/<dim>/{meta.yaml,scanner.md}
+│              -> 仅 meta.references 声明的文件 + references/finding-schema.md
+├── Phase 2  -> references/verdict-rules.md + references/finding-schema.md
+└── Phase 3  -> orchestration/reporter.md + templates/report-manifest.yaml
+               -> templates/*（按 manifest）+ references/redline-mapping.md
+               -> references/redline-spec.md（仅 A3b/综合报告）
 ```
 
-### Phase -1: 环境预检
+调度细节、审计点、条件跳过、降级矩阵：见 `orchestration/orchestrator.md`。  
+Finding 字段定义：见 `references/finding-schema.md`（勿在此内嵌全文）。  
+人读安装与目录树：见 `README.md`（运行时 agent 不读）。
 
-1. 读取 `references/dependency-check.md`。
-2. 执行环境预检：检测运行时、检查依赖。
-   - RPM/SRPM 物化相关工具：`rpm2cpio`、`cpio`、`rpmbuild`、`dnf`、`patch`、`tar`。`dnf` 缺失只影响 builddep 修复路径。
-3. 若检测到缺失工具：
-   a. **阻断执行**，使用 `question` 工具向用户展示缺失工具列表及安装方法。
-   b. 让用户选择：手动安装 / 自动安装 / 接受降级。
-   c. 用户选择自动安装时，尝试自动安装缺失依赖。
-   d. 安装失败时，使用 `question` 工具询问用户是否接受降级模式。
-   e. 用户拒绝降级 → `blocked`，终止扫描并输出安装指南。
-4. 生成依赖报告：`ready` / `degraded` / `blocked`。
-   - `degraded` 仅在用户明确同意降级后才设置。
-5. `ready` 或 `degraded`（用户已同意）时输出摘要并进入 Phase -0。
+### 硬性禁止
 
-终端摘要：
-
-```text
-Phase -1: 环境预检 PASS status=ready|degraded missing_tools=N degraded_items=N
-```
-
-### Phase -0: 输入物化（Package Materialization）
-
-1. 对 `target_path` 识别输入类型：`.src.rpm`、binary `.rpm`、包含 RPM/SRPM 的目录或普通已展开源码目录。
-2. 对 `.src.rpm` 使用 `scripts/package_materializer.py` 执行 `rpm2cpio`/`cpio` 解包，并在隔离 `_topdir` 中执行 `rpmbuild -bp --nodeps`，只复现 `%prep`，产出 patch 后的 `source_prepped` 根目录。
-3. 对 binary RPM 展开到 `materialized/binary-root/`，作为 `binary_rpm` 根目录进入后续 ELF、权限、敏感文件和依赖线索扫描。
-4. 若 `%prep` 疑似因构建依赖失败，可在用户明确授权后执行 `dnf builddep <spec>` 并重试；该动作会修改系统包环境。当前用户非 root 或需要 sudo 时必须先阻断并要求 root/sudo 授权或 root 密码，不得静默安装依赖。
-5. 普通目录标记为 `raw_directory`，继续扫描，但报告必须说明未验证 RPM patch 语义。
-6. 将完整 materialization JSON 写入 `security-reports/materialization-{component_name}-{date}.json` 或等价审计产物，并执行 A-0 审计。SRPM 物化失败时继续输出错误报告，但 `overall_redline_assurance=blocked`，源码相关 redline 覆盖项为 degraded/blocked。
-
-终端摘要：
-
-```text
-Phase -0: 输入物化 PASS|FAIL input_kind=srpm|binary_rpm|package_directory|source_tree source_roots=N binary_roots=N builddep=not_required|authorization_required|root_authorization_required|succeeded|failed
-```
-
-### Phase 0: 发现阶段（Reconnaissance）
-
-1. 读取 `orchestration/reconnaissance.md`。
-2. 将 Phase -0 的 materialization JSON 传入 Recon；Recon 只扫描 `source_roots` 和 `binary_roots`。
-3. 获取 Scan Plan JSON。
-4. 执行审计点 A0：覆盖率、分片大小、目录完整性。
-5. 审计通过后输出发现摘要并进入 Phase 1。
-
-终端摘要：
-
-```text
-Phase 0: 发现阶段 PASS component={component_name} files=1234 elf=12 source=1100 config=122 excluded=50 shards=3
-```
-
-### Phase 1: registry + profile 调度扫描
-
-根据 Scan Plan、`scan_profile` 和 scanner registry 按需加载 scanner 模块并派发独立 LLM session（Q21B）。`scan_profile` 未指定时默认使用 `redline-full`；非法 profile 立即 `FAIL`。
-
-Phase 1 依赖 γ-sidecar（gamma sidecar）布局：每个 scanner 是 `scanners/<dim>/` 目录中的 `scanner.md` + `meta.yaml` + 可选 `references/`。新增维度只需 drop a directory，调度器通过目录发现和 `meta.yaml` 依赖声明完成加载、排序和 reference 注入。
-
-调度策略：
-
-- 调用 `discover_scanners()` 自动发现 `scanners/<dim>/meta.yaml` 和 `scanners/<dim>/scanner.md`。
-- 根据 `scan_profile` 取得允许维度集合，仅调度 `discover_scanners()` 发现结果与 profile 维度集合的交集；未被 profile 选中的维度记为 `skipped_by_profile`，不算失败。
-- 调用 `topological_order()` 根据入选 scanner `meta.yaml` 的 `consumes` 依赖生成调度顺序；无依赖且资源允许的维度可并行执行。
-- 每个 scanner session 只加载自身 `scanner.md`、分配文件列表、输出 schema，以及 `meta.yaml` 声明的 references。
-- scanner 间 findings 通过 `ScanContext` 中转。若下游 `meta.yaml` 声明 `consumes`，上游 findings 按 `inject_as: data`、`severity_filter`、`token_budget` 筛选后以 `compact=True` 紧凑模式注入下游 user message，不能写入 system prompt；原始 findings 仅保留给 Verdict 和 Reporter。
-- 维度专属 references 保留在 `scanners/<dim>/references/`；顶层 `references/` 用于跨维度和跨阶段共享资料。当前共享关系与 `scanners/*/meta.yaml` 保持一致：
-  - `references/allowlists.md`：由各 scanner `meta.yaml` 声明引用，常见于文本、权限、ELF、网络、密码学、组件档案及新增维度。
-  - `references/red-line-rules.md`：红线相关维度按 `meta.yaml` 声明引用。
-  - `references/library-vuln-caps.md`：依赖、网络、密码学等需要库版本知识库的维度按 `meta.yaml` 声明引用。
-  - `references/dependency-check.md`：`orchestration/orchestrator.md` 在 Phase -1 环境预检中加载。
-  - `references/verdict-rules.md`：裁决阶段（Phase 2）由 orchestration 流程加载。
-
-已定义 profile 可选择以下 13 个维度；实际执行集合由 `discover_scanners()` 发现结果与 profile 维度集合取交集得到：
-
-1. `elf`：`scanners/elf/{meta.yaml,scanner.md}`
-2. `url`：`scanners/url/{meta.yaml,scanner.md}`
-3. `secret`：`scanners/secret/{meta.yaml,scanner.md}`
-4. `comment`：`scanners/comment/{meta.yaml,scanner.md}`
-5. `fileleak`：`scanners/fileleak/{meta.yaml,scanner.md}`
-6. `permission`：`scanners/permission/{meta.yaml,scanner.md}`
-7. `network`：`scanners/network/{meta.yaml,scanner.md}`
-8. `crypto`：`scanners/crypto/{meta.yaml,scanner.md}`
-9. `component-info`：`scanners/component-info/{meta.yaml,scanner.md}`
-10. `dependency`：`scanners/dependency/{meta.yaml,scanner.md}`
-11. `secure-coding`：`scanners/secure-coding/{meta.yaml,scanner.md}`
-12. `integrity`：`scanners/integrity/{meta.yaml,scanner.md}`
-13. `content-compliance`：`scanners/content-compliance/{meta.yaml,scanner.md}`
-
-所有适用 Scanner 完成后执行审计点 A1。
-
-失败处理：
-
-- 单个 Agent 失败：重试最多 2 次，仍失败则标记维度 FAILED。
-- 2-3 个 Agent 失败：部分降级，继续其他维度。
-- >=4 个 Agent 失败：Phase 级降级，收集已完成结果。
-
-### Phase 2: 裁决阶段（Verdict）
-
-1. 读取 `references/verdict-rules.md`。
-2. 收集所有 Scanner findings。
-3. 高置信度 findings 直接通过。
-4. 对中/低置信度 findings 派发 Verdict subagent。
-5. 执行审计点 A2。
-
-去重说明：`crypto` 与 `secret` 维度共享同一份凭证字符串匹配结果时，`secret` 优先（其严重度模型更精细）；`crypto` 仅保留算法/协议相关的 finding，凭证泄露细节由 `secret` 报告。
-
-分批策略：
-
-- <=20 条：单个 Verdict Agent。
-- 21-100 条：按维度分组，每组一个 Verdict Agent。
-- >100 条：每 20 条一批，优先处理高严重度。
-
-### Phase 3: 报告生成
-
-1. 读取 `orchestration/reporter.md`。
-2. 读取 `templates/report-manifest.yaml` 和 `templates/` 下报告模板。
-3. 派发 Reporter subagent 生成：
-   - 终端摘要
-   - JSON 结构化数据
-   - 综合 Markdown 报告（含 redline 40 条覆盖矩阵和人工合规项附录）
-   - 13 个维度独立详细 Markdown 报告（未执行、profile 跳过、条件跳过、工具缺失、降级或失败的维度也必须生成占位报告）
-4. 执行审计点 A3/A3b/A3c：字段完整性、数据一致性、内容质量、覆盖完整性、redline 覆盖矩阵完整性、报告产物清单完整性。
-
-`templates/report-manifest.yaml` 是 Phase 3 报告维度、模板和输出路径的唯一来源。Reporter 必须设置 `reporting_dimensions` 为 manifest 中全部 13 个维度；`executed_dimensions` 只表示 Phase 1 实际扫描执行结果，不决定报告文件数量。
-
-## Finding Schema
-
-所有 Scanner 和 Verdict Agent 使用统一 finding 格式：
-
-```json
-{
-  "id": "{DIMENSION}-{SEQ}",
-  "dimension": "comment|url|secret|fileleak|permission|elf|network|crypto|component-info|dependency|secure-coding|integrity|content-compliance",
-  "file": "文件绝对路径",
-  "line": "integer | string | null — 源码行号、注释范围或不适用",
-  "check_item": "检查项名称",
-  "status": "PASS|WARN|FAIL",
-  "severity": "critical|high|medium|low|info",
-  "confidence": "high|medium|low",
-  "verdict": "confirmed|suspected|rejected|needs_human|unverified",
-  "verdict_reasoning": "裁决理由（简体中文，至少包含裁决依据和上下文判断）",
-  "detail": "问题描述（简体中文）",
-  "suggestion": "修复建议（简体中文）",
-  "evidence": "证据（代码片段或命令输出）"
-}
-```
-
-`line` 字段按维度解释：
-
-| 维度 | line 类型 | 示例 |
-|------|-----------|------|
-| `comment` | `string` | `"36-50"` |
-| `url` | `integer` | `45` |
-| `secret` | `integer` | `32` |
-| `fileleak` | `null` 或 `integer` | `null` |
-| `permission` | `null` | `null` |
-| `elf` | `null` | `null` |
-| `network` | `integer` 或 `null` | `9` |
-| `crypto` | `integer` 或 `null` | `4` |
-| `component-info` | `integer` 或 `null` | `5` |
-| `dependency` | `integer` 或 `null` | `12` |
-| `secure-coding` | `integer` 或 `string` | `"18-24"` |
-| `integrity` | `null` 或 `integer` | `null` |
-| `content-compliance` | `integer`、`string` 或 `null` | `"LICENSE:12"` |
-
-**新维度 evidence 扩展**：crypto / network / component-info / dependency / secure-coding / integrity / content-compliance 维度的 finding 的 `evidence` 字段可包含库信息或合规证据，格式：
-`library=NAME@VERSION | library_version=VERSION | trigger=REASON | cve=CVE-XXXX-XXXXX`
-老 6 维度不解析此格式。
+- 不得在激活时加载任意 `scanners/*/scanner.md` 或全部 templates。
+- scanner session 不得加载其他维 `scanner.md`、全量 findings、`redline-spec.md`。
+- 上游 findings 经 `ScanContext.consume(..., compact=True)` 注入 user message，不得写入 system prompt。
 
 ## 异常处理总则
 
 1. 永不丢失已完成工作。
 2. 部分结果优于无结果。
-3. 透明失败，所有失败和降级必须在最终报告中标注。
-4. 每个 subagent 调用必须有超时、错误、空结果处理。
-5. 每个 Agent 最多重试 2 次，退避时间为 0s、5s、15s。
+3. 透明失败，失败和降级必须在最终报告标注。
+4. 每个 subagent 须有超时、错误、空结果处理；最多重试 2 次，退避 0s、5s、15s。
 
 ## 报告语言
 

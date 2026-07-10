@@ -129,6 +129,17 @@ Verdict Agent 负责读取 scanner 输出的统一 finding，结合源文件上�
 - 未处理的 `low` 和 `info` finding 标记为 `unverified`，并写明原因。
 - 不得静默丢弃 finding；所有未处理项必须进入审计日志。
 
+## 跨维度去重（权威）
+
+裁决阶段按以下规则去重；Orchestrator / SKILL 不重复展开。
+
+- `crypto` 与 `secret` 共享同一凭证字符串时，`secret` 优先；`crypto` 仅保留算法/协议类 finding。
+- `MISSING_LOCK_FILE` 仅由 `dependency` 主责产出；Crypto/Network 不重复产出。
+- `secret` 与 `fileleak` 同时命中认证密钥路径时，文件泄露/权限路径证据优先保留，源码凭据 finding 合并为补充 evidence。
+- `secure-coding` 负责注释包裹代码，`comment` 负责注释描述隐藏接口，不重复报告同一注释块。
+- 同一 `file + line + check_item` 出现在多个 scanner 时，保留 severity 更高者；severity 相同则保留 confidence 更高者；仍相同则 `crypto` 优先于 `secret` 的算法类冲突项。
+- 同一 `file + line` 范围内（±5 行）的相关 finding 可合并，evidence 拼接。
+
 ## 数据一致性要求
 
 - `verdict` 与 `status` 必须一致：`PASS` 通常只能是 `confirmed` 或 `unverified` 的信息项，不得计入问题数。

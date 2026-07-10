@@ -20,8 +20,6 @@ consumes:
 references:
   - path: references/patterns-crypto.md
     scope: local
-  - path: ../../references/red-line-rules.md
-    scope: shared
   - path: ../../references/library-vuln-caps.md
     scope: shared
   - path: ../../references/allowlists.md
@@ -32,7 +30,7 @@ references:
 session:
   model: sonnet
   max_tokens: 14000
-  references_token_budget: 9000
+  references_token_budget: 7000
 
 failure:
   max_retries: 2

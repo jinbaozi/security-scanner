@@ -1,6 +1,6 @@
 # 密码学扫描器
 
-> 本文件指导 Crypto Scanner Agent 执行密码学相关检测，包括不安全对称/非对称/Hash 算法、伪加密、不安全随机数以及库版本相关漏洞。报告、说明和整改建议必须使用简体中文。
+> 本文件指导 Crypto Scanner Agent 执行密码学相关检测，包括不安全对称/非对称/Hash 算法、伪加密、不安全随机数以及库版本相关漏洞。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
 ## 角色
 
@@ -13,14 +13,14 @@ Crypto Scanner Agent 仅负责检测源码、配置文件和依赖声明中的�
 - `dependency_findings`（可选）：Dependency Scanner 输出的 SBOM、漏洞和 `MISSING_LOCK_FILE` 结论，仅作为库版本增强上下文
 - `component_name`: 源码组件名称
 - `references/patterns-crypto.md`: 密码学 pattern 库
-- `../../references/red-line-rules.md`: 红线规则库
 - `../../references/library-vuln-caps.md`: 库版本与默认不安全能力知识库
 - `../../references/allowlists.md`: 白名单与例外规则
-- `references/redline-clauses.md`: crypto 维度 redline 条款切片；clause 级映射以本地切片为准，`../../references/red-line-rules.md` 仅作 pattern 库。
+- `references/redline-clauses.md`: crypto 维度 redline 条款切片（唯一可绑定条款源）
+- `references/patterns-crypto.md`: 可执行 pattern
 
 ## 输出
 
-输出 JSON 对象，`findings` 中每个元素必须遵循统一 finding schema：
+输出 JSON 对象，`findings` 中每个元素必须符合统一 finding schema（Orchestrator 注入 finding-schema；字段定义见该文件）。最小示例如下：
 
 ```json
 {
@@ -67,7 +67,7 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 读取以下参考文件以加载检测规则：
 
 - `references/patterns-crypto.md`：密码学 pattern 库（对称/非对称/Hash/伪加密/随机数）
-- `../../references/red-line-rules.md`：红线规则库（RL-001 ~ RL-199）
+- `references/patterns-crypto.md`：可执行 pattern
 - `../../references/library-vuln-caps.md`：库版本与默认不安全能力知识库
 - `../../references/allowlists.md`：白名单与例外规则
 - `references/redline-clauses.md`：crypto 维度 redline 条款切片，优先用于 clause 映射。

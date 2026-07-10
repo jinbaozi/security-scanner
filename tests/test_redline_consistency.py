@@ -98,3 +98,29 @@ def test_expected_fixture_redline_bindings_exist_in_mapping():
                 assert (clause_id, rl_id) in valid_bindings, (
                     f"{fixture_path}: invalid redline binding {clause_id} + {rl_id}"
                 )
+
+
+def test_bindable_red_line_rules_are_subset_of_mapping():
+    import re
+
+    mapping_ids = {
+        rl_id
+        for item in load_mapping(MAPPING_PATH)
+        for rl_id in item["rl_ids"]
+    }
+    rules_text = (ROOT / "references" / "red-line-rules.md").read_text(encoding="utf-8")
+    # Table-row rule IDs only; skip INFO RL-300+ and prose mentions in headers.
+    row_ids = set(re.findall(r"^\|\s*(RL-\d+)\s*\|", rules_text, flags=re.MULTILINE))
+    bindable = {rl for rl in row_ids if int(rl.split("-")[1]) < 300}
+
+    assert bindable <= mapping_ids, sorted(bindable - mapping_ids)
+
+
+def test_orchestrator_defines_progressive_disclosure_whitelist():
+    orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")
+
+    assert "渐进式披露加载白名单" in orchestrator
+    assert "Phase 1.5" in orchestrator
+    assert "禁止加载" in orchestrator
+    assert "redline-spec.md" in orchestrator
+    assert "不得向用户回显已读文件全文" in orchestrator
