@@ -5,13 +5,17 @@ It stores a compact JSON summary with capped samples and prints one status line.
 """
 from __future__ import annotations
 
-import argparse
 import fnmatch
 import json
 import re
 import sys
 from pathlib import Path
 from typing import Any
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 POSIX_CLASS_REPLACEMENTS = {
@@ -85,6 +89,8 @@ def search(
             matched_files += 1
 
     report: dict[str, Any] = {
+        "artifact_type": "safe_grep_result",
+        "schema_version": "1.0",
         "pattern": pattern.pattern,
         "root": str(root),
         "input_mode": "files_file" if paths is not None else "root",
@@ -119,8 +125,13 @@ def search(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run a bounded recursive regex search.")
-    parser.add_argument("--pattern", required=True)
+    parser = CompactArgumentParser(
+        description="Run a bounded recursive regex search.",
+        status_name="safe-grep",
+    )
+    patterns = parser.add_mutually_exclusive_group(required=True)
+    patterns.add_argument("--pattern")
+    patterns.add_argument("--pattern-file", type=Path)
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--root", type=Path)
     inputs.add_argument("--files-file", type=Path)
@@ -131,6 +142,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--per-file-cap", type=int, default=20)
     parser.add_argument("--output", "--output-json", dest="output", type=Path, required=True)
     args = parser.parse_args(argv)
+
+    pattern_source = "cli"
+    if args.pattern_file:
+        pattern_path = args.pattern_file.expanduser().resolve()
+        if not pattern_path.is_file():
+            print("safe-grep status=blocked reason=pattern_file_not_found", file=sys.stderr)
+            return 5
+        try:
+            raw_pattern = pattern_path.read_text(encoding="utf-8").rstrip("\r\n")
+        except OSError:
+            print("safe-grep status=blocked reason=pattern_file_unreadable", file=sys.stderr)
+            return 5
+        if not raw_pattern:
+            print("safe-grep status=failed reason=empty_pattern", file=sys.stderr)
+            return 4
+        pattern_source = str(pattern_path)
+    else:
+        raw_pattern = args.pattern
 
     paths: list[Path] | None = None
     listed_files = missing_files = outside_root_files = 0
@@ -168,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
                 paths.append(candidate)
     max_bytes = max(256, args.max_bytes)
     try:
-        translated_pattern = translate_posix_classes(args.pattern)
+        translated_pattern = translate_posix_classes(raw_pattern)
         pattern = re.compile(translated_pattern)
         report = search(
             root,
@@ -188,7 +217,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 4
 
-    report["pattern"] = args.pattern
+    report["pattern"] = raw_pattern
+    report["pattern_source"] = pattern_source
     report["translated_pattern"] = translated_pattern
     while True:
         payload = json.dumps(report, ensure_ascii=False, separators=(",", ":"))
@@ -201,7 +231,9 @@ def main(argv: list[str] | None = None) -> int:
         report["sample_count"] = len(report["samples"])
         report["truncated"] = True
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(payload, encoding="utf-8")
+    temporary = args.output.with_suffix(args.output.suffix + ".tmp")
+    temporary.write_text(payload, encoding="utf-8")
+    temporary.replace(args.output)
     print(
         f"safe-grep status=ok matched_files={report['matched_files']} "
         f"matched_lines={report['matched_lines']} samples={report['sample_count']} "

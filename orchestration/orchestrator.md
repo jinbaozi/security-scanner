@@ -109,7 +109,7 @@ materialization JSON 必须包含：
 
 Phase 0 的 `target` 必须改为物化后的源码根和二进制根集合；`source_shards` 只能来自 `origin=source_prepped` 或 `origin=raw_directory` 的源码文件。SRPM 外层 `Source*.tar.*`、`Patch*` 和 `.spec` 只能作为物化证据，不得计入已扫描源码。Recon 完成后必须依次调用 `$SKILL_ROOT/scripts/normalize_shards.py`、`$SKILL_ROOT/scripts/validate_shards.py` 和 `$SKILL_ROOT/scripts/summarize_scan_plan.py`；摘要器的 `--input` 固定为 Recon 生成的 `$REPORT_ROOT/recon/scan-plan.normalized.json`，不得传入 Phase -0 的 materialization JSON，也不得使用不存在的 `--materialization` 参数。单片超过 50 由 normalizer 确定性拆分，总片数超过 16 按 validation 的 `execution_batches` 串行调度；Pi 只读取紧凑的 `scan-plan.summary.json` 与 shard validation，不读取完整路径列表。
 
-每个 Phase 的下游调用前必须执行 artifact gate：验证上游状态为允许继续、路径来自上游 JSON 的 artifact/file-list 引用、文件存在可读、JSON 可解析且 schema 正确。缺失产物时停止当前 Phase并记录 `expected_artifact`、`producer_phase`、`producer_status` 和 `reason`，禁止通过猜文件名重试。Phase 1 的 `safe_grep.py --files-file` 必须来自 `file_lists.<class>.path` 或 `source_shards[*].file_list`，禁止猜测 `manifest-files.txt`，禁止在清单缺失时静默递归整个物化目录。
+每个 Phase 的下游调用前必须执行 artifact gate：验证上游状态为允许继续、路径来自上游 JSON 的 artifact/file-list 引用、文件存在可读、JSON 可解析且 schema 正确。缺失产物时停止当前 Phase并记录 `expected_artifact`、`producer_phase`、`producer_status` 和 `reason`，禁止通过猜文件名重试。`references/tool-cli-contracts.json` 已登记的关键 CLI 参数从该文件取得并以 argv 数组执行，不得由自然语言猜测；usage/code 2 为 `cli_contract_error`，不得随机换参数重试。Phase 1 的 `safe_grep.py --files-file` 必须来自 `file_lists.<class>.path` 或 `source_shards[*].file_list`，禁止猜测 `manifest-files.txt`，禁止在清单缺失时静默递归整个物化目录。
 
 ### Phase 1：注册表加载与拓扑调度
 
@@ -272,7 +272,7 @@ Integrity 专项检查：
 
 - 每个 scanner 的独立或逻辑 session 只加载自己负责的 scanner 文件（见上方加载白名单）。
 - scanner session 上下文只包含自身规则、分配文件列表、scope 为 `shared/local` 的 `meta.references`、finding-schema、compact consumed findings；scope=`tool` 的 reference 只能由本地脚本读取，禁止注入模型。
-- 禁止使用 `python3 <<'PYEOF'` 等 heredoc 临时实现多维 findings 转换、补齐缺失维度或覆盖既有 findings。转换逻辑必须进入版本化脚本并通过 `py_compile`、lint、单元测试和 finding schema 校验。
+- 禁止使用 `python3 <<'PYEOF'` 等 heredoc 临时实现多维 findings 转换、grep evidence 解析、补齐缺失维度或覆盖既有 findings。`safe_grep_result` 必须按 `schema_version` 由 `scripts/summarize_grep_evidence.py` 消费，样本文本字段为 `samples[].match`；关键词命中只形成待复核 candidate，不得直接宣称后门/恶意代码 finding。转换逻辑必须进入版本化脚本并通过 `py_compile`、lint、单元测试和 finding schema 校验。
 - findings 缺失、工具失败或输入不足时只能记录 `blocked/degraded/skipped/unverified` 覆盖状态；不得创建 `file=N/A`、无工具证据的默认 PASS，也不得用“匹配数量”声称全部样本已经安全评估。
 - 单维 finding 输出上限 200；超限按 `references/scanner-output-limits.md` 聚合，保留原始 evidence 文件并在 audit_log 记录 `original_count`、`emitted_count`、`truncated_count` 和策略。
 - 单个分片不超过 50 个文件。

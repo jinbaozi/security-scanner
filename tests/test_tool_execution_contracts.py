@@ -1,7 +1,35 @@
+import json
+import re
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_cli_contract_and_docs_prevent_argument_guessing():
+    contracts = json.loads(
+        (ROOT / "references" / "tool-cli-contracts.json").read_text(encoding="utf-8")
+    )["contracts"]
+    reporter = (ROOT / "orchestration" / "reporter.md").read_text(encoding="utf-8")
+    recon = (ROOT / "orchestration" / "reconnaissance.md").read_text(encoding="utf-8")
+
+    assert contracts["summarize_scan_plan"]["required_options"] == ["--input", "--output"]
+    assert contracts["build_report_values"]["required_options"] == [
+        "--template", "--component-name", "--target-path", "--scan-date", "--output"
+    ]
+    assert "--input \"$REPORT_ROOT/recon/scan-plan.normalized.json\"" in recon
+    for option in ("--template", "--target-path", "--scan-date", "--dimension-statuses"):
+        assert option in reporter
+    assert "REPORT_STATUS` 只能由 builder 计算" in reporter
+
+
+def test_versioned_regex_files_compile_without_shell_parsing():
+    for relative in (
+        "scanners/comment/references/malware-keywords.regex",
+        "scanners/crypto/references/weak-crypto.regex",
+    ):
+        pattern = (ROOT / relative).read_text(encoding="utf-8").rstrip("\r\n")
+        re.compile(pattern)
 
 
 def test_elf_scanner_uses_deterministic_probe_instead_of_direct_checksec_invocation():

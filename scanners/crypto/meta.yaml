@@ -20,6 +20,8 @@ consumes:
 references:
   - path: references/patterns-crypto.md
     scope: local
+  - path: references/weak-crypto.regex
+    scope: tool
   - path: ../../references/library-vuln-caps.md
     scope: shared
   - path: ../../references/allowlists.md

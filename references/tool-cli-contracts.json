@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "contracts": {
+    "summarize_scan_plan": {
+      "script": "scripts/summarize_scan_plan.py",
+      "required_options": ["--input", "--output"],
+      "optional_options": ["--sample-size", "--max-bytes"],
+      "forbidden_options": ["--report-dir", "--materialization"],
+      "input_artifact_type": "scan_plan",
+      "output_artifact_type": "scan_plan_summary"
+    },
+    "safe_grep": {
+      "script": "scripts/safe_grep.py",
+      "required_option_groups": [
+        ["--pattern", "--pattern-file"],
+        ["--root", "--files-file"]
+      ],
+      "required_options": ["--output"],
+      "optional_options": ["--base-root", "--include", "--max-count", "--max-bytes", "--per-file-cap"],
+      "output_artifact_type": "safe_grep_result"
+    },
+    "summarize_grep_evidence": {
+      "script": "scripts/summarize_grep_evidence.py",
+      "required_options": ["--input", "--output"],
+      "optional_options": ["--sample-size", "--max-bytes"],
+      "input_artifact_type": "safe_grep_result",
+      "output_artifact_type": "grep_evidence_summary"
+    },
+    "build_report_values": {
+      "script": "scripts/build_report_values.py",
+      "required_options": ["--template", "--component-name", "--target-path", "--scan-date", "--output"],
+      "optional_options": ["--scan-plan", "--findings", "--base-values", "--dimension-statuses"],
+      "forbidden_options": ["--report-dir", "--component-version", "--overall-status", "--dimensions"]
+    },
+    "render_template": {
+      "script": "scripts/render_template.py",
+      "required_options": ["--template", "--output"],
+      "optional_options": ["--values", "--max-output-bytes", "--strict", "--report-missing"]
+    },
+    "audit_render": {
+      "script": "scripts/audit_render.py",
+      "required_options": ["--rendered", "--output"],
+      "optional_options": ["--template", "--max-residual"],
+      "policy": {"max_residual": 20},
+      "output_artifact_type": "render_audit"
+    }
+  }
+}

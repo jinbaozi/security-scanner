@@ -35,8 +35,10 @@ def preflight(skill_root: Path, target: Path) -> dict[str, Any]:
         "scanners/registry",
         "templates/report-manifest.yaml",
         "scripts/render_template.py",
+        "scripts/cli_contract.py",
         "scripts/audit_render.py",
         "scripts/safe_grep.py",
+        "scripts/summarize_grep_evidence.py",
         "scripts/content_compliance_probe.py",
         "scripts/rpm_integrity_probe.py",
         "scripts/resolve_scanners.py",
@@ -48,6 +50,7 @@ def preflight(skill_root: Path, target: Path) -> dict[str, Any]:
         "references/agent-runtime-limits.md",
         "references/abort-recovery.md",
         "references/scanner-output-limits.md",
+        "references/tool-cli-contracts.json",
     )
     missing_resources = [
         item for item in required_paths if not (skill_root / item).exists()

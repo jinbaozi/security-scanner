@@ -4,7 +4,7 @@
 
 ## 有界工具输出（强制）
 
-模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py`；恶意/后门候选基础模式固定使用本目录 `references/malware-keywords.regex` 并通过 `--pattern-file` 传递，其他复杂模式也必须来自 `meta.references` 声明的版本化规则文件，禁止 shell 拼接。其 JSON 契约为 `artifact_type=safe_grep_result`、`schema_version=1.0`，样本文本字段固定为 `samples[].match`；语义复核前必须调用 `$SKILL_ROOT/scripts/summarize_grep_evidence.py`，禁止 heredoc 直接读取 JSON。下文裸 `grep` 仅表示检测规则，禁止直接执行。关键词命中只形成 candidate，必须经过上下文复核才能形成后门/恶意代码 finding。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
 
 ## 角色
 

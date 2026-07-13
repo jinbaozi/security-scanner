@@ -157,9 +157,12 @@ def test_audit_cli_exit_codes(rendered, expected_status, expected_exit, tmp_path
     )
 
     assert result.returncode == expected_exit
-    assert result.stdout == ""
+    assert result.stdout.count("\n") == 1
+    assert f"status={expected_status}" in result.stdout
     assert result.stderr == ""
-    assert json.loads(output_path.read_text(encoding="utf-8"))["status"] == expected_status
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["artifact_type"] == "render_audit"
+    assert report["status"] == expected_status
 
 
 def test_render_cli_rejects_oversized_output_without_writing_partial_report(tmp_path):
@@ -246,12 +249,58 @@ def test_audit_cli_marks_excessive_residuals_critical(tmp_path):
     )
 
     assert result.returncode == 6
-    assert result.stdout == ""
+    assert result.stdout.count("\n") == 1
+    assert "status=critical" in result.stdout
     assert result.stderr == ""
     report = json.loads(output_path.read_text(encoding="utf-8"))
     assert report["status"] == "critical"
     assert report["abort_risk"] is True
     assert report["residual_count"] == 21
+
+
+def test_audit_cli_rejects_policy_weakening_and_writes_diagnostic(tmp_path):
+    rendered_path = tmp_path / "report.md"
+    output_path = tmp_path / "audit.json"
+    rendered_path.write_text("complete", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(AUDIT_CLI),
+            "--rendered", str(rendered_path),
+            "--output", str(output_path),
+            "--max-residual", "200",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 5
+    assert result.stdout.count("\n") == 1
+    assert "reason=max_residual_exceeds_policy" in result.stdout
+    report = json.loads(output_path.read_text(encoding="utf-8"))
+    assert report["status"] == "blocked"
+    assert report["requested_max_residual"] == 200
+
+
+def test_audit_cli_missing_rendered_file_writes_diagnostic(tmp_path):
+    output_path = tmp_path / "audit.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(AUDIT_CLI),
+            "--rendered", str(tmp_path / "missing.md"),
+            "--output", str(output_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 5
+    assert "reason=rendered_not_found" in result.stdout
+    assert json.loads(output_path.read_text(encoding="utf-8"))["status"] == "blocked"
 
 
 def test_audit_critical_limit_counts_repeated_occurrences(tmp_path):

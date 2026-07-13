@@ -42,6 +42,8 @@ def test_safe_grep_writes_bounded_json_and_only_one_terminal_line(tmp_path):
     assert result.stdout.count("\n") == 1
     assert output.stat().st_size <= 1024
     report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["artifact_type"] == "safe_grep_result"
+    assert report["schema_version"] == "1.0"
     assert report["matched_lines"] == 500
     assert report["matched_files"] == 1
     assert len(report["samples"]) == 3
@@ -136,6 +138,54 @@ def test_safe_grep_missing_file_list_blocks_without_expanding_scan_scope(tmp_pat
 
     assert result.returncode == 5
     assert "reason=files_file_not_found" in result.stderr
+    assert not output.exists()
+
+
+def test_safe_grep_reads_regex_from_file_without_shell_quoting(tmp_path):
+    source = tmp_path / "sample.c"
+    source.write_text("MD5(value) and user's key\n", encoding="utf-8")
+    pattern_file = tmp_path / "crypto.regex"
+    pattern_file.write_text(r"MD5\(|user's key", encoding="utf-8")
+    output = tmp_path / "matches.json"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI),
+            "--pattern-file", str(pattern_file),
+            "--root", str(tmp_path),
+            "--include", "*.c",
+            "--output", str(output),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["pattern_source"] == str(pattern_file.resolve())
+    assert report["matched_lines"] == 1
+    assert report["samples"][0]["match"].startswith("MD5")
+
+
+def test_safe_grep_reports_missing_pattern_file_without_traceback(tmp_path):
+    output = tmp_path / "matches.json"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI),
+            "--pattern-file", str(tmp_path / "missing.regex"),
+            "--root", str(tmp_path),
+            "--output", str(output),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 5
+    assert "reason=pattern_file_not_found" in result.stderr
     assert not output.exists()
 
 

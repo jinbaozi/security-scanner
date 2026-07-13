@@ -53,6 +53,7 @@
 - 读取 JSON/报告前先检查字节数；优先读取紧凑摘要，必要时使用 `offset/limit` 分段。
 - 不把完整路径数组写入 Scan Plan 或模型上下文；路径只写 list 文件，Pi 只读不超过 64 KiB 的摘要。
 - 文件分片每组绝对上限 50 个；先调用 `normalize_shards.py` 确定性拆分超限 shard，再调用 `validate_shards.py`。超过 16 片依据 `execution_batches` 分批串行，不得增大单片上限。
-- 工具失败只在终端输出一行分类，命令、退出码和截断 stderr 写审计 JSON。
-- 禁止用 shell heredoc 临时编写 findings 转换或“补齐维度”Python；必须使用版本化脚本并先通过 `py_compile`/测试。维度没有可信结果时写 `blocked/degraded/skipped/unverified` 覆盖状态，不得补默认 PASS。
+- 调用 `references/tool-cli-contracts.json` 已登记的关键 CLI 前必须读取对应工具机器契约并按 argv 数组（`shell=False` 语义）执行；usage/code 2 归类为 `cli_contract_error`，禁止猜参数重试。
+- 工具失败只在终端输出一行分类，命令、argv、退出码和截断 stderr 写审计 JSON。
+- 禁止用 shell heredoc 临时编写 findings 转换、grep evidence 读取或“补齐维度”Python；safe-grep 样本复核必须先调用 `summarize_grep_evidence.py`，消费 `samples[].match` 的版本化 schema。必须使用版本化脚本并先通过 `py_compile`/测试。维度没有可信结果时写 `blocked/degraded/skipped/unverified` 覆盖状态，不得补默认 PASS。
 - Phase 3 先调用 `build_report_values.py` 生成完整 JSON values，再使用 `render_template.py` 和 `audit_render.py`；strict 缺必填字段返回 4，不得原样重试或打印 traceback。

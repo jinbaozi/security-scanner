@@ -1,12 +1,16 @@
 """Create a bounded, Pi-safe summary of a potentially large Scan Plan."""
 from __future__ import annotations
 
-import argparse
 import json
 import math
 import sys
 from pathlib import Path, PurePath
 from typing import Any
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 def _count(value: Any) -> int:
@@ -173,7 +177,10 @@ def _bounded_payload(summary: dict[str, Any], max_bytes: int) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Summarize a large Scan Plan.")
+    parser = CompactArgumentParser(
+        description="Summarize a large Scan Plan.",
+        status_name="scan-plan-summary",
+    )
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--sample-size", type=int, default=50)
@@ -200,7 +207,9 @@ def main(argv: list[str] | None = None) -> int:
         return 4
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(payload, encoding="utf-8")
+    temporary = args.output.with_suffix(args.output.suffix + ".tmp")
+    temporary.write_text(payload, encoding="utf-8")
+    temporary.replace(args.output)
     print(
         f"scan-plan-summary status=ok files={summary['total_files']} "
         f"shards={summary['source_shards_count']} bytes={len(payload.encode('utf-8'))} "

@@ -15,7 +15,6 @@ Exit codes:
 """
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import sys
@@ -29,11 +28,51 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from scripts.cli_contract import CompactArgumentParser
 from scripts.render_template import (
     PLACEHOLDER_PATTERN,
     collect_placeholders,
     parse_contract,
 )
+
+
+MAX_RESIDUAL_POLICY = 20
+
+
+def _atomic_write(path: Path, report: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def _status_line(report: dict[str, Any], output: Path) -> str:
+    return (
+        f"render-audit status={report['status']} "
+        f"reason={report.get('reason', 'none')} "
+        f"required={len(report.get('required_unfilled', []))} "
+        f"optional={len(report.get('optional_unfilled', []))} "
+        f"unknown={len(report.get('unknown_unfilled', []))} "
+        f"output={output}"
+    )
+
+
+def _blocked(reason: str, rendered: Path, template: Path | None, **details: Any) -> dict[str, Any]:
+    return {
+        "artifact_type": "render_audit",
+        "schema_version": "1.0",
+        "status": "blocked",
+        "reason": reason,
+        "rendered_file": str(rendered),
+        "template_file": str(template) if template else None,
+        "required_unfilled": [],
+        "optional_unfilled": [],
+        "unknown_unfilled": [],
+        **details,
+    }
 
 
 def audit(
@@ -82,10 +121,19 @@ def audit(
     else:
         status = "pass"
 
+    reason = {
+        "critical": "residual_limit_exceeded",
+        "fail": "required_placeholders_unfilled",
+        "warn": "non_required_placeholders_unfilled",
+        "pass": "none",
+    }[status]
     return {
+        "artifact_type": "render_audit",
+        "schema_version": "1.0",
         "rendered_file": str(rendered_path),
         "template_file": str(template_path) if template_path else None,
         "status": status,
+        "reason": reason,
         "declared_placeholders": declared,
         "declared_required": contract.get("required", []),
         "declared_optional": contract.get("optional", []),
@@ -101,8 +149,9 @@ def audit(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Audit a rendered Security Compliance Scanner report."
+    parser = CompactArgumentParser(
+        description="Audit a rendered Security Compliance Scanner report.",
+        status_name="render-audit",
     )
     parser.add_argument("--rendered", type=Path, required=True)
     parser.add_argument(
@@ -113,7 +162,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        help="Where to write the audit JSON. Defaults to stdout.",
+        required=True,
+        help="Where to write the audit JSON.",
     )
     parser.add_argument(
         "--max-residual",
@@ -123,22 +173,52 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not args.rendered.exists():
-        print(f"rendered file not found: {args.rendered}", file=sys.stderr)
+    if args.max_residual > MAX_RESIDUAL_POLICY:
+        report = _blocked(
+            "max_residual_exceeds_policy",
+            args.rendered,
+            args.template,
+            requested_max_residual=args.max_residual,
+            policy_max_residual=MAX_RESIDUAL_POLICY,
+        )
+        _atomic_write(args.output, report)
+        print(_status_line(report, args.output))
+        return 5
+    if args.max_residual < 0:
+        report = _blocked("invalid_max_residual", args.rendered, args.template)
+        _atomic_write(args.output, report)
+        print(_status_line(report, args.output))
+        return 5
+    if not args.rendered.is_file():
+        report = _blocked("rendered_not_found", args.rendered, args.template)
+        _atomic_write(args.output, report)
+        print(_status_line(report, args.output))
+        return 5
+    if args.template is not None and not args.template.is_file():
+        report = _blocked("template_not_found", args.rendered, args.template)
+        _atomic_write(args.output, report)
+        print(_status_line(report, args.output))
         return 5
 
-    report = audit(
-        args.rendered,
-        args.template,
-        max_residual=max(0, args.max_residual),
-    )
-    payload = json.dumps(report, ensure_ascii=False, indent=2)
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(payload, encoding="utf-8")
-    else:
-        print(payload)
+    try:
+        report = audit(
+            args.rendered,
+            args.template,
+            max_residual=args.max_residual,
+        )
+    except (OSError, UnicodeError) as exc:
+        report = _blocked(
+            "input_read_error",
+            args.rendered,
+            args.template,
+            error_type=type(exc).__name__,
+        )
+        _atomic_write(args.output, report)
+        print(_status_line(report, args.output))
+        return 5
 
+    _atomic_write(args.output, report)
+    print(_status_line(report, args.output))
     if report["status"] == "critical":
         return 6
     if report["status"] == "fail":

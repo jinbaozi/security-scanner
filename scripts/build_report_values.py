@@ -2,7 +2,6 @@
 """Build a complete, deterministic values object for report templates."""
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from collections import Counter
@@ -12,6 +11,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from scripts.cli_contract import CompactArgumentParser  # noqa: E402
 from scripts.render_template import collect_placeholders, parse_contract  # noqa: E402
 
 
@@ -142,7 +142,10 @@ def build_values(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Build complete report template values.")
+    parser = CompactArgumentParser(
+        description="Build complete report template values.",
+        status_name="report-values",
+    )
     parser.add_argument("--template", type=Path, required=True)
     parser.add_argument("--component-name", required=True)
     parser.add_argument("--target-path", required=True)
@@ -189,7 +192,12 @@ def main(argv: list[str] | None = None) -> int:
         return 4
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(values, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary = args.output.with_suffix(args.output.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(values, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(args.output)
     print(f"report-values status=pass fields={len(values)} missing=0 output={args.output}")
     return 0
 

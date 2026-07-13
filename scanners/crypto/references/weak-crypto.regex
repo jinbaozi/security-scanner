@@ -1,0 +1,1 @@
+\b(?:MD2|MD4|MD5|SHA-?1|DES|3DES|TripleDES|RC2|RC4|ARC4|Blowfish|IDEA)\b|\b(?:hashlib\.(?:md5|sha1)|crypto/(?:des|rc4|md5|sha1)|math/rand|Math\.random|rand|srand)\s*\(

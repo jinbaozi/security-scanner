@@ -38,15 +38,16 @@ Notes: [[AUDIT_NOTES]]
 
 ### Step 1: 构建 values 并调用 `scripts/render_template.py`
 
-先使用 `scripts/build_report_values.py` 从 Scan Plan、聚合 findings 和基础元数据生成完整 JSON values。`render_template.py` 对 `.json` 或内容以 `{` 开头的 values 使用 JSON 对象解析；解析失败返回 `reason=invalid_values`。strict 缺失时只允许重建 values，不得原样重试。
+先使用 `scripts/build_report_values.py` 从 Scan Plan、聚合 findings 和基础元数据生成完整 JSON values。builder 必须接收 `--template/--component-name/--target-path/--scan-date/--output`，复杂输入只通过 `--scan-plan/--findings/--base-values/--dimension-statuses` JSON 文件传递；禁止使用 `--report-dir/--overall-status/--dimensions` 或内联 JSON。`REPORT_STATUS` 由 builder 根据 findings 与维度覆盖计算，不接受调用者强制指定。`render_template.py` 对 `.json` 或内容以 `{` 开头的 values 使用 JSON 对象解析；解析失败返回 `reason=invalid_values`。strict 缺失时只允许重建 values，不得原样重试。
 
 `SKILL_ROOT` 必须是已加载 `SKILL.md` 的父目录绝对路径，不能假设 Pi 当前工作目录是 skill 目录。Phase 3 必须调用：
 
 ```bash
 python3 "$SKILL_ROOT/scripts/render_template.py" \
     --template "$SKILL_ROOT/templates/report-comprehensive.md" \
-    --values "$REPORT_ROOT/values-comprehensive.yaml" \
+    --values "$REPORT_ROOT/report-values.json" \
     --output "$REPORT_ROOT/security-scan-report-${COMP}-${DATE}.md" \
+    --strict \
     --max-output-bytes 65536
 ```
 
@@ -67,7 +68,7 @@ python3 "$SKILL_ROOT/scripts/audit_render.py" \
     --max-residual 20
 ```
 
-返回 JSON 中 `status` 字段：
+指定 `--output` 时审计详情原子写入 JSON，同时终端始终输出一行 `render-audit status=...` 摘要；不能以“终端无输出”判断成功或失败。返回 JSON 中 `status` 字段：
 
 | Status | 触发条件 | 退出码 | 后续处理 |
 |--------|----------|--------|----------|
@@ -76,7 +77,7 @@ python3 "$SKILL_ROOT/scripts/audit_render.py" \
 | `fail` | 任意 required 残留 | 4 | 重新渲染，最多 2 次；仍失败标 degraded |
 | `critical` | 残留出现次数（含同名重复）超过 `--max-residual 20` | 6 | 设置 `abort_risk=true`，停止重渲并按恢复 SOP 处理 |
 
-`critical` 的退出码 6 优先于 required/optional 分类，避免大面积渲染失败继续消耗上下文。
+`critical` 的退出码 6 优先于 required/optional 分类，避免大面积渲染失败继续消耗上下文。`--max-residual` 的策略上限固定为 20，传入更大值属于策略弱化并以 blocked/code 5 拒绝。
 
 ### Step 3: 综合判定
 

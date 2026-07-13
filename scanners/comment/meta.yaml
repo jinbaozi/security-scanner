@@ -5,6 +5,8 @@ description: 大段注释中隐藏的未公开接口、调试能力、后门说�
 
 consumes: []
 references:
+  - path: references/malware-keywords.regex
+    scope: tool
   - path: ../../references/allowlists.md
     scope: shared
   - path: references/redline-clauses.md
