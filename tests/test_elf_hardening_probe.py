@@ -274,6 +274,88 @@ def test_unreadable_file_is_unverified_without_polluting_global_tool_state(tmp_p
     assert not any(str(missing) in " ".join(command) for command in calls)
 
 
+def test_cli_batches_and_checkpoints_results(tmp_path, capsys):
+    files = [_elf_file(tmp_path, f"app-{index}") for index in range(3)]
+    output_json = tmp_path / "elf-probe.json"
+
+    def runner(command, **kwargs):
+        if command[:2] == ["checksec", "--help"]:
+            return _help_ok(command)
+        if command[0] == "checksec" and "--format=json" in command:
+            return CommandResult(command, 0, '{"nx":"NX enabled"}', "")
+        raise AssertionError(f"unexpected command: {command!r}")
+
+    argv = [item for path in files for item in ("--file", str(path))]
+    exit_code = main(
+        argv
+        + [
+            "--output-json",
+            str(output_json),
+            "--batch-size",
+            "2",
+            "--checkpoint",
+        ],
+        runner=runner,
+    )
+
+    payload = json.loads(output_json.read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert len(payload["results"]) == 3
+    assert payload["checkpoint"]["batches_completed"] == 2
+    assert payload["checkpoint"]["input_total"] == 3
+    assert payload["checkpoint"]["remaining"] == 0
+    assert len(capsys.readouterr().out.splitlines()) == 1
+
+
+def test_cli_resume_skips_files_already_in_checkpoint(tmp_path, capsys):
+    first = _elf_file(tmp_path, "first")
+    second = _elf_file(tmp_path, "second")
+    output_json = tmp_path / "elf-probe.json"
+    output_json.write_text(
+        json.dumps(
+            {
+                "status": "ready",
+                "tool_invocations": [],
+                "results": [{"file": str(first), "status": "ready", "checks": {}}],
+                "checkpoint": {"batches_completed": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append(command)
+        if command[:2] == ["checksec", "--help"]:
+            return _help_ok(command)
+        if command[0] == "checksec" and "--format=json" in command:
+            return CommandResult(command, 0, '{"nx":"NX enabled"}', "")
+        raise AssertionError(f"unexpected command: {command!r}")
+
+    exit_code = main(
+        [
+            "--file",
+            str(first),
+            "--file",
+            str(second),
+            "--output-json",
+            str(output_json),
+            "--batch-size",
+            "1",
+            "--checkpoint",
+            "--resume",
+        ],
+        runner=runner,
+    )
+
+    payload = json.loads(output_json.read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert [entry["file"] for entry in payload["results"]] == [str(first), str(second)]
+    assert payload["checkpoint"]["resumed_count"] == 1
+    assert not any(str(first) in " ".join(command) for command in calls)
+    assert len(capsys.readouterr().out.splitlines()) == 1
+
+
 def test_cli_writes_json_and_prints_single_summary_line(tmp_path, capsys):
     elf = _elf_file(tmp_path)
     output_json = tmp_path / "security-reports" / "elf-probe.json"

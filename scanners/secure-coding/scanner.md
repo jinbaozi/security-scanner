@@ -2,6 +2,10 @@
 
 > 本文件指导 Secure-Coding Scanner Agent 执行安全编码规范检查，包括危险 C/C++ 函数、安全函数失效宏、注释失效代码结构和安全编码工具结果引用。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
+## 有界工具输出（强制）
+
+模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+
 ## 角色
 
 Secure-Coding Scanner Agent 仅负责安全编码实现层面的静态信号。不负责注释中“描述隐藏功能”的未公开接口判断；该边界属于 comment scanner。若同一注释块既包含隐藏接口描述又包含 `#if 0` 包裹代码，本维度只报告注释失效代码结构。

@@ -53,6 +53,39 @@ def test_skill_and_preflight_include_rpm_materialization_tools():
         assert "tar" in text
 
 
+def test_recon_requires_compact_plan_summary_and_deterministic_shard_validation():
+    recon = (ROOT / "orchestration" / "reconnaissance.md").read_text(encoding="utf-8")
+    orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")
+
+    for script in ("summarize_scan_plan.py", "validate_shards.py"):
+        assert script in recon
+        assert script in orchestrator
+    assert "scan-plan.summary.json" in recon
+    assert "严禁把 `all_files`" in recon
+    assert "绝对上限 50" in recon
+    assert "不得通过增大单片上限" in recon
+
+
+def test_materializer_documents_command_timeouts_and_timeout_audit():
+    orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")
+
+    assert "rpm2cpio=120s" in orchestrator
+    assert "cpio=300s" in orchestrator
+    assert "rpmbuild=1800s" in orchestrator
+    assert "dnf=600s" in orchestrator
+    assert "timed_out" in orchestrator
+
+
+def test_phase_boundaries_require_context_risk_measurement():
+    router = (ROOT / "orchestration" / "router.md").read_text(encoding="utf-8")
+    orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")
+
+    for text in (router, orchestrator):
+        assert "measure_context.py" in text
+        assert "risk=critical" in text
+        assert "compact" in text or "紧凑" in text
+
+
 def test_terminal_output_contract_is_compact_and_artifact_backed():
     docs = {
         "SKILL.md": (ROOT / "SKILL.md").read_text(encoding="utf-8"),

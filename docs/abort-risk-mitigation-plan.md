@@ -2,7 +2,7 @@
 
 > 文档目的：梳理 security-scanner skill 在 Pi Agent 中执行时可能触发 `abort` 的所有风险点，给出可落地的修复方案，供后续评审与实施。
 >
-> 文档状态：方案稿（未实施代码变更）。
+> 文档状态：v1 已实施（P0-1 至 P0-5、P1-6 至 P1-9、P2-10/P2-11 已落地并具备自动化测试）。
 >
 > 关联分支：`feat/safe-render-template`（已落地 Step 1-5/10 的 `[[UPPER_SNAKE]]` 安全渲染修复）。
 
@@ -48,17 +48,17 @@
 
 | ID | 阶段 | 风险 | 严重度 | 状态 |
 |----|------|------|-------|------|
-| P0-1 | Phase 0 | `scan_plan.json` 13 MB | 高 | 未修复 |
-| P0-2 | Phase -0 | materializer 无子进程超时 | 高 | 未修复 |
-| P0-3 | Phase 1.5 | 大 grep 输出未截断（实测 19,136 行） | 高 | 未修复 |
-| P0-4 | Phase 0 | shard 50 文件硬限制被违反（实测 200） | 中 | 未修复 |
-| P0-5 | 全局 | 无 context 自检工具 | 根本 | 未修复 |
-| P1-6 | Phase 3 | render 输出无大小限制 | 中 | 未修复 |
-| P1-7 | Phase 3 | audit_render.py 无 critical 级别 | 中 | 未修复 |
-| P1-8 | Phase 1 | elf probe 无 batch/resume | 中 | 未修复 |
-| P1-9 | 全局 | 无 Pi Agent runtime 限制文档 | 低 | 未修复 |
-| P2-10 | 全局 | 无 abort 应急 SOP | 可后置 | 未修复 |
-| P2-11 | Phase 1.5 | scanner 输出无截断指引 | 可后置 | 未修复 |
+| P0-1 | Phase 0 | `scan_plan.json` 13 MB | 高 | 已修复：紧凑 schema + 64 KiB 摘要 |
+| P0-2 | Phase -0 | materializer 无子进程超时 | 高 | 已修复：分命令 timeout + command_log |
+| P0-3 | Phase 1.5 | 大 grep 输出未截断（实测 19,136 行） | 高 | 已修复：safe_grep 有界 JSON |
+| P0-4 | Phase 0 | shard 50 文件硬限制被违反（实测 200） | 中 | 已修复：validate_shards 门禁 |
+| P0-5 | 全局 | 无 context 自检工具 | 根本 | 已修复：Phase 边界 measure_context 门禁 |
+| P1-6 | Phase 3 | render 输出无大小限制 | 中 | 已修复：64 KiB 门禁 + 分章节降级 |
+| P1-7 | Phase 3 | audit_render.py 无 critical 级别 | 中 | 已修复：残留门限 + 退出码 6 |
+| P1-8 | Phase 1 | elf probe 无 batch/resume | 中 | 已修复：batch/checkpoint/resume |
+| P1-9 | 全局 | 无 Pi Agent runtime 限制文档 | 低 | 已修复：项目阈值文档 |
+| P2-10 | 全局 | 无 abort 应急 SOP | 可后置 | 已修复：checkpoint 恢复 SOP |
+| P2-11 | Phase 1.5 | scanner 输出无截断指引 | 可后置 | 已修复：200 finding 上限 + evidence 聚合 |
 
 **已修复（跳过）**：
 
@@ -683,7 +683,7 @@ agent 在 recon 阶段违反 spec，且 orchestrator 无校验。单 shard 200 �
 
 ---
 
-**文档版本**：v1.0  
-**最后更新**：2026-07-10  
-**作者**：Pi Agent（security-scanner skill）  
-**状态**：方案稿，待评审
+**文档版本**：v1.0
+**最后更新**：2026-07-10
+**作者**：Pi Agent（security-scanner skill）
+**状态**：v1 风险项已全部完成

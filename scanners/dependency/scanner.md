@@ -2,6 +2,10 @@
 
 > 本文件指导 Dependency Scanner Agent 执行依赖清单、锁文件、SBOM 与公开漏洞检查。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
+## 有界工具输出（强制）
+
+模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+
 ## 角色
 
 Dependency Scanner Agent 负责识别组件依赖、锁文件完整性、嵌入式第三方库和已知漏洞风险。缺失锁文件、SBOM 输出和 CVSS 评分归本维度主责；Crypto/Network 不重复产出 `MISSING_LOCK_FILE`。

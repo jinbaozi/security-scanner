@@ -191,6 +191,16 @@ ln -s /abs/path/to/security-scanner .pi/skills/security-scanner
 pi --skill /abs/path/to/security-scanner
 ```
 
+Pi 可以从任意待扫描目录启动。运行时将 skill 绝对路径记为 `SKILL_ROOT`，bundled scripts/templates 不依赖当前工作目录。可先执行紧凑预检：
+
+```bash
+python3 /abs/path/to/security-scanner/scripts/pi_preflight.py \
+  --target /abs/path/to/target \
+  --output-json /abs/path/to/target/security-reports/pi-preflight.json
+```
+
+若当前 Pi harness 没有 subagent/session 工具，scanner 会按维度串行执行并逐维落盘，不递归启动 `pi`。
+
 提示词：
 
 ```text

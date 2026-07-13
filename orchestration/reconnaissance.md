@@ -136,64 +136,68 @@ grep -E "(^|/)(Dockerfile|docker-compose\.yml|docker-compose\.yaml)$" /tmp/recon
 1. 按目录分组。
 2. 小目录（<50 文件）合并到同一分片。
 3. 大目录（>=50 文件）拆分为多个分片。
-4. 确保每个分片文件数不超过 50。
+4. 单个分片文件数的**绝对上限 50**；不得为减少 Agent 数增大该上限。
+5. 超过 16 个分片时分批串行调度，不得通过增大单片上限进行合并。
+
+生成 Scan Plan 后必须执行确定性校验，禁止仅由 Agent 目测：
+
+```bash
+python3 "$SKILL_ROOT/scripts/validate_shards.py" \
+  --input "$REPORT_ROOT/recon/scan-plan.json" \
+  --output "$REPORT_ROOT/recon/shard-validation.json"
+```
+
+退出码 `0=PASS`、`2=WARN`、`3=FAIL`；FAIL 时重新分片，最多 2 次。
 
 ## Step 5: 生成 Scan Plan
 
+Scan Plan 必须保持紧凑，完整路径写入换行分隔的 list 文件，JSON 只保留路径引用、计数、来源统计和少量样本：
+
 ```json
 {
-  "target": {
-    "source_roots": ["/absolute/path/to/materialized/rpmbuild/pkg/BUILD/pkg-1"],
-    "binary_roots": ["/absolute/path/to/materialized/binary-root/pkg.x86_64"]
-  },
-  "materialization": {
-    "input_kind": "srpm|binary_rpm|package_directory|source_tree",
-    "source_roots": [{"path": "/absolute/path/to/materialized/rpmbuild/pkg/BUILD/pkg-1", "origin": "source_prepped"}],
-    "binary_roots": [{"path": "/absolute/path/to/materialized/binary-root/pkg.x86_64", "origin": "binary_rpm"}],
-    "srpm_spec_files": ["/absolute/path/to/pkg.spec"],
-    "applied_patches": ["fix.patch"],
-    "builddep_attempted": false,
-    "builddep_status": "not_required",
-    "status": "ready|blocked",
-    "errors": [],
-    "audit_log": []
-  },
   "component_name": "从目录名提取",
   "total_files": 1234,
   "scan_files": 1100,
-  "elf_files": [{"path": "/path/to/binary1", "origin": "binary_rpm"}],
+  "materialization": {"input_kind": "srpm", "status": "ready"},
+  "file_lists": {
+    "all": {"path": "recon/all-files.txt", "count": 1234, "samples": ["src/main.c"]},
+    "elf": {"path": "recon/elf-files.txt", "count": 3, "samples": ["bin/app"]},
+    "config": {"path": "recon/config-files.txt", "count": 20, "samples": ["conf/app.yaml"]},
+    "dependency": {"path": "recon/dependency-files.txt", "count": 2, "samples": ["go.mod"]},
+    "excluded": {"path": "recon/excluded.jsonl", "count": 134, "samples": ["vendor/lib.c"]}
+  },
   "source_shards": [
     {
       "id": 0,
-      "files": [{"path": "/path/to/file1.c", "origin": "source_prepped"}],
+      "file_list": "recon/shards/source-000.txt",
+      "file_count": 50,
+      "origin_counts": {"source_prepped": 50},
       "type": "source",
-      "dir": "src/core"
+      "dir": "src/core",
+      "samples": ["src/core/main.c"]
     }
-  ],
-  "config_files": [{"path": "/path/to/config.yaml", "origin": "source_prepped"}],
-  "dependency_files": [{"path": "/path/to/package.json", "origin": "source_prepped"}],
-  "docker_files": [{"path": "/path/to/Dockerfile", "origin": "source_prepped"}],
-  "crypto_relevant_files": [{"path": "/path/to/file1.c", "origin": "source_prepped"}],
-  "network_relevant_files": [{"path": "/path/to/config.yaml", "origin": "source_prepped"}],
-  "component_profile_relevant_files": [{"path": "/path/to/Dockerfile", "origin": "source_prepped"}],
-  "all_files": [{"path": "/path/to/file1.c", "origin": "source_prepped"}],
-  "excluded": [
-    {"path": "/path/to/vendor/foo.go", "reason": "third_party:vendor"}
   ],
   "estimated_complexity": "small|medium|large|very_large",
   "timestamp": "ISO 8601 格式时间戳"
 }
 ```
 
-`dependency_files`: package.json, package-lock.json, requirements.txt, Pipfile.lock, go.mod, go.sum, pom.xml, Cargo.toml, vcpkg.json, conanfile.txt
+严禁把 `all_files`、`source_shards[*].files` 或其他完整绝对路径数组写入 Scan Plan 并注入模型上下文。`scan-plan.json` 必须小于 1 MiB；scanner 通过 `file_list` 文件逐批消费，不把列表正文复制到 prompt。
 
-`docker_files`: Dockerfile, docker-compose.yml, docker-compose.yaml
+生成后再创建 Pi 可读摘要：
 
-`crypto_relevant_files` 是 `source_files ∪ config_files` 按语言过滤（Tier-1 或 Tier-2）。
+```bash
+python3 "$SKILL_ROOT/scripts/summarize_scan_plan.py" \
+  --input "$REPORT_ROOT/recon/scan-plan.json" \
+  --output "$REPORT_ROOT/recon/scan-plan.summary.json" \
+  --sample-size 50 --max-bytes 65536
+```
 
-`network_relevant_files` 是 `source_files ∪ config_files` 过滤包含端口/协议模式的文件。
+Pi 默认只读取 `scan-plan.summary.json` 和 `shard-validation.json`，不得读取完整 Scan Plan 或路径 list 文件。
 
-`component_profile_relevant_files` 是 `source_files ∪ config_files ∪ docker_files`。
+`file_lists.dependency` 对应 package.json、package-lock.json、requirements.txt、Pipfile.lock、go.mod、go.sum、pom.xml、Cargo.toml、vcpkg.json、conanfile.txt。
+
+Docker、crypto、network、component-profile 等分类同样使用 `{path,count,samples}` 引用独立 list 文件；禁止内嵌全量路径。crypto 来源为 source/config，network 来源为包含端口或协议模式的 source/config，component-profile 来源为 source/config/docker。
 
 `component_name` 取目标路径最后一级目录名。
 
@@ -203,9 +207,10 @@ grep -E "(^|/)(Dockerfile|docker-compose\.yml|docker-compose\.yaml)$" /tmp/recon
 
 Orchestrator 收到 Scan Plan 后验证：
 
-1. 覆盖率：`elf_files + source_shards + config_files + excluded` 与 `total_files` 的差异不超过 5%。
-2. 分片大小：每个 shard 的文件数不超过 50。
-3. 目录完整性：对比 `find -type d` 输出，检查明显目录遗漏。
+1. 覆盖率：基于 `file_lists.*.count` 与 `source_shards[*].file_count` 计算，与 `total_files` 的差异不超过 5%，不得加载路径正文计数。
+2. 分片大小：必须通过 `validate_shards.py`，每个 shard 的文件数不超过 50。
+3. 摘要大小：`scan-plan.summary.json` 不超过 64 KiB。
+4. 目录完整性：对比 `find -type d` 输出，检查明显目录遗漏。
 
 审计结果：
 
@@ -222,4 +227,4 @@ Orchestrator 收到 Scan Plan 后验证：
 | 文件数超过 10,000 | 警告用户，建议缩小扫描范围或确认继续 |
 | `file` 命令不可用 | 降级到 ELF magic bytes 检测 + 扩展名分类 |
 | 某些目录无读取权限 | 跳过无权限目录，记录到 excluded（reason: `permission_denied`） |
-| 分片后 Agent 数超过 16 | 合并分片，增大每片文件数上限并记录降级 |
+| 分片后 Agent 数超过 16 | 保持每片最多 50 文件，按批次串行调度并记录批次数 |

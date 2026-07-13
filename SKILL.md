@@ -4,6 +4,7 @@ description: >
   AI 辅助安全合规扫描工具。扫描软件包的 13 个维度：ELF 安全编译、公网地址、口令硬编码、
   未公开接口、敏感文件泄露、文件权限、密码学合规、网络协议与端口、组件基础档案、
   依赖组件风险、安全编码规范、完整性校验、内容合规。支持 Claude Code / Codex / OpenCode / Pi Agent。
+compatibility: Requires Python 3.10+ and PyYAML; external scanner tools are checked during preflight and may use documented degradation paths.
 triggers:
   - 安全扫描
   - 合规检查
@@ -30,6 +31,13 @@ triggers:
 ## 触发条件
 
 用户请求安全扫描 / 合规检查 / 安全审计，或 ELF / 公网地址 / 口令 / 未公开接口等专项检查时激活。用户必须提供扫描目标路径（相对路径先转为绝对路径）。
+
+## Pi / 多 Harness 路径与能力约束
+
+- 将已加载 `SKILL.md` 的父目录解析为绝对路径 `SKILL_ROOT`；bundled scripts、scanners、templates、references 均相对该目录定位，禁止假设当前目录就是 skill 目录。
+- 将用户目标解析为绝对路径 `TARGET_ROOT`；默认报告目录为 `$TARGET_ROOT/security-reports/`（目标是包文件时使用其父目录）。
+- Phase -1 先执行 `python3 "$SKILL_ROOT/scripts/pi_preflight.py" --target "$TARGET_ROOT"`。
+- 若 harness 提供 subagent/session 能力，可使用独立 session；否则在当前 Pi session 中按维度串行执行并逐维写 checkpoint。禁止递归启动 `pi` 模拟 subagent。
 
 ## 扫描维度
 
@@ -61,13 +69,13 @@ scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数�
 
 ## 渐进式披露（强制）
 
-激活后只读本文件与 `orchestration/orchestrator.md` 的加载白名单。每个 Phase **只在需要时** Read 对应文件；禁止预读全部 scanners、templates、`redline-spec.md`。
+激活后只读本文件与 `orchestration/router.md`。激活时禁止读取完整 `orchestration/orchestrator.md`；每个 Phase **只在需要时**定位并分段读取对应小节或阶段文件。禁止预读全部 scanners、templates、`redline-spec.md`。
 
 ```text
-SKILL.md（本文件）
+SKILL.md（本文件）-> orchestration/router.md（紧凑路由）
 ├── Phase -1 -> references/dependency-check.md
 ├── Phase -0 -> scripts/package_materializer.py（rpm2cpio/cpio/rpmbuild；可选 dnf/patch/tar）
-├── Phase 0  -> orchestration/reconnaissance.md
+├── Phase 0  -> orchestration/reconnaissance.md + validate_shards.py + summarize_scan_plan.py
 ├── Phase 1  -> scanners/registry + scanners/<dim>/{meta.yaml,scanner.md}
 │              -> 仅 meta.references 声明的文件 + references/finding-schema.md
 ├── Phase 2  -> references/verdict-rules.md + references/finding-schema.md
@@ -78,12 +86,13 @@ SKILL.md（本文件）
 
 调度细节、审计点、条件跳过、降级矩阵：见 `orchestration/orchestrator.md`。  
 Finding 字段定义：见 `references/finding-schema.md`（勿在此内嵌全文）。  
+Pi 安全阈值与中断恢复：见 `references/agent-runtime-limits.md`、`references/abort-recovery.md`（仅风险或恢复时加载）。
 人读安装与目录树：见 `README.md`（运行时 agent 不读）。
 
 ### 硬性禁止
 
 - 不得在激活时加载任意 `scanners/*/scanner.md` 或全部 templates。
-- scanner session 不得加载其他维 `scanner.md`、全量 findings、`redline-spec.md`。
+- scanner 的独立或逻辑 session 不得加载其他维 `scanner.md`、全量 findings、`redline-spec.md`。
 - 上游 findings 经 `ScanContext.consume(..., compact=True)` 注入 user message，不得写入 system prompt。
 
 ## 异常处理总则
@@ -101,6 +110,8 @@ Finding 字段定义：见 `references/finding-schema.md`（勿在此内嵌全�
 
 - 模板占位符统一为 `[[UPPER_SNAKE_CASE]]` 双中括号格式（如 `[[COMPONENT_NAME]]`）。
 - **禁止使用 f-string 或 `.format()` 渲染模板**——`{}` 在模板里会与 f-string 冲突，未定义变量会触发 `NameError`。
-- Phase 3 报告生成必须调用 `scripts/render_template.py`，完成后必须调用 `scripts/audit_render.py` 校验（详见 `references/render-audit.md` 的 A4 审计点）。
+- 每个 Phase 边界必须调用 `$SKILL_ROOT/scripts/measure_context.py`；`risk=critical` 时停止模型注入并写 partial checkpoint。
+- Phase 1 模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py`，禁止把递归 grep 命中行直接写入终端上下文。
+- Phase 3 报告生成必须调用 `$SKILL_ROOT/scripts/render_template.py`，完成后必须调用 `$SKILL_ROOT/scripts/audit_render.py` 校验（详见 `references/render-audit.md` 的 A4 审计点）。
 - 必填占位符缺失时 `--strict` 模式返回非零退出码；非 strict 模式下缺失保留为 `[[NAME]]` 字面量并写入 `*.missing.json` 供审计追溯。
 - 缺失必填占位符连续 2 次渲染仍失败时，报告状态必须记为 `degraded` 并在 `audit_log` 中保留追溯记录。

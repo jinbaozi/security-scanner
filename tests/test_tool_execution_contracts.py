@@ -14,6 +14,17 @@ def test_elf_scanner_uses_deterministic_probe_instead_of_direct_checksec_invocat
     assert "checksec 命令崩溃" not in scanner
 
 
+def test_elf_probe_docs_require_batch_checkpoint_and_resume():
+    scanner = (ROOT / "scanners" / "elf" / "scanner.md").read_text(encoding="utf-8")
+    orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")
+
+    for text in (scanner, orchestrator):
+        assert "--batch-size 20" in text
+        assert "--checkpoint" in text
+        assert "--resume" in text
+    assert "每个 batch" in scanner
+
+
 def test_external_tool_state_model_blocks_invocation_and_parse_errors_from_degrading():
     dependency_check = (ROOT / "references" / "dependency-check.md").read_text(encoding="utf-8")
     orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")

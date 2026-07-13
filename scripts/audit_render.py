@@ -11,6 +11,7 @@ Exit codes:
     3 - optional placeholders left unreplaced (WARN)
     4 - required placeholders left unreplaced (FAIL)
     5 - audit cannot proceed (missing input, etc.)
+    6 - excessive residual placeholders create an abort/context risk
 """
 from __future__ import annotations
 
@@ -35,14 +36,21 @@ from scripts.render_template import (
 )
 
 
-def audit(rendered_path: Path, template_path: Path | None) -> dict[str, Any]:
+def audit(
+    rendered_path: Path,
+    template_path: Path | None,
+    *,
+    max_residual: int = 20,
+) -> dict[str, Any]:
     """Audit ``rendered_path`` against the optional ``template_path``.
 
     The function returns a structured report. The ``status`` field is one of
-    ``pass``, ``warn`` (optional unfilled), or ``fail`` (required unfilled).
+    ``pass``, ``warn`` (optional unfilled), ``fail`` (required unfilled), or
+    ``critical`` (residual count exceeds the configured safety limit).
     """
     rendered = rendered_path.read_text(encoding="utf-8")
-    residuals = sorted(set(PLACEHOLDER_PATTERN.findall(rendered)))
+    residual_occurrences = PLACEHOLDER_PATTERN.findall(rendered)
+    residuals = sorted(set(residual_occurrences))
 
     contract = {"required": [], "optional": []}
     declared: list[str] = []
@@ -64,7 +72,10 @@ def audit(rendered_path: Path, template_path: Path | None) -> dict[str, Any]:
         if n not in contract.get("required", []) and n not in contract.get("optional", [])
     )
 
-    if required_unfilled:
+    abort_risk = len(residual_occurrences) > max_residual
+    if abort_risk:
+        status = "critical"
+    elif required_unfilled:
         status = "fail"
     elif optional_unfilled or unknown_unfilled:
         status = "warn"
@@ -82,6 +93,10 @@ def audit(rendered_path: Path, template_path: Path | None) -> dict[str, Any]:
         "required_unfilled": required_unfilled,
         "optional_unfilled": optional_unfilled,
         "unknown_unfilled": unknown_unfilled,
+        "residual_count": len(residual_occurrences),
+        "residual_unique_count": len(residuals),
+        "max_residual": max_residual,
+        "abort_risk": abort_risk,
     }
 
 
@@ -100,13 +115,23 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Where to write the audit JSON. Defaults to stdout.",
     )
+    parser.add_argument(
+        "--max-residual",
+        type=int,
+        default=20,
+        help="Return critical when residual count exceeds this limit.",
+    )
     args = parser.parse_args(argv)
 
     if not args.rendered.exists():
         print(f"rendered file not found: {args.rendered}", file=sys.stderr)
         return 5
 
-    report = audit(args.rendered, args.template)
+    report = audit(
+        args.rendered,
+        args.template,
+        max_residual=max(0, args.max_residual),
+    )
     payload = json.dumps(report, ensure_ascii=False, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -114,6 +139,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(payload)
 
+    if report["status"] == "critical":
+        return 6
     if report["status"] == "fail":
         return 4
     if report["status"] == "warn":

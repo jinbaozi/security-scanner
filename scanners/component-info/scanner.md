@@ -2,6 +2,10 @@
 
 > 本文件指导 Component-Info Scanner Agent 执行组件级元数据检测，包括架构类型推断、默认账号识别、个人数据字段违规处理（明文存储 / HTTP 传输 / 日志明文）、以及是否需要 root 权限运行（SUID / privileged / capabilities 多源交集）。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
+## 有界工具输出（强制）
+
+模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+
 ## 角色
 
 Component-Info Scanner Agent 仅负责检测源码模型字段、配置文件、容器清单（Dockerfile / docker-compose.yml / Kubernetes manifest）中的组件元信息，不负责密码学算法、网络协议、ELF 安全编译、注释或权限（chmod/SUID 本身）问题。

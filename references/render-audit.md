@@ -38,13 +38,14 @@ Notes: [[AUDIT_NOTES]]
 
 ### Step 1: 调用 `scripts/render_template.py`
 
-Phase 3 报告生成阶段必须调用：
+`SKILL_ROOT` 必须是已加载 `SKILL.md` 的父目录绝对路径，不能假设 Pi 当前工作目录是 skill 目录。Phase 3 必须调用：
 
 ```bash
-python3 scripts/render_template.py \
-    --template templates/report-comprehensive.md \
-    --values security-reports/values-comprehensive.yaml \
-    --output security-reports/security-scan-report-${COMP}-${DATE}.md
+python3 "$SKILL_ROOT/scripts/render_template.py" \
+    --template "$SKILL_ROOT/templates/report-comprehensive.md" \
+    --values "$REPORT_ROOT/values-comprehensive.yaml" \
+    --output "$REPORT_ROOT/security-scan-report-${COMP}-${DATE}.md" \
+    --max-output-bytes 65536
 ```
 
 返回值与 `strict` 模式：
@@ -57,10 +58,11 @@ python3 scripts/render_template.py \
 ### Step 2: 调用 `scripts/audit_render.py`
 
 ```bash
-python3 scripts/audit_render.py \
-    --rendered security-reports/security-scan-report-${COMP}-${DATE}.md \
-    --template templates/report-comprehensive.md \
-    --output security-reports/security-scan-report-${COMP}-${DATE}.audit.json
+python3 "$SKILL_ROOT/scripts/audit_render.py" \
+    --rendered "$REPORT_ROOT/security-scan-report-${COMP}-${DATE}.md" \
+    --template "$SKILL_ROOT/templates/report-comprehensive.md" \
+    --output "$REPORT_ROOT/security-scan-report-${COMP}-${DATE}.audit.json" \
+    --max-residual 20
 ```
 
 返回 JSON 中 `status` 字段：
@@ -70,6 +72,9 @@ python3 scripts/audit_render.py \
 | `pass` | 无任何残留占位符 | 0 | 报告作为最终输出 |
 | `warn` | 仅 optional 或 unknown 残留 | 3 | 报告输出，附录添加"[渲染备注] N 个占位符未替换" |
 | `fail` | 任意 required 残留 | 4 | 重新渲染，最多 2 次；仍失败标 degraded |
+| `critical` | 残留出现次数（含同名重复）超过 `--max-residual 20` | 6 | 设置 `abort_risk=true`，停止重渲并按恢复 SOP 处理 |
+
+`critical` 的退出码 6 优先于 required/optional 分类，避免大面积渲染失败继续消耗上下文。
 
 ### Step 3: 综合判定
 
@@ -83,6 +88,7 @@ A4 与 A3 审计结果合并形成最终报告状态：
 | WARN | pass / warn | `WARN` |
 | WARN | fail | `FAIL` |
 | FAIL | * | `FAIL` |
+| * | critical | `FAIL + 停止重渲，进入恢复 SOP` |
 
 ## 异常处理
 
@@ -90,6 +96,7 @@ A4 与 A3 审计结果合并形成最终报告状态：
 |------|------|
 | 模板无 frontmatter contract | 视为"无必填约束"；所有残留 placeholder 触发 warn |
 | `render_template.py` 自身报错（语法错误、模板不存在） | 退出码非 0，报告生成中断，进入降级路径 |
+| `output_too_large` | 不写部分文件；输出紧凑索引并将正文分章节，分别重新渲染与审计 |
 | 必填占位符连续 2 次渲染仍失败 | 标记 `degraded`，写入 `audit_log`，输出报告标"渲染未完成" |
 | Sidecar `.missing.json` 文件保留 | 作为审计追溯依据，30 天后可清理 |
 

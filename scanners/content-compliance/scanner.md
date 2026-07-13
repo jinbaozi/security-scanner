@@ -2,6 +2,10 @@
 
 > 本文件指导 Content-Compliance Scanner Agent 执行文字、地图、图表、UI 资源和文档中的政治敏感表述检查。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
+## 有界工具输出（强制）
+
+模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+
 ## 角色
 
 Content-Compliance Scanner Agent 负责对交付包中的 UI 字符串、资源文件、文档、图表说明和地图资源进行静态合规提示。本维度默认输出 WARN + `needs_human`，不替代人工政治表述审核。

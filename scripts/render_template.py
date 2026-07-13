@@ -36,6 +36,17 @@ FRONTMATTER_PATTERN = re.compile(
 )
 
 
+class RequiredPlaceholderError(ValueError):
+    """Raised when strict rendering receives no usable required value."""
+
+    def __init__(self, missing: list[str]):
+        self.missing = sorted(missing)
+        super().__init__(
+            "Required placeholders missing or empty under strict mode: "
+            + ", ".join(self.missing)
+        )
+
+
 class SafeReportTemplate(Template):
     """``string.Template`` subclass using ``[[...]]`` as the delimiter.
 
@@ -131,24 +142,25 @@ def render_template(
     contract = parse_contract(template_str)
     body = FRONTMATTER_PATTERN.sub("", template_str, count=1)
 
+    # None always means unresolved. Required strings containing only
+    # whitespace are unresolved too, so safe mode leaves an auditable marker
+    # instead of silently producing an apparently complete report.
     string_values = {
-        k: ("" if v is None else str(v)) for k, v in values.items()
+        k: str(v) for k, v in values.items() if v is not None
     }
+    for name in contract.get("required", []):
+        value = string_values.get(name)
+        if isinstance(value, str) and not value.strip():
+            string_values.pop(name, None)
 
     used = set(collect_placeholders(body))
     missing = sorted(name for name in used if name not in string_values)
+    required_missing = sorted(
+        name for name in contract.get("required", []) if name not in string_values
+    )
 
-    if strict:
-        required_missing = [
-            name
-            for name in contract.get("required", [])
-            if name not in string_values
-        ]
-        if required_missing:
-            raise ValueError(
-                "Required placeholders missing under strict mode: "
-                + ", ".join(required_missing)
-            )
+    if strict and required_missing:
+        raise RequiredPlaceholderError(required_missing)
 
     # Always use safe_substitute so unknown extras stay verbatim; the strict
     # check above is the only authoritative guard.
@@ -210,6 +222,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
+        "--max-output-bytes",
+        type=int,
+        default=65536,
+        help="Reject output larger than this byte limit (default: 65536).",
+    )
+    parser.add_argument(
         "--strict",
         action="store_true",
         help="Fail when any required placeholder is missing.",
@@ -239,9 +257,53 @@ def main(argv: list[str] | None = None) -> int:
                     k, _, v = line.partition("=")
                     values[k.strip()] = v.strip()
 
-    rendered, missing, contract = render_template(
-        template_str, values, strict=args.strict
-    )
+    try:
+        rendered, missing, contract = render_template(
+            template_str, values, strict=args.strict
+        )
+    except RequiredPlaceholderError as exc:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "template": str(args.template),
+            "output": str(args.output),
+            "missing": exc.missing,
+            "required_missing": exc.missing,
+            "strict": True,
+            "status": "failed",
+        }
+        sidecar = args.output.with_suffix(args.output.suffix + ".missing.json")
+        sidecar.write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(
+            "render status=failed reason=required_missing "
+            f"missing={len(exc.missing)} sidecar={sidecar}",
+            file=sys.stderr,
+        )
+        return 4
+
+    actual_bytes = len(rendered.encode("utf-8"))
+    if args.max_output_bytes < 1 or actual_bytes > args.max_output_bytes:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        audit = {
+            "template": str(args.template),
+            "output": str(args.output),
+            "status": "failed",
+            "reason": "output_too_large",
+            "actual_bytes": actual_bytes,
+            "max_output_bytes": args.max_output_bytes,
+        }
+        sidecar = args.output.with_suffix(args.output.suffix + ".render.json")
+        sidecar.write_text(
+            json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        print(
+            "render status=failed reason=output_too_large "
+            f"bytes={actual_bytes} limit={args.max_output_bytes} sidecar={sidecar}",
+            file=sys.stderr,
+        )
+        return 4
+
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(rendered, encoding="utf-8")
 

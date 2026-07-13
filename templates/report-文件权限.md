@@ -11,10 +11,6 @@ required:
   - SECTION_DETAIL
   - SECTION_AUDIT
 optional:
-  - COMPONENT_VERSION
-  - FILES_SCANNED
-  - FAILED_AGENTS
-  - RETRIED_AGENTS
   - DEGRADATION_NOTE
   - TIMESTAMP
 ---
@@ -25,7 +21,7 @@ optional:
 >
 > 焦点：SUID/SGID/World-Writable 文件或目录
 
-## 维度概览
+## 问题汇总
 
 | 项目 | 数量 |
 |------|------|
@@ -38,9 +34,13 @@ optional:
 
 [[SECTION_DETAIL]]
 
-## 审计信息
+## 质量审计结果
 
 [[SECTION_AUDIT]]
+
+## 降级输出说明
+
+[[DEGRADATION_NOTE]]
 
 ## 数据来源
 

@@ -8,6 +8,9 @@
 |------|------|----------|
 | `allowlists.md` | 白名单与例外 | scanner session（`meta.references`） |
 | `dependency-check.md` | Phase -1 环境预检 | Phase -1 |
+| `agent-runtime-limits.md` | Pi 项目安全阈值 | 风险为 medium/high/critical 时 |
+| `abort-recovery.md` | checkpoint 恢复 SOP | abort、critical 或用户要求恢复时 |
+| `scanner-output-limits.md` | finding 聚合与证据保留 | 单维命中可能超过 200 时 |
 | `library-vuln-caps.md` | 库版本知识库 | crypto/network session |
 | `red-line-rules.md` | Pattern 权威源（**不**注入 scanner session） | 维护/生成维内 patterns |
 | `finding-schema.md` | 统一 finding 字段 | Phase 1.5 / 2 / 3 |

@@ -11,12 +11,20 @@ import json
 import os
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
 
 Runner = Callable[..., "CommandResult"]
+
+DEFAULT_TIMEOUTS = {
+    "rpm2cpio": 120,
+    "cpio": 300,
+    "rpmbuild": 1800,
+    "dnf": 600,
+}
 
 
 @dataclass
@@ -25,6 +33,8 @@ class CommandResult:
     returncode: int
     stdout: str | bytes = ""
     stderr: str | bytes = ""
+    timed_out: bool = False
+    duration_seconds: float = 0.0
 
     @property
     def ok(self) -> bool:
@@ -39,15 +49,34 @@ def default_runner(command: list[str], cwd: Path | None = None, **kwargs: Any) -
     """
     capture_bytes = bool(kwargs.pop("capture_bytes", False))
     input_bytes = kwargs.pop("input_bytes", None)
-    completed = subprocess.run(
+    timeout = kwargs.pop("timeout", None)
+    started = time.monotonic()
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=str(cwd) if cwd else None,
+            input=input_bytes,
+            capture_output=True,
+            text=not capture_bytes and input_bytes is None,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return CommandResult(
+            command,
+            124,
+            exc.stdout or (b"" if capture_bytes else ""),
+            exc.stderr or f"command timed out after {timeout}s",
+            timed_out=True,
+            duration_seconds=time.monotonic() - started,
+        )
+    return CommandResult(
         command,
-        cwd=str(cwd) if cwd else None,
-        input=input_bytes,
-        capture_output=True,
-        text=not capture_bytes and input_bytes is None,
-        check=False,
+        completed.returncode,
+        completed.stdout,
+        completed.stderr,
+        duration_seconds=time.monotonic() - started,
     )
-    return CommandResult(command, completed.returncode, completed.stdout, completed.stderr)
 
 
 def detect_input_kind(path: Path | str) -> str:
@@ -94,9 +123,25 @@ class PackageMaterializer:
         self,
         runner: Runner = default_runner,
         effective_uid: Callable[[], int] | None = None,
+        timeouts: dict[str, int | float] | None = None,
     ) -> None:
         self.runner = runner
         self.effective_uid = effective_uid or (lambda: os.geteuid() if hasattr(os, "geteuid") else 0)
+        self.timeouts = {**DEFAULT_TIMEOUTS, **(timeouts or {})}
+        self._command_log: list[dict[str, Any]] = []
+
+    def _run(self, command: list[str], **kwargs: Any) -> CommandResult:
+        result = self.runner(command, **kwargs)
+        self._command_log.append(
+            {
+                "command": Path(command[0]).name,
+                "exit_code": result.returncode,
+                "timed_out": result.timed_out,
+                "duration_seconds": round(result.duration_seconds, 3),
+                "stderr_summary": _text(result.stderr).strip()[:500],
+            }
+        )
+        return result
 
     def materialize(
         self,
@@ -109,6 +154,7 @@ class PackageMaterializer:
         materialized_root = Path(output_dir).resolve()
         materialized_root.mkdir(parents=True, exist_ok=True)
         input_kind = detect_input_kind(target)
+        self._command_log = []
 
         result = self._empty_result(target, materialized_root, input_kind)
 
@@ -159,6 +205,7 @@ class PackageMaterializer:
             "status": "ready",
             "errors": [],
             "audit_log": [],
+            "command_log": self._command_log,
         }
 
     def _materialize_srpm(
@@ -204,11 +251,20 @@ class PackageMaterializer:
         result["audit_log"].append(f"binary RPM 已展开: {rpm_path} -> {binary_root}")
 
     def _extract_rpm_payload(self, rpm_path: Path, destination: Path) -> CommandResult:
-        rpm2cpio = self.runner(["rpm2cpio", str(rpm_path)], capture_bytes=True)
+        rpm2cpio = self._run(
+            ["rpm2cpio", str(rpm_path)],
+            capture_bytes=True,
+            timeout=self.timeouts["rpm2cpio"],
+        )
         if not rpm2cpio.ok:
             return rpm2cpio
         stdout = rpm2cpio.stdout if isinstance(rpm2cpio.stdout, bytes) else _text(rpm2cpio.stdout).encode()
-        return self.runner(["cpio", "-idm", "--quiet"], cwd=destination, input_bytes=stdout)
+        return self._run(
+            ["cpio", "-idm", "--quiet"],
+            cwd=destination,
+            input_bytes=stdout,
+            timeout=self.timeouts["cpio"],
+        )
 
     def _run_prep_for_spec(
         self,
@@ -264,7 +320,10 @@ class PackageMaterializer:
             return
 
         result["builddep_attempted"] = True
-        builddep = self.runner(["dnf", "builddep", "-y", str(copied_spec)])
+        builddep = self._run(
+            ["dnf", "builddep", "-y", str(copied_spec)],
+            timeout=self.timeouts["dnf"],
+        )
         if not builddep.ok:
             result["status"] = "blocked"
             result["builddep_status"] = "failed"
@@ -290,7 +349,7 @@ class PackageMaterializer:
         specdir: Path,
         builddir: Path,
     ) -> CommandResult:
-        return self.runner(
+        return self._run(
             [
                 "rpmbuild",
                 "-bp",
@@ -306,6 +365,7 @@ class PackageMaterializer:
                 str(spec),
             ],
             cwd=topdir,
+            timeout=self.timeouts["rpmbuild"],
         )
 
     def _record_build_roots(self, builddir: Path, result: dict[str, Any]) -> None:
@@ -314,7 +374,11 @@ class PackageMaterializer:
             roots = [builddir]
         known = {entry["path"] for entry in result["source_roots"]}
         for root in roots:
-            root_entry = {"path": str(root), "origin": "source_prepped"}
+            root_entry = {
+                "path": str(root),
+                "origin": "source_prepped",
+                "file_count": sum(1 for path in root.rglob("*") if path.is_file()),
+            }
             if root_entry["path"] not in known:
                 result["source_roots"].append(root_entry)
                 known.add(root_entry["path"])

@@ -42,6 +42,6 @@ def test_orchestrator_documents_redline_dedup_rules():
 def test_report_template_contains_a3b_coverage_placeholders():
     template = (ROOT / "templates" / "report-comprehensive.md").read_text()
 
-    assert "{redline_coverage_matrix}" in template
-    assert "{redline_manual_checklist}" in template
+    assert "[[TABLE_REDLINE_COVERAGE]]" in template
+    assert "[[TABLE_REDLINE_MANUAL]]" in template
     assert "Redline 40 条覆盖矩阵" in template

@@ -2,6 +2,10 @@
 
 > 本文件指导 ELF Scanner Agent 执行二进制安全编译检查。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
+## 有界工具输出（强制）
+
+模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+
 ## 角色
 
 ELF Scanner Agent 仅负责 ELF 二进制文件的安全编译检查。不得分析源码、URL、凭证、注释或文件权限问题。
@@ -82,12 +86,15 @@ done
 ELF Scanner 不得直接拼接或猜测 `checksec` 参数。必须调用确定性适配器，并把完整 JSON 写入 `security-reports/`：
 
 ```bash
-python3 scripts/elf_hardening_probe.py \
-  --file "{filepath}" \
-  --output-json "security-reports/elf-probe-{component_name}.json"
+python3 "$SKILL_ROOT/scripts/elf_hardening_probe.py" \
+  --list-file "$REPORT_ROOT/recon/elf-files.txt" \
+  --output-json "$REPORT_ROOT/elf-probe-{component_name}.json" \
+  --batch-size 20 \
+  --checkpoint \
+  --resume
 ```
 
-多个 ELF 文件可重复传入 `--file`，或使用 `--list-file PATH`。probe stdout 只允许输出一行摘要；scanner 必须读取 `--output-json` 指向的文件作为唯一工具证据来源。
+多个 ELF 文件可重复传入 `--file`，或使用 `--list-file PATH`。每个 batch 完成后必须原子写 checkpoint；Pi 中断后使用 `--resume` 跳过已有 `results[].file`。probe stdout 只允许输出一行摘要；scanner 必须读取 `--output-json` 指向的文件作为唯一工具证据来源。
 
 probe JSON 必须包含并保留到 scanner audit_log：
 

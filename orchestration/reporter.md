@@ -6,6 +6,10 @@
 
 Reporter Agent 负责把 Verdict 阶段输出转换为可审计报告。报告必须使用简体中文，必须保留数据来源、裁决结果、质量审计结果和降级输出说明。
 
+## 路径约束
+
+模板、manifest、渲染和审计脚本必须从 `SKILL_ROOT` 解析；报告写入 `REPORT_ROOT`。即使 Pi 的当前工作目录是待扫描项目，也不得使用裸 `scripts/...` 或 `templates/...` 依赖当前目录。
+
 ## 输入
 
 - 所有裁决后的 findings（JSON 数组）。
@@ -330,7 +334,11 @@ Reporter 必须为 `reporting_dimensions` 中全部 13 个维度生成独立详�
 
 ## 渲染器与审计门禁（§6）
 
-Phase 3 渲染阶段必须使用 `scripts/render_template.py`，不得使用内嵌 f-string 或 `.format()` 调用。完成渲染后必须执行 `scripts/audit_render.py`（A4 审计），任何残留 `[[UPPER_SNAKE_CASE]]` 占位符必须可追溯到 `*.missing.json` sidecar。
+Phase 3 渲染阶段必须使用 `$SKILL_ROOT/scripts/render_template.py --max-output-bytes 65536`，不得使用内嵌 f-string 或 `.format()` 调用。完成渲染后必须执行 `$SKILL_ROOT/scripts/audit_render.py`（A4 审计），任何残留 `[[UPPER_SNAKE_CASE]]` 占位符必须可追溯到 `*.missing.json` sidecar。脚本 stdout/stderr 只保留单行状态，报告正文和审计 JSON 不回显到终端。
+
+渲染器返回 `output_too_large` 时不得写入部分报告：综合输出改为不超过 32 KiB 的索引/摘要，详细内容分章节写入 13 个维度报告或 `details/`；随后分别执行 A4。不得把报告正文回读到 Pi 上下文，只读取大小、状态和紧凑 audit JSON。
+
+A4 必须使用 `--max-residual 20`。审计 `status=critical` 或退出码 6 表示大面积残留并设置 `abort_risk=true`；立即停止重渲循环，保留 audit JSON，按 `references/abort-recovery.md` 从 values/contract 检查点恢复。
 
 A4 与 A3 合并判定表：
 

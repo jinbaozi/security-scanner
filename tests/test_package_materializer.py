@@ -1,9 +1,16 @@
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
-from scripts.package_materializer import CommandResult, PackageMaterializer, detect_input_kind, main
+from scripts.package_materializer import (
+    CommandResult,
+    PackageMaterializer,
+    default_runner,
+    detect_input_kind,
+    main,
+)
 
 
 class FakeRunner:
@@ -41,6 +48,64 @@ class FakeRunner:
         return CommandResult(command, 0, "", "")
 
 
+def test_default_runner_turns_timeout_into_auditable_result():
+    result = default_runner(
+        [sys.executable, "-c", "import time; time.sleep(1)"], timeout=0.01
+    )
+
+    assert result.returncode == 124
+    assert result.timed_out is True
+    assert result.duration_seconds >= 0
+    assert "timed out" in str(result.stderr).lower()
+
+
+def test_materializer_passes_command_specific_timeouts(tmp_path):
+    rpm = tmp_path / "pkg.x86_64.rpm"
+    rpm.touch()
+    delegate = FakeRunner()
+    calls = []
+
+    def runner(command, cwd=None, **kwargs):
+        calls.append((command[0], kwargs.get("timeout")))
+        return delegate(command, cwd=cwd, **kwargs)
+
+    result = PackageMaterializer(
+        runner=runner,
+        timeouts={"rpm2cpio": 11, "cpio": 12},
+    ).materialize(rpm, tmp_path / "out")
+
+    assert result["status"] == "ready"
+    assert calls == [("rpm2cpio", 11), ("cpio", 12)]
+
+
+def test_materializer_records_timeout_in_structured_command_log(tmp_path):
+    rpm = tmp_path / "pkg.x86_64.rpm"
+    rpm.touch()
+
+    def runner(command, cwd=None, **kwargs):
+        return CommandResult(
+            command,
+            124,
+            "",
+            "command timed out",
+            timed_out=True,
+            duration_seconds=1.25,
+        )
+
+    result = PackageMaterializer(runner=runner).materialize(rpm, tmp_path / "out")
+
+    assert result["status"] == "blocked"
+    assert result["command_log"] == [
+        {
+            "command": "rpm2cpio",
+            "exit_code": 124,
+            "timed_out": True,
+            "duration_seconds": 1.25,
+            "stderr_summary": "command timed out",
+        }
+    ]
+
+
 def test_detects_package_input_kinds(tmp_path):
     srpm = tmp_path / "pkg.src.rpm"
     rpm = tmp_path / "pkg.x86_64.rpm"
@@ -71,7 +136,11 @@ def test_srpm_materialization_runs_prep_in_isolated_topdir(tmp_path):
     assert result["input_kind"] == "srpm"
     assert result["srpm_spec_files"]
     assert result["source_roots"] == [
-        {"path": str(tmp_path / "out" / "rpmbuild" / "pkg" / "BUILD" / "pkg-1"), "origin": "source_prepped"}
+        {
+            "path": str(tmp_path / "out" / "rpmbuild" / "pkg" / "BUILD" / "pkg-1"),
+            "origin": "source_prepped",
+            "file_count": 1,
+        }
     ]
     assert result["applied_patches"] == ["fix.patch"]
     assert "--nodeps" in rpmbuild

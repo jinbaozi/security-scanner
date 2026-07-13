@@ -104,6 +104,21 @@ def test_all_scanner_prompts_declare_redline_clause_contract():
         )
 
 
+def test_all_scanner_prompts_bound_finding_output_and_preserve_full_evidence():
+    scanners = discover_scanners(ROOT / "scanners")
+    limits = (ROOT / "references" / "scanner-output-limits.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "200" in limits
+    assert "truncated_count" in limits
+    assert "原始证据" in limits
+    for scanner in scanners.values():
+        assert "finding 上限 200" in scanner.prompt, scanner.scanner_md_path
+        assert "truncated_count" in scanner.prompt, scanner.scanner_md_path
+        assert "原始命中" in scanner.prompt, scanner.scanner_md_path
+
+
 def test_scanner_sidecars_do_not_load_global_redline_sources_directly():
     scanners = discover_scanners(ROOT / "scanners")
     forbidden = {

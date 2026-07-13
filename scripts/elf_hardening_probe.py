@@ -506,22 +506,121 @@ def _read_list_file(path: Path) -> list[str]:
     ]
 
 
+def _shift_tool_refs(value: Any, offset: int) -> Any:
+    """Shift tool_invocations[N] references when merging probe batches."""
+    if isinstance(value, dict):
+        return {key: _shift_tool_refs(item, offset) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_shift_tool_refs(item, offset) for item in value]
+    if isinstance(value, str) and value.startswith("tool_invocations[") and value.endswith("]"):
+        try:
+            index = int(value[len("tool_invocations[") : -1])
+        except ValueError:
+            return value
+        return f"tool_invocations[{index + offset}]"
+    return value
+
+
+def _write_probe_checkpoint(path: Path, result: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    temporary.replace(path)
+
+
 def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> int:
     parser = argparse.ArgumentParser(description="Probe ELF hardening evidence with checksec/readelf.")
     parser.add_argument("--file", dest="files", action="append", default=[], help="ELF file path. May be repeated.")
     parser.add_argument("--list-file", type=Path, help="Text file containing one ELF path per line.")
     parser.add_argument("--output-json", type=Path, required=True, help="Path for the full probe JSON artifact.")
+    parser.add_argument("--batch-size", type=int, default=20)
+    parser.add_argument("--checkpoint", action="store_true", help="Atomically save after every batch.")
+    parser.add_argument("--resume", action="store_true", help="Skip files already present in output JSON.")
     args = parser.parse_args(argv)
 
-    files = list(args.files)
+    files = list(dict.fromkeys(args.files))
     if args.list_file:
-        files.extend(_read_list_file(args.list_file))
+        files.extend(path for path in _read_list_file(args.list_file) if path not in files)
     if not files:
         parser.error("at least one --file or --list-file entry is required")
+    if args.batch_size < 1:
+        parser.error("--batch-size must be at least 1")
 
-    result = ElfHardeningProbe(runner=runner).probe([Path(file) for file in files])
-    args.output_json.parent.mkdir(parents=True, exist_ok=True)
-    args.output_json.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    result: dict[str, Any] = {
+        "status": "ready",
+        "checksec_state": "not_run",
+        "selected_mode": None,
+        "fallback_used": False,
+        "fallback_reason": None,
+        "unavailable_proof": None,
+        "tool_invocations": [],
+        "results": [],
+    }
+    previous_batches = 0
+    if args.resume and args.output_json.is_file():
+        try:
+            loaded = json.loads(args.output_json.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                result.update(loaded)
+                previous_batches = int(result.get("checkpoint", {}).get("batches_completed", 0))
+        except (OSError, json.JSONDecodeError, ValueError, TypeError):
+            print("elf_probe status=blocked reason=invalid_resume_checkpoint")
+            return 2
+
+    completed = {
+        str(entry.get("file"))
+        for entry in result.get("results", [])
+        if isinstance(entry, dict) and entry.get("file")
+    }
+    pending = [path for path in files if str(Path(path)) not in completed]
+    resumed_count = len(files) - len(pending)
+    batch_statuses = [result.get("status", "ready")] if completed else []
+    batches_completed = previous_batches
+
+    for start in range(0, len(pending), args.batch_size):
+        batch = pending[start : start + args.batch_size]
+        batch_result = ElfHardeningProbe(runner=runner).probe(
+            [Path(file) for file in batch]
+        )
+        offset = len(result.get("tool_invocations", []))
+        shifted = _shift_tool_refs(batch_result, offset)
+        result.setdefault("tool_invocations", []).extend(shifted["tool_invocations"])
+        result.setdefault("results", []).extend(shifted["results"])
+        batch_statuses.append(shifted["status"])
+        if result.get("checksec_state") == "not_run":
+            result["checksec_state"] = shifted["checksec_state"]
+        if result.get("selected_mode") is None:
+            result["selected_mode"] = shifted["selected_mode"]
+        result["fallback_used"] = bool(result.get("fallback_used") or shifted["fallback_used"])
+        result["fallback_reason"] = result.get("fallback_reason") or shifted["fallback_reason"]
+        result["unavailable_proof"] = result.get("unavailable_proof") or shifted["unavailable_proof"]
+        result["status"] = (
+            "blocked"
+            if "blocked" in batch_statuses
+            else ("degraded" if "degraded" in batch_statuses else "ready")
+        )
+        batches_completed += 1
+        processed = min(start + len(batch), len(pending))
+        result["checkpoint"] = {
+            "input_total": len(files),
+            "resumed_count": resumed_count,
+            "batches_completed": batches_completed,
+            "batch_size": args.batch_size,
+            "remaining": len(pending) - processed,
+        }
+        if args.checkpoint:
+            _write_probe_checkpoint(args.output_json, result)
+
+    result["checkpoint"] = {
+        "input_total": len(files),
+        "resumed_count": resumed_count,
+        "batches_completed": batches_completed,
+        "batch_size": args.batch_size,
+        "remaining": 0,
+    }
+    _write_probe_checkpoint(args.output_json, result)
     print(_status_line(result))
     return 0 if result["status"] in {"ready", "degraded"} else 2
 

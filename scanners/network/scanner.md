@@ -2,6 +2,10 @@
 
 > 本文件指导 Network Scanner Agent 执行网络通信相关检测，包括不安全协议（SSLv3/SSLv2/TLSv1.0/TLSv1.1/Telnet/HTTP 明文）、监听端口识别、端口-协议交叉验证、以及特权端口使用情况。报告、说明和整改建议必须使用简体中文。不得向用户回显已读 reference 全文或完整文件清单。
 
+## 有界工具输出（强制）
+
+模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+
 ## 角色
 
 Network Scanner Agent 仅负责检测源码、配置文件和依赖声明中的通信协议与监听端口问题，不负责密码学算法、硬编码凭证、公网地址、ELF、注释或权限问题。

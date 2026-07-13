@@ -61,17 +61,17 @@ def test_summary_template_exists_and_has_index_placeholders():
     assert summary_template.is_file()
     assert manifest["summary"]["title"] == "安全合规扫描汇总报告"
     assert "安全合规扫描汇总报告" in content
-    assert "{dimension_report_index}" in content
-    assert "{dimension_status_summary}" in content
-    assert "{redline_coverage_matrix}" in content
-    assert "{redline_manual_checklist}" in content
+    assert "[[SECTION_DIMENSION_INDEX]]" in content
+    assert "[[SECTION_DIMENSION_STATUS]]" in content
+    assert "[[TABLE_REDLINE_COVERAGE]]" in content
+    assert "[[TABLE_REDLINE_MANUAL]]" in content
 
 
 def test_comprehensive_template_requires_13_dimension_index_and_status_summary():
     content = (TEMPLATES_DIR / "report-comprehensive.md").read_text(encoding="utf-8")
 
-    assert "{dimension_report_index}" in content
-    assert "{dimension_status_summary}" in content
+    assert "[[SECTION_DIMENSION_INDEX]]" in content
+    assert "[[SECTION_DIMENSION_STATUS]]" in content
     assert "必须列出 13 个维度独立详细报告路径" in content
     assert "必须列出 13 个维度状态" in content
     assert "未发现问题" in content
@@ -81,24 +81,24 @@ def test_comprehensive_template_requires_13_dimension_index_and_status_summary()
 def test_comprehensive_template_covers_all_13_dimensions():
     content = (TEMPLATES_DIR / "report-comprehensive.md").read_text(encoding="utf-8")
 
-    expected_prefixes = (
-        "{elf_",
-        "{url_",
-        "{secret_",
-        "{comment_",
-        "{fileleak_",
-        "{permission_",
-        "{crypto_",
-        "{network_",
-        "{component-info_",
-        "{dependency_",
-        "{secure-coding_",
-        "{integrity_",
-        "{content-compliance_",
+    expected_total_placeholders = (
+        "ELF_TOTAL",
+        "URL_TOTAL",
+        "SECRET_TOTAL",
+        "COMMENT_TOTAL",
+        "FILELEAK_TOTAL",
+        "PERMISSION_TOTAL",
+        "CRYPTO_TOTAL",
+        "NETWORK_TOTAL",
+        "COMPONENT_INFO_TOTAL",
+        "DEPENDENCY_TOTAL",
+        "SECURE_CODING_TOTAL",
+        "INTEGRITY_TOTAL",
+        "CONTENT_COMPLIANCE_TOTAL",
     )
 
-    for prefix in expected_prefixes:
-        assert prefix in content, f"missing stats placeholder prefix {prefix}"
+    for name in expected_total_placeholders:
+        assert f"[[{name}]]" in content, f"missing stats placeholder {name}"
 
 
 def test_reporter_documents_a3c_and_mandatory_dimension_reports():
@@ -154,6 +154,17 @@ def test_skill_phase3_documents_fixed_13_dimension_reports():
     assert "最终汇总报告 + 13 个维度独立详细报告" in skill
     assert "scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量" in skill
     assert "当前 profile 对应的维度专项报告" not in skill
+
+
+def test_pi_activation_uses_compact_router_instead_of_full_orchestrator():
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+    router = (ROOT / "orchestration" / "router.md").read_text(encoding="utf-8")
+
+    assert "激活后只读本文件与 `orchestration/router.md`" in skill
+    assert "激活时禁止读取完整 `orchestration/orchestrator.md`" in skill
+    assert len(router.encode("utf-8")) < 8 * 1024
+    assert "orchestration/orchestrator.md" in router
+    assert "每个 Phase" in router
 
 
 def test_skill_is_progressive_disclosure_toc():
@@ -251,6 +262,17 @@ def test_readme_removes_old_profile_scoped_report_language():
 
     for phrase in forbidden_phrases:
         assert phrase not in readme
+
+
+def test_reporter_documents_output_size_gate_and_split_fallback():
+    reporter = (ROOT / "orchestration" / "reporter.md").read_text(encoding="utf-8")
+    audit = (ROOT / "references" / "render-audit.md").read_text(encoding="utf-8")
+
+    for text in (reporter, audit):
+        assert "--max-output-bytes 65536" in text
+        assert "output_too_large" in text
+    assert "分章节" in reporter
+    assert "不得把报告正文回读到 Pi 上下文" in reporter
 
 
 def test_new_dimension_report_templates_exist():
