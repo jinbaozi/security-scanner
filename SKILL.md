@@ -24,6 +24,17 @@ triggers:
 
 支持 Claude Code / Codex / OpenCode / Pi Agent 时遵循同一共享报告契约：`scan_profile` 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量；Phase 3 必须生成最终汇总报告 + 13 个维度独立详细报告。
 
+## 任务完成条件（硬门禁）
+
+13 个维度 JSON 只是中间产物，全部存在也不表示任务完成。只有同时满足以下条件，才允许向用户报告“扫描完成”：
+
+1. 已实际调用 `$SKILL_ROOT/scripts/report_pipeline.py`，且 `$REPORT_ROOT/report-pipeline.json` 存在；
+2. 已生成 **14 份 Markdown**：1 份综合报告 + `templates/report-manifest.yaml` 声明的 13 份维度独立详细报告；
+3. `report-pipeline.json` 中 `report_count == 14`，14 个 `rendered` 文件及对应审计文件均实际存在；
+4. pipeline 返回允许的成功/降级退出码，且 A3c 产物清单审计没有缺失报告。
+
+任一条件不满足时，任务状态必须为 `INCOMPLETE`，不得宣告扫描完成，不得以 JSON 齐全、单份汇总报告或模型自行生成的 Markdown 替代上述完成条件。
+
 ## 终端输出契约
 
 默认采用最小终端输出：每个 Phase 最多输出 1 行终端状态，最终终端摘要最多 8 行。不得向终端输出完整 JSON、原始 findings、大段 stdout/stderr 或文件清单；完整数据必须写入 security-reports/ 下的 JSON、审计日志、Markdown 报告和维度报告。不得向用户回显已读文件全文。调试、失败、降级和审计细节写入结构化产物，不在终端展开。

@@ -153,6 +153,10 @@ def test_skill_phase3_documents_fixed_13_dimension_reports():
     assert "支持 Claude Code / Codex / OpenCode / Pi Agent 时遵循同一共享报告契约" in skill
     assert "最终汇总报告 + 13 个维度独立详细报告" in skill
     assert "scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数量" in skill
+    assert "任务完成条件（硬门禁）" in skill
+    assert "14 份 Markdown" in skill
+    assert "report_count == 14" in skill
+    assert "任务状态必须为 `INCOMPLETE`" in skill
     assert "当前 profile 对应的维度专项报告" not in skill
 
 
