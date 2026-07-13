@@ -14,6 +14,18 @@ def test_elf_scanner_uses_deterministic_probe_instead_of_direct_checksec_invocat
     assert "checksec 命令崩溃" not in scanner
 
 
+def test_integrity_scanner_uses_locale_stable_deterministic_rpm_probe():
+    scanner = (ROOT / "scanners" / "integrity" / "scanner.md").read_text(encoding="utf-8")
+    orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")
+
+    for text in (scanner, orchestrator):
+        assert "scripts/rpm_integrity_probe.py" in text
+        assert "bad_digest" in text and "bad_signature" in text
+        assert "不得" in text and "PASS" in text
+    assert "LC_ALL=C" in scanner
+    assert "verification_status" in scanner
+
+
 def test_elf_probe_docs_require_batch_checkpoint_and_resume():
     scanner = (ROOT / "scanners" / "elf" / "scanner.md").read_text(encoding="utf-8")
     orchestrator = (ROOT / "orchestration" / "orchestrator.md").read_text(encoding="utf-8")

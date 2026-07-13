@@ -100,18 +100,44 @@ def _classify_checksec_failure(result: CommandResult) -> str:
     return "invocation_error"
 
 
+def _result_counts(results: list[dict[str, Any]]) -> dict[str, int]:
+    statuses = ("ready", "degraded", "blocked", "unverified", "skipped")
+    return {
+        status: sum(1 for entry in results if entry.get("status") == status)
+        for status in statuses
+    }
+
+
+def _update_coverage(result: dict[str, Any], input_total: int) -> None:
+    results = [entry for entry in result.get("results", []) if isinstance(entry, dict)]
+    result["input_total"] = input_total
+    result["result_total"] = len(results)
+    result["result_counts"] = _result_counts(results)
+    result["coverage_complete"] = len(results) == input_total
+
+
 def _status_line(result: dict[str, Any]) -> str:
-    blocked = sum(1 for entry in result.get("results", []) if entry.get("status") == "blocked")
-    degraded = sum(1 for entry in result.get("results", []) if entry.get("status") == "degraded")
+    counts = _result_counts(
+        [entry for entry in result.get("results", []) if isinstance(entry, dict)]
+    )
     return (
         "elf_probe "
         f"status={result.get('status')} "
         f"files={len(result.get('results', []))} "
         f"checksec={result.get('checksec_state')} "
         f"mode={result.get('selected_mode') or 'none'} "
-        f"degraded={degraded} "
-        f"blocked={blocked}"
+        f"ready={counts['ready']} degraded={counts['degraded']} "
+        f"blocked={counts['blocked']} unverified={counts['unverified']} "
+        f"skipped={counts['skipped']}"
     )
+
+
+def _is_elf(path: Path) -> bool:
+    try:
+        with path.open("rb") as stream:
+            return stream.read(4) == b"\x7fELF"
+    except OSError:
+        return False
 
 
 class ElfHardeningProbe:
@@ -136,6 +162,20 @@ class ElfHardeningProbe:
                         "parser": None,
                         "checks": {},
                         "failure_reason": "file_unreadable",
+                        "tool_invocation_refs": [],
+                    }
+                )
+                continue
+            if not _is_elf(path):
+                results.append(
+                    {
+                        "file": str(path),
+                        "status": "skipped",
+                        "source": None,
+                        "mode": None,
+                        "parser": None,
+                        "checks": {},
+                        "failure_reason": "not_elf",
                         "tool_invocation_refs": [],
                     }
                 )
@@ -176,7 +216,7 @@ class ElfHardeningProbe:
 
         final_results = [entry for entry in results if entry is not None]
         status = self._overall_status(final_results, fallback_used)
-        return {
+        payload = {
             "status": status,
             "checksec_state": checksec_state,
             "selected_mode": selected_mode,
@@ -186,11 +226,18 @@ class ElfHardeningProbe:
             "tool_invocations": self.tool_invocations,
             "results": final_results,
         }
+        _update_coverage(payload, len(files))
+        return payload
 
     def _overall_status(self, results: list[dict[str, Any]], fallback_used: bool) -> str:
-        if any(entry.get("status") == "blocked" for entry in results):
+        statuses = {entry.get("status") for entry in results}
+        if "blocked" in statuses or "skipped" in statuses:
             return "blocked"
         if fallback_used:
+            return "degraded"
+        if "unverified" in statuses:
+            return "blocked"
+        if "degraded" in statuses:
             return "degraded"
         return "ready"
 
@@ -610,6 +657,7 @@ def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> i
             "batch_size": args.batch_size,
             "remaining": len(pending) - processed,
         }
+        _update_coverage(result, len(files))
         if args.checkpoint:
             _write_probe_checkpoint(args.output_json, result)
 
@@ -620,6 +668,7 @@ def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> i
         "batch_size": args.batch_size,
         "remaining": 0,
     }
+    _update_coverage(result, len(files))
     _write_probe_checkpoint(args.output_json, result)
     print(_status_line(result))
     return 0 if result["status"] in {"ready", "degraded"} else 2

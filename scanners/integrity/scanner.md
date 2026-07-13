@@ -62,17 +62,28 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 
 ### Step 1: RPM/DEB 签名元数据检测
 
+RPM 不得直接调用 `rpm -K` 后依赖自然语言猜测结果，必须使用确定性适配器；适配器固定 `LC_ALL=C`、同时解析退出码和输出，并保存完整工具证据链：
+
 ```bash
-rpm --checksig {rpm_files}
-dpkg-sig --verify {deb_files}
-debsigs --verify {deb_files}
+python3 "$SKILL_ROOT/scripts/rpm_integrity_probe.py" \
+  --list-file "$REPORT_ROOT/recon/rpm-files.txt" \
+  --output-json "$REPORT_ROOT/rpm-integrity-probe.json"
 ```
 
-判定：
+单个 RPM 也可重复传入 `--rpm PATH`。scanner 只能从 probe JSON 的 `results[].verification_status` 映射 finding：
 
-- 签名存在且验证通过：`check_item=package_signature`、`status=PASS`、`severity=info`。
-- 包存在但工具缺失或无法验证：`status=WARN`、`verdict=needs_human`。
-- 明确签名缺失：`status=WARN`、`severity=medium`；若发布要求强制签名且无例外，Verdict 可升为 `FAIL`。
+| verification_status | Finding 判定 |
+|---|---|
+| `verified` | `PASS/info/confirmed` |
+| `unsigned` | `WARN/medium/confirmed`；发布策略强制签名时 Verdict 可升为 FAIL |
+| `bad_digest` / `bad_signature` | `FAIL/high/confirmed` |
+| `missing_key` / `untrusted_key` | `WARN/medium/needs_human` |
+| `tool_missing` / `tool_broken` / `file_unreadable` | `WARN/medium/unverified`，记录 degraded |
+| `tool_timeout` / `unknown_failure` / `parse_error` | blocked/unverified，不得生成 PASS |
+
+probe 的 `status=ready` 只说明工具结果已被可靠分类，不代表签名通过；最终安全结论必须读取 `verification_status`。`result_total` 必须等于 `input_total` 且 `coverage_complete=true`，否则 A1c FAIL。
+
+DEB 使用 `dpkg-sig --verify` / `debsigs --verify`，同样必须设置稳定 locale、记录退出码与 parser 分类；在引入对应确定性适配器前，未知输出一律标记 `unverified`，不得凭空生成 PASS。
 
 ### Step 2: 构建/安装脚本校验 pattern
 

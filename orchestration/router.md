@@ -41,7 +41,7 @@
 - 上游 finding 只通过 `ScanContext.consume(..., compact=True)` 注入；原始 finding 保留在磁盘和 ScanContext。
 - 单维 finding 上限 200；超限规则按需读取 `references/scanner-output-limits.md`，聚合审计必须记录 `truncated_count` 和 evidence 引用。
 - 禁止对 `$SKILL_ROOT/scanners/registry` 目录调用 `read` 或 `cat *`；必须调用 `resolve_scanners.py --skill-root "$SKILL_ROOT" --profile "$SCAN_PROFILE" --output "$REPORT_ROOT/scanner-registry-plan.json"`。
-- 模式搜索必须使用 `$SKILL_ROOT/scripts/safe_grep.py`；路径列表模式使用 `--files-file ... --base-root ... --output ... --max-count 200`，禁止自行猜测参数或执行会向终端返回全部命中的递归 grep。
+- 模式搜索必须使用 `$SKILL_ROOT/scripts/safe_grep.py`；`--files-file` 必须取自 Scan Plan `file_lists.<class>.path` 或 `source_shards[*].file_list`，并相对 `$REPORT_ROOT` 解析，`--base-root` 必须取自 materialization 的对应 source/binary root。禁止猜测 `manifest-files.txt` 等文件名，禁止把 `--base-root` 当成清单生成器，禁止在清单缺失时静默改为递归扫描。
 - 内容合规维度只能调用 `content_compliance_probe.py` 加载本地规则；禁止在 prompt、shell 参数或模型输出中拼接规则原文，禁止读取 raw evidence 正文。
 
 ## 恢复与上下文保护
@@ -54,4 +54,5 @@
 - 不把完整路径数组写入 Scan Plan 或模型上下文；路径只写 list 文件，Pi 只读不超过 64 KiB 的摘要。
 - 文件分片每组绝对上限 50 个；先调用 `normalize_shards.py` 确定性拆分超限 shard，再调用 `validate_shards.py`。超过 16 片依据 `execution_batches` 分批串行，不得增大单片上限。
 - 工具失败只在终端输出一行分类，命令、退出码和截断 stderr 写审计 JSON。
+- 禁止用 shell heredoc 临时编写 findings 转换或“补齐维度”Python；必须使用版本化脚本并先通过 `py_compile`/测试。维度没有可信结果时写 `blocked/degraded/skipped/unverified` 覆盖状态，不得补默认 PASS。
 - Phase 3 先调用 `build_report_values.py` 生成完整 JSON values，再使用 `render_template.py` 和 `audit_render.py`；strict 缺必填字段返回 4，不得原样重试或打印 traceback。

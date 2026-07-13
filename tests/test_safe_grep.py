@@ -114,6 +114,31 @@ def test_safe_grep_supports_file_lists_and_cli_aliases(tmp_path):
     assert report["samples"][0]["file"] == "listed.txt"
 
 
+def test_safe_grep_missing_file_list_blocks_without_expanding_scan_scope(tmp_path):
+    source_root = tmp_path / "src"
+    source_root.mkdir()
+    (source_root / "would-match.txt").write_text("secret", encoding="utf-8")
+    output = tmp_path / "matches.json"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI),
+            "--pattern", "secret",
+            "--files-file", str(tmp_path / "missing-files.txt"),
+            "--base-root", str(source_root),
+            "--output", str(output),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 5
+    assert "reason=files_file_not_found" in result.stderr
+    assert not output.exists()
+
+
 def test_safe_grep_reports_invalid_pattern_without_traceback(tmp_path):
     output = tmp_path / "matches.json"
     result = subprocess.run(

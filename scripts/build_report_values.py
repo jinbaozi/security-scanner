@@ -42,15 +42,35 @@ def read_json(path: Path | None, default: Any) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _dimension_status(value: Any) -> str:
+    return str(value.get("status", "unverified") if isinstance(value, dict) else value).lower()
+
+
+def _display_dimension_status(value: Any) -> str:
+    status = _dimension_status(value)
+    return {
+        "ready": "已执行",
+        "pass": "已执行",
+        "blocked": "已阻断",
+        "failed": "失败",
+        "degraded": "降级",
+        "partial": "部分完成",
+        "unverified": "未验证",
+        "missing": "缺失",
+        "skipped": "已跳过",
+        "not_applicable": "无适用输入",
+    }.get(status, f"未知状态（{status}）")
+
+
 def default_value(name: str) -> Any:
     if name.endswith(COUNT_SUFFIXES) or name in {"TOTAL_FILES", "SCAN_FILES", "TOTAL_FINDINGS"}:
         return 0
     if name.startswith("SECTION_"):
-        return "- 未发现已确认问题。"
+        return "- 无可用扫描结论；请检查维度覆盖状态。"
     if name.startswith("TABLE_"):
-        return "| 项目 | 状态 |\n|---|---|\n| 当前扫描 | 无已确认问题 |"
+        return "| 项目 | 状态 |\n|---|---|\n| 当前扫描 | 未验证 |"
     if name.endswith("_AUDIT"):
-        return "PASS"
+        return "UNVERIFIED"
     if name in {"FAILED_AGENTS", "RETRIED_AGENTS", "DEGRADED_DIMENSIONS", "REJECTED_FINDINGS", "NEEDS_HUMAN_FINDINGS", "UNVERIFIED_FINDINGS", "EXCLUDED_FILES"}:
         return 0
     return "未提供"
@@ -64,9 +84,28 @@ def build_values(
     scan_plan: dict[str, Any],
     findings: list[dict[str, Any]],
     base: dict[str, Any],
+    dimension_statuses: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     values = {name: default_value(name) for name in collect_placeholders(template)}
     values.update(base)
+    dimension_statuses = dimension_statuses or {}
+    normalized_statuses = {
+        dimension: _dimension_status(dimension_statuses.get(dimension, "missing"))
+        for dimension in DIMENSION_PREFIX
+    }
+    blocked_states = {"blocked", "failed"}
+    degraded_states = {"degraded", "partial", "unverified", "missing"}
+    finding_states = {str(item.get("status", "WARN")).upper() for item in findings}
+    if any(state in blocked_states for state in normalized_statuses.values()):
+        report_status = "BLOCKED"
+    elif "FAIL" in finding_states:
+        report_status = "FAIL"
+    elif not dimension_statuses or any(state in degraded_states for state in normalized_statuses.values()):
+        report_status = "UNVERIFIED"
+    elif "WARN" in finding_states or any(state not in {"PASS", "WARN", "FAIL"} for state in finding_states):
+        report_status = "WARN"
+    else:
+        report_status = "PASS"
     values.update(
         {
             "COMPONENT_NAME": component_name,
@@ -75,7 +114,7 @@ def build_values(
             "TOTAL_FILES": scan_plan.get("total_files", 0),
             "SCAN_FILES": scan_plan.get("scan_files", 0),
             "TOTAL_FINDINGS": len(findings),
-            "REPORT_STATUS": "PASS" if not findings else "WARN",
+            "REPORT_STATUS": report_status,
         }
     )
     severity = Counter(str(item.get("severity", "info")).lower() for item in findings)
@@ -111,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scan-plan", type=Path)
     parser.add_argument("--findings", type=Path)
     parser.add_argument("--base-values", type=Path)
+    parser.add_argument("--dimension-statuses", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
@@ -118,13 +158,14 @@ def main(argv: list[str] | None = None) -> int:
         scan_plan = read_json(args.scan_plan, {})
         findings_data = read_json(args.findings, [])
         base = read_json(args.base_values, {})
+        dimension_statuses = read_json(args.dimension_statuses, {})
         if isinstance(findings_data, dict):
             findings_data = findings_data.get("findings", [])
-        if not isinstance(scan_plan, dict) or not isinstance(findings_data, list) or not isinstance(base, dict):
+        if not isinstance(scan_plan, dict) or not isinstance(findings_data, list) or not isinstance(base, dict) or not isinstance(dimension_statuses, dict):
             raise ValueError("input JSON shape is invalid")
         values = build_values(
             template, args.component_name, args.target_path, args.scan_date,
-            scan_plan, findings_data, base,
+            scan_plan, findings_data, base, dimension_statuses,
         )
         manifest_path = args.template.parent / "report-manifest.yaml"
         if manifest_path.is_file() and "SECTION_DIMENSION_INDEX" in values:
@@ -137,8 +178,8 @@ def main(argv: list[str] | None = None) -> int:
                 for entry in dimensions.values()
             )
             values["SECTION_DIMENSION_STATUS"] = "\n".join(
-                f"- {entry['display_name']}：无已确认问题"
-                for entry in dimensions.values()
+                f"- {entry['display_name']}：{_display_dimension_status(dimension_statuses.get(dimension, 'unverified'))}"
+                for dimension, entry in dimensions.items()
             )
         missing = [name for name in parse_contract(template)["required"] if name not in values or values[name] is None or (isinstance(values[name], str) and not values[name].strip())]
         if missing:

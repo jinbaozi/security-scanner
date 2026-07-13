@@ -105,6 +105,7 @@ probe JSON 必须包含并保留到 scanner audit_log：
 - `fallback_reason`
 - `unavailable_proof`
 - `tool_invocations`
+- `input_total`、`result_total`、`result_counts`、`coverage_complete`
 - `results[]`
 
 `checksec_state` 只表达全局工具能力探测结果；`selected_mode 仅为摘要字段`，多文件扫描的准确模式以 `results[].mode` 为准。每个 `results[]` 必须保留自己的 `mode`、`parser`、`status`、`failure_reason` 和 `tool_invocation_refs`。
@@ -114,7 +115,9 @@ probe JSON 必须包含并保留到 scanner audit_log：
 - `checksec_state=available` 且 `results[].status=ready`、`results[].source=checksec` 时，按 `results[].checks` 映射 finding。
 - `fallback_used=true` 仅在存在 confirmed unavailable proof 时可接受：全局 `checksec_state=confirmed_unavailable` 且顶层存在 `unavailable_proof`，或单文件 checksec 运行依赖错误且该 `results[]` 存在 `unavailable_proof`。此时 `readelf` / `file` 结果为降级证据。
 - `invocation_error`、`parse_error`、参数不兼容、usage error 或 probe `status=blocked` 时，不得改用 readelf 兜底；必须输出 blocked/unverified 证据，要求修复工具调用或安装正确版本。
-- 单个 ELF 不存在或不可读时，只为该文件输出 `verdict=unverified`，不得污染全局 `checksec_state`。
+- 单个 ELF 不存在或不可读时，只为该文件输出 `verdict=unverified`，不得污染全局 `checksec_state`；probe 总状态必须阻止全量 PASS。
+- ELF 清单中 magic bytes 不是 `0x7fELF` 的条目标记为 `skipped/not_elf` 并使 probe blocked，要求修复 Recon 分类；不得送入 checksec 或计为安全通过。
+- `input_total` 必须等于 `result_total` 且 `coverage_complete=true`；五类 `result_counts` 之和必须等于输入总数。
 
 ### Step 3: 映射检查结果
 
@@ -125,6 +128,7 @@ probe JSON 必须包含并保留到 scanner audit_log：
 - `results[].status=ready`：使用 `source=checksec` 的字段，`evidence` 引用 `tool_invocations` 中的 checksec 命令、exit code 和 parser。
 - `results[].status=degraded`：仅当存在顶层 `unavailable_proof` 或该结果自身的 `unavailable_proof`，且 `fallback_reason=checksec_confirmed_unavailable` 时使用 readelf/file 结果；`confidence` 最高为 `medium`，`evidence` 必须写明降级原因。
 - `results[].status=blocked`：不生成看似通过的 PASS；输出 `status=WARN`、`verdict=unverified` 的工具阻断 finding，`detail` 写明 `failure_reason`。
+- probe 顶层为 blocked 时，允许保留 `results[].status=ready` 子集的真实检查结果，但维度总状态必须保持 blocked，摘要必须同时报告未验证/跳过/阻断数量，禁止表述为“所有 ELF 通过”。
 - `results[].status=unverified`：输出 `status=WARN`、`verdict=unverified` 的文件级 finding。
 - readelf 输出为空或对应子命令失败时，该检查项输出 `unknown/unverified`，不得推导 PASS/FAIL。
 

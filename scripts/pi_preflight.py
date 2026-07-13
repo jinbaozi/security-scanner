@@ -38,6 +38,7 @@ def preflight(skill_root: Path, target: Path) -> dict[str, Any]:
         "scripts/audit_render.py",
         "scripts/safe_grep.py",
         "scripts/content_compliance_probe.py",
+        "scripts/rpm_integrity_probe.py",
         "scripts/resolve_scanners.py",
         "scripts/normalize_shards.py",
         "scripts/build_report_values.py",

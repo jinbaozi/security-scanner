@@ -267,11 +267,41 @@ def test_unreadable_file_is_unverified_without_polluting_global_tool_state(tmp_p
 
     result = ElfHardeningProbe(runner=runner).probe([good, missing])
 
-    assert result["status"] == "ready"
+    assert result["status"] == "blocked"
     assert result["checksec_state"] == "available"
     assert [entry["status"] for entry in result["results"]] == ["ready", "unverified"]
     assert result["results"][1]["failure_reason"] == "file_unreadable"
     assert not any(str(missing) in " ".join(command) for command in calls)
+
+
+def test_non_elf_input_is_skipped_and_blocks_false_complete_result(tmp_path):
+    elf = _elf_file(tmp_path, "good")
+    text = tmp_path / "not-elf"
+    text.write_text("plain text", encoding="utf-8")
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append(command)
+        if command[:2] == ["checksec", "--help"]:
+            return _help_ok(command)
+        if command[0] == "checksec" and "--format=json" in command:
+            return CommandResult(command, 0, '{"nx":"NX enabled"}', "")
+        raise AssertionError(f"unexpected command: {command!r}")
+
+    result = ElfHardeningProbe(runner=runner).probe([elf, text])
+
+    assert result["status"] == "blocked"
+    assert result["coverage_complete"] is True
+    assert result["input_total"] == result["result_total"] == 2
+    assert result["result_counts"] == {
+        "ready": 1,
+        "degraded": 0,
+        "blocked": 0,
+        "unverified": 0,
+        "skipped": 1,
+    }
+    assert result["results"][1]["failure_reason"] == "not_elf"
+    assert not any(str(text) in " ".join(command) for command in calls)
 
 
 def test_cli_batches_and_checkpoints_results(tmp_path, capsys):
@@ -301,6 +331,9 @@ def test_cli_batches_and_checkpoints_results(tmp_path, capsys):
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     assert exit_code == 0
     assert len(payload["results"]) == 3
+    assert payload["coverage_complete"] is True
+    assert payload["input_total"] == payload["result_total"] == 3
+    assert payload["result_counts"]["ready"] == 3
     assert payload["checkpoint"]["batches_completed"] == 2
     assert payload["checkpoint"]["input_total"] == 3
     assert payload["checkpoint"]["remaining"] == 0

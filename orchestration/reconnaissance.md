@@ -92,6 +92,8 @@ else
 fi
 ```
 
+ELF 清单必须再按 magic bytes 做确定性复核，不能用可执行权限、无扩展名或 `file` 输出中的泛化关键词替代。Shell/Perl/Python 脚本即使可执行也不得进入 ELF 清单。复核后的条目数写入 `file_lists.elf.count`；`elf_hardening_probe.py` 若返回 `skipped/not_elf`，A0 应判定 Recon 分类错误并重建清单，不能把跳过条目计为 ELF PASS。
+
 ### 3.3 源码文件
 
 ```bash
