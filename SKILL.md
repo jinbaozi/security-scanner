@@ -84,8 +84,8 @@ SKILL.md（本文件）-> orchestration/router.md（紧凑路由）
                -> references/redline-spec.md（仅 A3b/综合报告）
 ```
 
-调度细节、审计点、条件跳过、降级矩阵：见 `orchestration/orchestrator.md`。  
-Finding 字段定义：见 `references/finding-schema.md`（勿在此内嵌全文）。  
+调度细节、审计点、条件跳过、降级矩阵：见 `orchestration/orchestrator.md`。
+Finding 字段定义：见 `references/finding-schema.md`（勿在此内嵌全文）。
 Pi 安全阈值与中断恢复：见 `references/agent-runtime-limits.md`、`references/abort-recovery.md`（仅风险或恢复时加载）。
 人读安装与目录树：见 `README.md`（运行时 agent 不读）。
 
