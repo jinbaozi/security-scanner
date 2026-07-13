@@ -40,6 +40,17 @@ def discover_scanners(root: Path = Path("scanners")) -> dict[str, Scanner]:
             )
 
         meta = validate_meta(meta_yaml)
+        skill_root = root.resolve().parent
+        for reference in meta.references:
+            reference_path = (dim_dir / reference.path).resolve()
+            if not reference_path.is_relative_to(skill_root):
+                raise ValueError(
+                    f"declared reference escapes skill root: {reference.path} in {meta_yaml}"
+                )
+            if not reference_path.is_file():
+                raise ValueError(
+                    f"declared reference not found: {reference.path} in {meta_yaml}"
+                )
         if meta.id in scanners:
             raise ValueError(f"duplicate scanner id {meta.id!r}")
 

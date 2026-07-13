@@ -4,7 +4,7 @@
 
 ## 有界工具输出（强制）
 
-模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+模式搜索必须使用本维 `references/public-addresses.regex`，该资源由 `meta.yaml` 以 `scope=tool` 登记，只允许交给 `$SKILL_ROOT/scripts/safe_grep.py` 本地加载。文件清单必须先由 `resolve_artifact.py` 从规范化 Scan Plan 的 `file_lists` 解析；禁止猜测文件名、创建 `/tmp` 规则、使用进程替换或执行裸 `grep/find`。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
 
 ## 角色
 
@@ -15,6 +15,7 @@ URL Scanner Agent 仅负责检测源码和配置文件中的公网地址暴露�
 - `source_shards`: 源码文件分片列表
 - `config_files`: 配置文件列表
 - `component_name`: 源码组件名称
+- `references/public-addresses.regex`: 版本化公网地址候选规则，仅由本地工具加载
 - `../../references/allowlists.md`: 白名单、例外和第三方代码排除规则
 - `references/redline-clauses.md`: url 维度 redline 条款切片。
 
@@ -76,25 +77,20 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 
 ## 执行步骤
 
-### Step 1: Layer 1 - 正则提取
+### Step 1: Layer 1 - 确定性候选提取
 
-对分配的文件执行 grep 提取所有疑似地址：
+Orchestrator 先调用 `resolve_artifact.py`，从 `scan-plan.normalized.json` 分别解析 source/config 清单；读取其紧凑 JSON 中的 `list_path` 作为 `$FILES_LIST`，不得自行生成清单。每个已解析清单执行：
 
 ```bash
-# HTTP/HTTPS URL
-grep -rEno 'https?://[^"'\''>[:space:]]+' {files}
-
-# IP 地址
-grep -rEno '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' {files}
-
-# 邮箱地址
-grep -rEno '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}' {files}
-
-# 域名引用
-grep -rEno '[a-zA-Z0-9][-a-zA-Z0-9]*\.(com|cn|org|net|io|dev|edu|gov)' {files}
+python3 "$SKILL_ROOT/scripts/safe_grep.py" \
+  --pattern-file "$SKILL_ROOT/scanners/url/references/public-addresses.regex" \
+  --files-file "$FILES_LIST" \
+  --base-root "$MATERIALIZED_ROOT" \
+  --max-count 200 --max-bytes 32768 \
+  --output "$REPORT_ROOT/evidence/url-candidates.json"
 ```
 
-合并所有匹配结果，按 `file:line:value` 去重。
+候选按 `file:line:match` 去重，并必须经过 Layer 2/3 复核后才能形成 finding。
 
 ### Step 2: Layer 2 - 白名单过滤
 

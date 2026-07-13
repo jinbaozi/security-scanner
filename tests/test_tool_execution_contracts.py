@@ -27,9 +27,29 @@ def test_versioned_regex_files_compile_without_shell_parsing():
     for relative in (
         "scanners/comment/references/malware-keywords.regex",
         "scanners/crypto/references/weak-crypto.regex",
+        "scanners/url/references/public-addresses.regex",
+        "scanners/secret/references/credential-candidates.regex",
     ):
         pattern = (ROOT / relative).read_text(encoding="utf-8").rstrip("\r\n")
         re.compile(pattern)
+
+
+def test_runtime_docs_do_not_guess_rules_lists_or_incomplete_report_commands():
+    runtime_paths = [ROOT / "SKILL.md", *list((ROOT / "orchestration").glob("*.md")), *list((ROOT / "scanners").glob("*/scanner.md"))]
+    text = "\n".join(path.read_text(encoding="utf-8") for path in runtime_paths)
+
+    for forbidden in (
+        "pattern-urls.md", "pattern-secrets.md", "<(find",
+        "audit_render.py --max-residual", "render_template.py --values",
+    ):
+        assert forbidden not in text
+    scanner_text = "\n".join(path.read_text(encoding="utf-8") for path in (ROOT / "scanners").glob("*/scanner.md"))
+    for forbidden in ("recon/elf-files.txt", "recon/rpm-files.txt", "recon/content-compliance-files.txt"):
+        assert forbidden not in scanner_text
+    reporter = (ROOT / "orchestration/reporter.md").read_text(encoding="utf-8")
+    for option in ("--template", "--values", "--output", "--rendered"):
+        assert option in reporter
+    assert "scripts/report_pipeline.py" in reporter
 
 
 def test_elf_scanner_uses_deterministic_probe_instead_of_direct_checksec_invocation():

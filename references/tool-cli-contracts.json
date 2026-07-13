@@ -1,47 +1,147 @@
 {
   "schema_version": "1.0",
+  "exit_codes": {
+    "success": 0,
+    "cli_contract_error": 2,
+    "warn_or_degraded": 3,
+    "failed": 4,
+    "blocked": 5,
+    "critical": 6
+  },
   "contracts": {
+    "pi_preflight": {
+      "script": "scripts/pi_preflight.py",
+      "status_name": "preflight",
+      "required_options": ["--target"],
+      "optional_options": ["--output-json"],
+      "output_artifact_type": "preflight_report"
+    },
+    "package_materializer": {
+      "script": "scripts/package_materializer.py",
+      "status_name": "materialize",
+      "required_option_groups": [["--target", "target_path"], ["--report-dir", "--output-dir", "output_dir"]],
+      "optional_options": ["--output-json", "--allow-builddep"],
+      "output_artifact_type": "materialization_report"
+    },
+    "normalize_shards": {
+      "script": "scripts/normalize_shards.py",
+      "status_name": "shard-normalize",
+      "required_options": ["--input", "--output"],
+      "optional_options": ["--report-root"],
+      "forbidden_options": ["--report-dir"],
+      "input_artifact_type": "scan_plan",
+      "output_artifact_type": "normalized_scan_plan"
+    },
+    "validate_shards": {
+      "script": "scripts/validate_shards.py",
+      "status_name": "shard-validation",
+      "required_options": ["--input", "--output"],
+      "input_artifact_type": "normalized_scan_plan",
+      "output_artifact_type": "shard_validation"
+    },
     "summarize_scan_plan": {
       "script": "scripts/summarize_scan_plan.py",
+      "status_name": "scan-plan-summary",
       "required_options": ["--input", "--output"],
       "optional_options": ["--sample-size", "--max-bytes"],
       "forbidden_options": ["--report-dir", "--materialization"],
       "input_artifact_type": "scan_plan",
       "output_artifact_type": "scan_plan_summary"
     },
+    "resolve_scanners": {
+      "script": "scripts/resolve_scanners.py",
+      "status_name": "scanner-registry",
+      "required_options": ["--skill-root", "--profile", "--output"],
+      "output_artifact_type": "scanner_registry_plan"
+    },
+    "resolve_artifact": {
+      "script": "scripts/resolve_artifact.py",
+      "status_name": "artifact-resolver",
+      "required_options": ["--scan-plan", "--report-root", "--file-class", "--output"],
+      "optional_options": ["--base-root"],
+      "input_artifact_type": "normalized_scan_plan",
+      "output_artifact_type": "resolved_file_list"
+    },
     "safe_grep": {
       "script": "scripts/safe_grep.py",
-      "required_option_groups": [
-        ["--pattern", "--pattern-file"],
-        ["--root", "--files-file"]
-      ],
+      "status_name": "safe-grep",
+      "required_option_groups": [["--pattern", "--pattern-file"], ["--root", "--files-file"]],
       "required_options": ["--output"],
       "optional_options": ["--base-root", "--include", "--max-count", "--max-bytes", "--per-file-cap"],
+      "option_aliases": {"--output": ["--output-json"], "--max-count": ["--max-results"]},
       "output_artifact_type": "safe_grep_result"
     },
     "summarize_grep_evidence": {
       "script": "scripts/summarize_grep_evidence.py",
+      "status_name": "grep-evidence-summary",
       "required_options": ["--input", "--output"],
       "optional_options": ["--sample-size", "--max-bytes"],
       "input_artifact_type": "safe_grep_result",
       "output_artifact_type": "grep_evidence_summary"
     },
+    "content_compliance_probe": {
+      "script": "scripts/content_compliance_probe.py",
+      "status_name": "content-probe",
+      "required_options": ["--rules", "--files-file", "--base-root", "--output-summary", "--evidence-output"],
+      "optional_options": ["--max-results"],
+      "input_artifact_type": "scan_plan_file_list",
+      "output_artifact_type": "content_compliance_probe_result"
+    },
+    "elf_hardening_probe": {
+      "script": "scripts/elf_hardening_probe.py",
+      "status_name": "elf_probe",
+      "required_option_groups": [["--file", "--list-file"]],
+      "required_options": ["--output-json"],
+      "optional_options": ["--batch-size", "--checkpoint", "--resume"],
+      "input_artifact_type": "elf_file_list",
+      "output_artifact_type": "elf_probe_result"
+    },
+    "rpm_integrity_probe": {
+      "script": "scripts/rpm_integrity_probe.py",
+      "status_name": "rpm-integrity-probe",
+      "required_option_groups": [["--rpm", "--list-file"]],
+      "required_options": ["--output-json"],
+      "input_artifact_type": "rpm_file_list",
+      "output_artifact_type": "rpm_integrity_probe_result"
+    },
+    "measure_context": {
+      "script": "scripts/measure_context.py",
+      "status_name": "context-check",
+      "required_options": ["--phase", "--inputs", "--output"],
+      "input_artifact_type": "artifact_paths",
+      "output_artifact_type": "context_measurement"
+    },
     "build_report_values": {
       "script": "scripts/build_report_values.py",
+      "status_name": "report-values",
       "required_options": ["--template", "--component-name", "--target-path", "--scan-date", "--output"],
       "optional_options": ["--scan-plan", "--findings", "--base-values", "--dimension-statuses"],
-      "forbidden_options": ["--report-dir", "--component-version", "--overall-status", "--dimensions"]
+      "forbidden_options": ["--report-dir", "--component-version", "--overall-status", "--dimensions"],
+      "output_artifact_type": "report_values"
+    },
+    "report_pipeline": {
+      "script": "scripts/report_pipeline.py",
+      "status_name": "report-pipeline",
+      "required_options": ["--skill-root", "--report-root", "--component-name", "--target-path", "--scan-date", "--scan-plan", "--findings", "--dimension-statuses", "--output"],
+      "optional_options": ["--base-values"],
+      "input_artifact_type": "report_inputs",
+      "output_artifact_type": "report_pipeline_result"
     },
     "render_template": {
       "script": "scripts/render_template.py",
+      "status_name": "render",
       "required_options": ["--template", "--output"],
-      "optional_options": ["--values", "--max-output-bytes", "--strict", "--report-missing"]
+      "optional_options": ["--values", "--max-output-bytes", "--strict", "--report-missing"],
+      "output_artifact_type": "rendered_report"
     },
     "audit_render": {
       "script": "scripts/audit_render.py",
+      "status_name": "render-audit",
       "required_options": ["--rendered", "--output"],
       "optional_options": ["--template", "--max-residual"],
+      "forbidden_options": ["--report", "--values"],
       "policy": {"max_residual": 20},
+      "input_artifact_type": "rendered_report",
       "output_artifact_type": "render_audit"
     }
   }

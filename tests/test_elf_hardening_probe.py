@@ -389,6 +389,18 @@ def test_cli_resume_skips_files_already_in_checkpoint(tmp_path, capsys):
     assert len(capsys.readouterr().out.splitlines()) == 1
 
 
+def test_cli_missing_list_file_blocks_without_traceback(tmp_path, capsys):
+    output_json = tmp_path / "probe.json"
+
+    exit_code = main(["--list-file", str(tmp_path / "missing.txt"), "--output-json", str(output_json)])
+
+    captured = capsys.readouterr()
+    assert exit_code == 5
+    assert "reason=list_file_not_found" in captured.err
+    assert "Traceback" not in captured.err
+    assert not output_json.exists()
+
+
 def test_cli_writes_json_and_prints_single_summary_line(tmp_path, capsys):
     elf = _elf_file(tmp_path)
     output_json = tmp_path / "security-reports" / "elf-probe.json"

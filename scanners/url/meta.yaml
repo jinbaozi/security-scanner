@@ -5,6 +5,8 @@ description: 硬编码公网 URL、IP、域名、邮箱；HTTP 明文外部地�
 
 consumes: []
 references:
+  - path: references/public-addresses.regex
+    scope: tool
   - path: ../../references/allowlists.md
     scope: shared
   - path: references/redline-clauses.md

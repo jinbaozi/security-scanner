@@ -8,6 +8,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import re
+import stat
 import sys
 from pathlib import Path
 from typing import Any
@@ -169,10 +170,18 @@ def main(argv: list[str] | None = None) -> int:
             print("safe-grep status=blocked reason=root_not_directory", file=sys.stderr)
             return 5
     else:
-        files_file = args.files_file.expanduser().resolve()
-        if not files_file.is_file():
+        raw_files_file = args.files_file.expanduser()
+        if raw_files_file.is_symlink():
+            print("safe-grep status=blocked reason=files_file_not_regular", file=sys.stderr)
+            return 5
+        try:
+            if not stat.S_ISREG(raw_files_file.stat().st_mode):
+                print("safe-grep status=blocked reason=files_file_not_regular", file=sys.stderr)
+                return 5
+        except OSError:
             print("safe-grep status=blocked reason=files_file_not_found", file=sys.stderr)
             return 5
+        files_file = raw_files_file.resolve()
         root = (args.base_root or files_file.parent).expanduser().resolve()
         if not root.is_dir():
             print("safe-grep status=blocked reason=base_root_not_directory", file=sys.stderr)

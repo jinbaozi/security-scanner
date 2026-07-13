@@ -2,13 +2,17 @@
 """Run local content-compliance rules without placing rule text in model calls."""
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import re
 import sys
 from pathlib import Path
 from typing import Any
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 def load_rules(path: Path) -> list[dict[str, Any]]:
@@ -78,7 +82,9 @@ def listed_paths(files_file: Path, base_root: Path) -> tuple[list[Path], int, in
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run local content-compliance rules.")
+    parser = CompactArgumentParser(
+        description="Run local content-compliance rules.", status_name="content-probe"
+    )
     parser.add_argument("--rules", type=Path, required=True)
     parser.add_argument("--files-file", type=Path, required=True)
     parser.add_argument("--base-root", type=Path, required=True)

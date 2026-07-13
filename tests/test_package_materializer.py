@@ -281,7 +281,7 @@ def test_cli_output_json_blocked_result_does_not_print_full_error_payload(tmp_pa
     stdout_lines = capsys.readouterr().out.splitlines()
     payload = json.loads(result_path.read_text(encoding="utf-8"))
 
-    assert exit_code == 2
+    assert exit_code == 5
     assert payload["status"] == "blocked"
     assert payload["errors"]
     assert len(stdout_lines) == 1

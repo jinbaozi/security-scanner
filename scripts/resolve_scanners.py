@@ -2,10 +2,14 @@
 """Resolve scanner profiles through the registry without dumping registry source."""
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 PROFILES = {
@@ -23,7 +27,9 @@ PROFILES = {
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Resolve scanner registry profile.")
+    parser = CompactArgumentParser(
+        description="Resolve scanner registry profile.", status_name="scanner-registry"
+    )
     parser.add_argument("--skill-root", type=Path, required=True)
     parser.add_argument("--profile", choices=sorted(PROFILES), required=True)
     parser.add_argument("--output", type=Path, required=True)

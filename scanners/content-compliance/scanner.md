@@ -66,12 +66,12 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 
 ### Step 2: 本地确定性文案扫描
 
-禁止在 prompt、shell 参数或模型输出中拼接规则原文。执行：
+禁止在 prompt、shell 参数或模型输出中拼接规则原文。必须先用 `resolve_artifact.py --file-class content-compliance` 从规范化 Scan Plan 解析清单，将 resolver 的 `list_path` 作为 `$CONTENT_LIST`；不得猜测固定清单名。执行：
 
 ```bash
 python3 "$SKILL_ROOT/scripts/content_compliance_probe.py" \
   --rules "$SKILL_ROOT/scanners/content-compliance/references/forbidden-terms.md" \
-  --files-file "$REPORT_ROOT/recon/content-compliance-files.txt" \
+  --files-file "$CONTENT_LIST" \
   --base-root "$SOURCE_ROOT" \
   --output-summary "$REPORT_ROOT/findings/content-compliance-probe.json" \
   --evidence-output "$REPORT_ROOT/evidence/content-compliance/raw-matches.jsonl" \

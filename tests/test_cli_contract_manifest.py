@@ -6,6 +6,59 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "references" / "tool-cli-contracts.json"
+RUNTIME_TOOLS = {
+    "pi_preflight",
+    "package_materializer",
+    "normalize_shards",
+    "validate_shards",
+    "summarize_scan_plan",
+    "resolve_scanners",
+    "resolve_artifact",
+    "safe_grep",
+    "summarize_grep_evidence",
+    "content_compliance_probe",
+    "elf_hardening_probe",
+    "rpm_integrity_probe",
+    "measure_context",
+    "build_report_values",
+    "report_pipeline",
+    "render_template",
+    "audit_render",
+}
+
+
+def test_machine_contract_covers_every_runtime_tool_and_exit_taxonomy():
+    payload = json.loads(CONTRACTS.read_text(encoding="utf-8"))
+
+    assert set(payload["contracts"]) == RUNTIME_TOOLS
+    assert payload["exit_codes"] == {
+        "success": 0,
+        "cli_contract_error": 2,
+        "warn_or_degraded": 3,
+        "failed": 4,
+        "blocked": 5,
+        "critical": 6,
+    }
+    for name, contract in payload["contracts"].items():
+        assert contract["status_name"], name
+        assert contract["output_artifact_type"], name
+
+
+def test_every_runtime_cli_rejects_missing_arguments_compactly():
+    payload = json.loads(CONTRACTS.read_text(encoding="utf-8"))
+
+    for name, contract in payload["contracts"].items():
+        result = subprocess.run(
+            [sys.executable, str(ROOT / contract["script"])],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        assert result.returncode == 2, name
+        assert result.stdout == "", name
+        assert result.stderr.count("\n") == 1, name
+        assert "reason=cli_contract_error" in result.stderr, name
+        assert "usage:" not in result.stderr.lower(), name
 
 
 def test_machine_readable_cli_contract_matches_script_help():

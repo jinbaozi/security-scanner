@@ -109,7 +109,7 @@ materialization JSON 必须包含：
 
 Phase 0 的 `target` 必须改为物化后的源码根和二进制根集合；`source_shards` 只能来自 `origin=source_prepped` 或 `origin=raw_directory` 的源码文件。SRPM 外层 `Source*.tar.*`、`Patch*` 和 `.spec` 只能作为物化证据，不得计入已扫描源码。Recon 完成后必须依次调用 `$SKILL_ROOT/scripts/normalize_shards.py`、`$SKILL_ROOT/scripts/validate_shards.py` 和 `$SKILL_ROOT/scripts/summarize_scan_plan.py`；摘要器的 `--input` 固定为 Recon 生成的 `$REPORT_ROOT/recon/scan-plan.normalized.json`，不得传入 Phase -0 的 materialization JSON，也不得使用不存在的 `--materialization` 参数。单片超过 50 由 normalizer 确定性拆分，总片数超过 16 按 validation 的 `execution_batches` 串行调度；Pi 只读取紧凑的 `scan-plan.summary.json` 与 shard validation，不读取完整路径列表。
 
-每个 Phase 的下游调用前必须执行 artifact gate：验证上游状态为允许继续、路径来自上游 JSON 的 artifact/file-list 引用、文件存在可读、JSON 可解析且 schema 正确。缺失产物时停止当前 Phase并记录 `expected_artifact`、`producer_phase`、`producer_status` 和 `reason`，禁止通过猜文件名重试。`references/tool-cli-contracts.json` 已登记的关键 CLI 参数从该文件取得并以 argv 数组执行，不得由自然语言猜测；usage/code 2 为 `cli_contract_error`，不得随机换参数重试。Phase 1 的 `safe_grep.py --files-file` 必须来自 `file_lists.<class>.path` 或 `source_shards[*].file_list`，禁止猜测 `manifest-files.txt`，禁止在清单缺失时静默递归整个物化目录。
+每个 Phase 的下游调用前必须执行 artifact gate：验证上游状态为允许继续、路径来自上游 JSON 的 artifact/file-list 引用、文件存在可读、JSON 可解析且 schema 正确。缺失产物时停止当前 Phase并记录 `expected_artifact`、`producer_phase`、`producer_status` 和 `reason`，禁止通过猜文件名重试。`references/tool-cli-contracts.json` 已登记全部运行期 CLI，参数从该文件取得并以 argv 数组执行，不得由自然语言猜测；code 2 只表示 `cli_contract_error`，3=warn/degraded、4=failed、5=blocked、6=critical，不得随机换参数重试。所有 Scan Plan 清单先经 `resolve_artifact.py` 解析，禁止进程替换和固定文件名。Phase 1 的 `safe_grep.py --files-file` 必须来自 `file_lists.<class>.path` 或 `source_shards[*].file_list`，禁止猜测 `manifest-files.txt`，禁止在清单缺失时静默递归整个物化目录。
 
 ### Phase 1：注册表加载与拓扑调度
 

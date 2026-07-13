@@ -12,7 +12,7 @@ CLI = ROOT / "scripts" / "validate_shards.py"
 
 @pytest.mark.parametrize(
     ("count", "status", "exit_code"),
-    [(40, "pass", 0), (45, "warn", 2), (50, "pass", 0), (51, "fail", 3)],
+    [(40, "pass", 0), (45, "warn", 3), (50, "pass", 0), (51, "fail", 4)],
 )
 def test_validate_shards_enforces_absolute_file_limit(
     count, status, exit_code, tmp_path
@@ -84,6 +84,6 @@ def test_validate_shards_supports_legacy_files_arrays(tmp_path):
         check=False,
     )
 
-    assert result.returncode == 3
+    assert result.returncode == 4
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["errors"][0]["reason"] == "shard_file_limit_exceeded"

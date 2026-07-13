@@ -19,13 +19,17 @@ Usage:
 """
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import sys
 from pathlib import Path
 from string import Template
 from typing import Any
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 # [[UPPER_SNAKE_CASE]] - safe delimiter; cannot collide with f-string syntax.
@@ -221,8 +225,9 @@ def _read_values_file(path: Path) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Render a Security Compliance Scanner report template."
+    parser = CompactArgumentParser(
+        description="Render a Security Compliance Scanner report template.",
+        status_name="render",
     )
     parser.add_argument("--template", type=Path, required=True)
     parser.add_argument(
@@ -249,7 +254,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    template_str = args.template.read_text(encoding="utf-8")
+    try:
+        template_str = args.template.read_text(encoding="utf-8")
+    except OSError:
+        print("render status=blocked reason=template_not_found", file=sys.stderr)
+        return 5
     if args.values:
         try:
             values = _read_values_file(args.values)

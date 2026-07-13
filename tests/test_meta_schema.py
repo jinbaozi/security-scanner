@@ -1,5 +1,6 @@
 import pytest
 from pathlib import Path
+from scanners.registry import discover_scanners
 from scanners.registry.schema import validate_meta, MetaSchema
 
 
@@ -27,6 +28,35 @@ failure:
     assert isinstance(meta, MetaSchema)
     assert meta.id == "comment"
     assert meta.session.model == "sonnet"
+
+
+def test_registry_rejects_missing_declared_reference(tmp_path: Path):
+    dim = tmp_path / "scanners" / "demo"
+    dim.mkdir(parents=True)
+    (dim / "scanner.md").write_text("# demo\n", encoding="utf-8")
+    (dim / "meta.yaml").write_text(
+        """
+id: demo
+name: Demo
+version: 1.0.0
+description: x
+consumes: []
+references:
+  - path: references/missing.regex
+    scope: tool
+session:
+  model: sonnet
+  max_tokens: 16000
+  references_token_budget: 12000
+failure:
+  max_retries: 2
+  on_failure: skip
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="declared reference not found"):
+        discover_scanners(tmp_path / "scanners")
 
 
 def test_inject_as_must_be_data(tmp_path: Path):

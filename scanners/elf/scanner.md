@@ -83,11 +83,11 @@ done
 
 ### Step 2: 执行确定性安全编译探测
 
-ELF Scanner 不得直接拼接或猜测 `checksec` 参数。必须调用确定性适配器，并把完整 JSON 写入 `security-reports/`：
+ELF Scanner 不得直接拼接或猜测 `checksec` 参数。必须先用 `resolve_artifact.py --file-class elf` 从规范化 Scan Plan 解析清单，并确认 resolver 为 `status=ready`；将其 `list_path` 作为 `$ELF_LIST`。不得假设清单名为 `elf-files.txt`。随后调用确定性适配器，并把完整 JSON 写入 `security-reports/`：
 
 ```bash
 python3 "$SKILL_ROOT/scripts/elf_hardening_probe.py" \
-  --list-file "$REPORT_ROOT/recon/elf-files.txt" \
+  --list-file "$ELF_LIST" \
   --output-json "$REPORT_ROOT/elf-probe-{component_name}.json" \
   --batch-size 20 \
   --checkpoint \

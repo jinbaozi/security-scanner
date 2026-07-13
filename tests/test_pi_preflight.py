@@ -35,6 +35,8 @@ def test_pi_preflight_resolves_skill_resources_outside_skill_cwd(tmp_path):
     assert report["status"] == "pass"
     assert report["scanner_count"] == 13
     assert report["template_count"] == 14
+    assert report["tool_contract_count"] == 17
+    assert report["tool_contract_errors"] == []
     assert report["skill_root"] == str(ROOT)
     assert report["target_root"] == str(target.resolve())
 

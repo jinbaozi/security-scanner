@@ -12,7 +12,7 @@ CLI = ROOT / "scripts" / "measure_context.py"
 
 @pytest.mark.parametrize(
     ("size", "risk", "exit_code"),
-    [(30_000, "low", 0), (120_000, "medium", 2), (330_000, "critical", 3)],
+    [(30_000, "low", 0), (120_000, "medium", 3), (330_000, "critical", 6)],
 )
 def test_measure_context_classifies_file_backed_inputs(size, risk, exit_code, tmp_path):
     artifact = tmp_path / "artifact.json"
@@ -63,7 +63,7 @@ def test_measure_context_missing_input_is_auditable_warning(tmp_path):
         check=False,
     )
 
-    assert result.returncode == 2
+    assert result.returncode == 3
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["risk_level"] == "medium"
     assert report["warnings"] == ["input_not_found"]

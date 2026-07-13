@@ -1,13 +1,17 @@
 """Deterministic, locale-stable RPM signature and digest probe."""
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 Runner = Callable[..., "CommandResult"]
@@ -168,7 +172,10 @@ def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> int:
-    parser = argparse.ArgumentParser(description="Probe RPM signature and digest status.")
+    parser = CompactArgumentParser(
+        description="Probe RPM signature and digest status.",
+        status_name="rpm-integrity-probe",
+    )
     parser.add_argument("--rpm", dest="rpms", action="append", type=Path, default=[])
     parser.add_argument("--list-file", type=Path)
     parser.add_argument("--output-json", type=Path, required=True)
@@ -191,7 +198,7 @@ def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> i
         f"rpm-integrity-probe status={payload['status']} files={payload['result_total']} "
         f"ready={counts['ready']} unverified={counts['unverified']} blocked={counts['blocked']}"
     )
-    return 2 if payload["status"] == "blocked" else 0
+    return 5 if payload["status"] == "blocked" else 0
 
 
 if __name__ == "__main__":

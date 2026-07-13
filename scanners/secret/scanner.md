@@ -4,7 +4,7 @@
 
 ## 有界工具输出（强制）
 
-模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py` 并读取其 JSON；下文裸 `grep` 仅表示检测规则，禁止直接执行。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
+模式搜索必须使用本维 `references/credential-candidates.regex`，该资源由 `meta.yaml` 以 `scope=tool` 登记，只允许交给 `$SKILL_ROOT/scripts/safe_grep.py` 本地加载。文件清单必须先由 `resolve_artifact.py` 从规范化 Scan Plan 解析；禁止猜测文件名、创建 `/tmp` 规则、使用进程替换或执行裸 `grep/find`。默认最多保留 200 条样本、32 KiB JSON，完整计数保留在文件中且终端只输出一行。单维 finding 上限 200；超限按严重度和 file/check_item 聚合，audit_log 必须记录 `truncated_count`，原始命中写 evidence 文件且不得回显。
 
 ## 角色
 
@@ -15,6 +15,7 @@ Secret Scanner Agent 仅负责检测源码和配置文件中的硬编码凭证�
 - `source_shards`: 源码文件分片列表
 - `config_files`: 配置文件列表
 - `component_name`: 源码组件名称
+- `references/credential-candidates.regex`: 版本化凭证候选规则，仅由本地工具加载
 - `references/redline-clauses.md`: secret 维度 redline 条款切片。
 
 ## 输出
@@ -61,32 +62,22 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 
 ## 执行步骤
 
-### Step 1: Layer 1 - 关键字 grep
+### Step 1: Layer 1 - 确定性候选提取
+
+Orchestrator 先调用 `resolve_artifact.py`，从 `scan-plan.normalized.json` 分别解析 source/config 清单；读取其紧凑 JSON 中的 `list_path` 作为 `$FILES_LIST`，不得自行生成清单。每个已解析清单执行：
 
 ```bash
-grep -rinE "(userid|username|password|passwd|pass|pwd|key|sharekey|secret|token|apikey|api_key|access_key|code|encode|encrypt|enc|dec|decrypt|credential)" {files}
+python3 "$SKILL_ROOT/scripts/safe_grep.py" \
+  --pattern-file "$SKILL_ROOT/scanners/secret/references/credential-candidates.regex" \
+  --files-file "$FILES_LIST" \
+  --base-root "$MATERIALIZED_ROOT" \
+  --max-count 200 --max-bytes 32768 \
+  --output "$REPORT_ROOT/evidence/secret-candidates.json"
 ```
 
-### Step 2: Layer 1.5 - 凭证格式正则
+### Step 2: Layer 1.5 - 强格式候选
 
-```bash
-# SSH / PEM 私钥头
-grep -rn "BEGIN.*PRIVATE KEY" {files}
-
-# AWS Access Key
-grep -rEno "AKIA[0-9A-Z]{16}" {files}
-
-# 常见 API Key 前缀
-grep -rEno "(sk-live|sk-prod|xox[baprs]-|ghp_|glpat-)[A-Za-z0-9._-]{8,}" {files}
-
-# 通用长 Base64 字符串，要求出现在 password/key/secret/token 赋值上下文中
-grep -rEno "(password|key|secret|token)\s*[=:]\s*[\"'][A-Za-z0-9+/]{20,}={0,2}[\"']" {files}
-
-# 认证密钥 / 加密密钥 / 日志凭据
-grep -rEno "(auth_key|authSecret|jwt_secret|session_secret|signing_key|verification_key)\s*[=:]\s*[\"'][^\"']{8,}[\"']" {files}
-grep -rEno "(encrypt_key|encryption_key|cipher_key|aes_key|private_key|root_key|work_key)\s*[=:]\s*[\"'][^\"']{8,}[\"']" {files}
-grep -rEn "logger\.(info|debug|warn|error)[^\\n]*(password|passwd|pwd|token|secret|api_key|authorization)" {files}
-```
+私钥头、云访问键、Token 前缀、赋值上下文和日志凭据规则均已固化在版本化规则文件中。命中仅为 candidate，必须执行后续过滤、脱敏和上下文复核。
 
 ### Step 3: Layer 2 - 模式过滤
 
@@ -135,13 +126,7 @@ AWS Access Key ID 的特殊判定：
 
 ### 配置文件专项检查
 
-对 `.conf`、`.yaml`、`.yml`、`.ini`、`.properties`、`.env` 等配置文件执行：
-
-```bash
-grep -inE "^(.*password|.*passwd|.*pwd|.*key|.*secret|.*token)\s*[=:]" {config_files}
-```
-
-配置文件中的硬编码凭证通常 severity 降低一级，但真实生产凭证、私钥和云密钥不得降级。
+对 `.conf`、`.yaml`、`.yml`、`.ini`、`.properties`、`.env` 等配置清单复用同一版本化规则和 `safe_grep.py`，不得另行执行裸 grep。配置文件中的硬编码凭证通常 severity 降低一级，但真实生产凭证、私钥和云密钥不得降级。
 
 ## 异常处理
 

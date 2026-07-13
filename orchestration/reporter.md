@@ -334,7 +334,21 @@ Reporter 必须为 `reporting_dimensions` 中全部 13 个维度生成独立详�
 
 ## 渲染器与审计门禁（§6）
 
-Phase 3 渲染阶段必须使用以下固定接口先生成 JSON values；参数以 `references/tool-cli-contracts.json` 为准，组件版本等扩展元数据写入 `base-values.json`，禁止使用不存在的 `--report-dir/--component-version/--overall-status/--dimensions`，禁止在 shell 参数中内联 JSON：
+Phase 3 标准入口为 `scripts/report_pipeline.py`：该工具读取 `templates/report-manifest.yaml`，为综合报告和 13 个维度报告逐一构建 values、渲染并审计，模型不得跳过它而自行拼接参数。标准调用如下：
+
+```bash
+python3 "$SKILL_ROOT/scripts/report_pipeline.py" \
+  --skill-root "$SKILL_ROOT" --report-root "$REPORT_ROOT" \
+  --component-name "$COMPONENT_NAME" --target-path "$TARGET_ROOT" \
+  --scan-date "$SCAN_DATE" \
+  --scan-plan "$REPORT_ROOT/recon/scan-plan.normalized.json" \
+  --findings "$REPORT_ROOT/findings-combined.json" \
+  --dimension-statuses "$REPORT_ROOT/dimension-statuses.json" \
+  --base-values "$REPORT_ROOT/base-values.json" \
+  --output "$REPORT_ROOT/report-pipeline.json"
+```
+
+下列单工具接口是 pipeline 内部的审计契约和故障排查依据，不是允许省略参数的替代入口。参数以 `references/tool-cli-contracts.json` 为准，组件版本等扩展元数据写入 `base-values.json`，禁止使用不存在的 `--report-dir/--component-version/--overall-status/--dimensions`，禁止在 shell 参数中内联 JSON：
 
 ```bash
 python3 "$SKILL_ROOT/scripts/build_report_values.py" \
@@ -349,7 +363,23 @@ python3 "$SKILL_ROOT/scripts/build_report_values.py" \
   --output "$REPORT_ROOT/report-values.json"
 ```
 
-`dimension-statuses.json` 必须覆盖当前 profile 的每一维并区分 `ready/blocked/degraded/skipped/unverified`；未提供覆盖状态时报告总状态只能是 `UNVERIFIED`，空 findings 不得自动解释为 PASS，`REPORT_STATUS` 只能由 builder 计算。随后使用 `$SKILL_ROOT/scripts/render_template.py --values "$REPORT_ROOT/report-values.json" --strict --max-output-bytes 65536`，不得使用内嵌 f-string 或 `.format()` 调用。JSON values 必须按 JSON 解析，strict 缺失时只能重建 values，不得原样重试。完成渲染后必须执行 `$SKILL_ROOT/scripts/audit_render.py --max-residual 20`（A4 审计）；退出码 4 表示 required placeholder 残留，必须读取 audit JSON 的 `required_unfilled` 后回溯 values，禁止删除占位符或替换为空字符串。任何残留 `[[UPPER_SNAKE_CASE]]` 占位符必须可追溯到 `*.missing.json` sidecar。脚本 stdout/stderr 只保留单行状态，报告正文和审计 JSON 不回显到终端。
+`dimension-statuses.json` 必须覆盖当前 profile 的每一维并区分 `ready/blocked/degraded/skipped/unverified`；未提供覆盖状态时报告总状态只能是 `UNVERIFIED`，空 findings 不得自动解释为 PASS，`REPORT_STATUS` 只能由 builder 计算。随后必须使用完整接口，禁止复制省略必填参数的命令简写：
+
+```bash
+python3 "$SKILL_ROOT/scripts/render_template.py" \
+  --template "$SKILL_ROOT/templates/report-comprehensive.md" \
+  --values "$REPORT_ROOT/report-values.json" \
+  --output "$REPORT_ROOT/security-scan-report-${COMPONENT_NAME}-${SCAN_DATE}.md" \
+  --strict --report-missing --max-output-bytes 65536
+
+python3 "$SKILL_ROOT/scripts/audit_render.py" \
+  --rendered "$REPORT_ROOT/security-scan-report-${COMPONENT_NAME}-${SCAN_DATE}.md" \
+  --template "$SKILL_ROOT/templates/report-comprehensive.md" \
+  --output "$REPORT_ROOT/security-scan-report-${COMPONENT_NAME}-${SCAN_DATE}.audit.json" \
+  --max-residual 20
+```
+
+JSON values 必须按 JSON 解析，strict 缺失时只能重建 values，不得原样重试。退出码 4 表示 required placeholder 残留，必须读取 audit JSON 的 `required_unfilled` 后回溯 values，禁止删除占位符或替换为空字符串。任何残留 `[[UPPER_SNAKE_CASE]]` 占位符必须可追溯到 `*.missing.json` sidecar。脚本 stdout/stderr 只保留单行状态，报告正文和审计 JSON 不回显到终端。
 
 渲染器返回 `output_too_large` 时不得写入部分报告：综合输出改为不超过 32 KiB 的索引/摘要，详细内容分章节写入 13 个维度报告或 `details/`；随后分别执行 A4。不得把报告正文回读到 Pi 上下文，只读取大小、状态和紧凑 audit JSON。
 

@@ -55,6 +55,20 @@ def test_strict_render_accepts_zero_and_false():
     assert missing == []
 
 
+def test_render_cli_missing_template_blocks_without_traceback(tmp_path):
+    output = tmp_path / "report.md"
+    result = subprocess.run(
+        [sys.executable, str(RENDER_CLI), "--template", str(tmp_path / "missing.md"),
+         "--output", str(output)],
+        text=True, capture_output=True, check=False,
+    )
+
+    assert result.returncode == 5
+    assert "reason=template_not_found" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not output.exists()
+
+
 def test_render_cli_parses_json_values_file(tmp_path):
     template_path = tmp_path / "template.md"
     values_path = tmp_path / "values.json"

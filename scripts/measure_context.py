@@ -1,10 +1,14 @@
 """Estimate Pi context risk from artifact metadata without reading contents."""
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 from typing import Any
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 TOKENS_MEDIUM = 30_000
 TOKENS_HIGH = 60_000
@@ -61,7 +65,9 @@ def measure(phase: str, paths: list[Path]) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Estimate context risk from file sizes.")
+    parser = CompactArgumentParser(
+        description="Estimate context risk from file sizes.", status_name="context-check"
+    )
     parser.add_argument("--phase", required=True)
     parser.add_argument("--inputs", type=Path, nargs="+", required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -77,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
         f"tokens={report['estimated_tokens']} inputs={len(report['inputs'])} "
         f"output={args.output}"
     )
-    return {"low": 0, "medium": 2, "high": 2, "critical": 3}[
+    return {"low": 0, "medium": 3, "high": 3, "critical": 6}[
         report["risk_level"]
     ]
 

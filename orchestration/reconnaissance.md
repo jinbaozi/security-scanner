@@ -153,7 +153,7 @@ python3 "$SKILL_ROOT/scripts/validate_shards.py" \
   --output "$REPORT_ROOT/recon/shard-validation.json"
 ```
 
-退出码 `0=PASS`、`2=WARN`、`3=FAIL`；FAIL 时重新分片，最多 2 次。总 shard 数超过 16 不属于 FAIL，必须按 validation 的 `execution_batches`（每批最多 16）串行执行。
+统一退出码为 `0=PASS`、`2=CLI_CONTRACT_ERROR`、`3=WARN/DEGRADED`、`4=FAIL`、`5=BLOCKED`、`6=CRITICAL`；FAIL 时重新分片，最多 2 次。总 shard 数超过 16 不属于 FAIL，必须按 validation 的 `execution_batches`（每批最多 16）串行执行。
 
 ## Step 5: 生成 Scan Plan
 

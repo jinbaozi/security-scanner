@@ -189,6 +189,26 @@ def test_safe_grep_reports_missing_pattern_file_without_traceback(tmp_path):
     assert not output.exists()
 
 
+def test_safe_grep_rejects_symlinked_or_ephemeral_file_manifest(tmp_path):
+    root = tmp_path / "src"
+    root.mkdir()
+    listed = tmp_path / "files.txt"
+    listed.write_text("a.txt\n", encoding="utf-8")
+    link = tmp_path / "files-link.txt"
+    link.symlink_to(listed)
+    output = tmp_path / "result.json"
+
+    result = subprocess.run(
+        [sys.executable, str(CLI), "--pattern", "x", "--files-file", str(link),
+         "--base-root", str(root), "--output", str(output)],
+        text=True, capture_output=True, check=False,
+    )
+
+    assert result.returncode == 5
+    assert "reason=files_file_not_regular" in result.stderr
+    assert not output.exists()
+
+
 def test_safe_grep_reports_invalid_pattern_without_traceback(tmp_path):
     output = tmp_path / "matches.json"
     result = subprocess.run(

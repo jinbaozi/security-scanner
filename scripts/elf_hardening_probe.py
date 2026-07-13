@@ -6,13 +6,18 @@ confirmed tool-unavailable fallback.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 Runner = Callable[..., "CommandResult"]
@@ -578,7 +583,10 @@ def _write_probe_checkpoint(path: Path, result: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> int:
-    parser = argparse.ArgumentParser(description="Probe ELF hardening evidence with checksec/readelf.")
+    parser = CompactArgumentParser(
+        description="Probe ELF hardening evidence with checksec/readelf.",
+        status_name="elf_probe",
+    )
     parser.add_argument("--file", dest="files", action="append", default=[], help="ELF file path. May be repeated.")
     parser.add_argument("--list-file", type=Path, help="Text file containing one ELF path per line.")
     parser.add_argument("--output-json", type=Path, required=True, help="Path for the full probe JSON artifact.")
@@ -589,7 +597,14 @@ def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> i
 
     files = list(dict.fromkeys(args.files))
     if args.list_file:
-        files.extend(path for path in _read_list_file(args.list_file) if path not in files)
+        if not args.list_file.is_file():
+            print("elf_probe status=blocked reason=list_file_not_found", file=sys.stderr)
+            return 5
+        try:
+            files.extend(path for path in _read_list_file(args.list_file) if path not in files)
+        except OSError:
+            print("elf_probe status=blocked reason=list_file_unreadable", file=sys.stderr)
+            return 5
     if not files:
         parser.error("at least one --file or --list-file entry is required")
     if args.batch_size < 1:
@@ -614,7 +629,7 @@ def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> i
                 previous_batches = int(result.get("checkpoint", {}).get("batches_completed", 0))
         except (OSError, json.JSONDecodeError, ValueError, TypeError):
             print("elf_probe status=blocked reason=invalid_resume_checkpoint")
-            return 2
+            return 5
 
     completed = {
         str(entry.get("file"))
@@ -671,7 +686,7 @@ def main(argv: list[str] | None = None, *, runner: Runner = default_runner) -> i
     _update_coverage(result, len(files))
     _write_probe_checkpoint(args.output_json, result)
     print(_status_line(result))
-    return 0 if result["status"] in {"ready", "degraded"} else 2
+    return 0 if result["status"] == "ready" else (3 if result["status"] == "degraded" else 5)
 
 
 if __name__ == "__main__":

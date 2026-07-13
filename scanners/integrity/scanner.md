@@ -62,11 +62,11 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 
 ### Step 1: RPM/DEB 签名元数据检测
 
-RPM 不得直接调用 `rpm -K` 后依赖自然语言猜测结果，必须使用确定性适配器；适配器固定 `LC_ALL=C`、同时解析退出码和输出，并保存完整工具证据链：
+RPM 不得直接调用 `rpm -K` 后依赖自然语言猜测结果。必须先用 `resolve_artifact.py --file-class rpm` 从规范化 Scan Plan 解析清单，将 resolver 的 `list_path` 作为 `$RPM_LIST`；不得猜测 `rpm-files.txt`。随后使用确定性适配器；适配器固定 `LC_ALL=C`、同时解析退出码和输出，并保存完整工具证据链：
 
 ```bash
 python3 "$SKILL_ROOT/scripts/rpm_integrity_probe.py" \
-  --list-file "$REPORT_ROOT/recon/rpm-files.txt" \
+  --list-file "$RPM_LIST" \
   --output-json "$REPORT_ROOT/rpm-integrity-probe.json"
 ```
 

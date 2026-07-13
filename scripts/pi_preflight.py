@@ -6,11 +6,15 @@ the terminal receives at most one summary line.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
 from typing import Any
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 if str(SKILL_ROOT) not in sys.path:
@@ -42,8 +46,10 @@ def preflight(skill_root: Path, target: Path) -> dict[str, Any]:
         "scripts/content_compliance_probe.py",
         "scripts/rpm_integrity_probe.py",
         "scripts/resolve_scanners.py",
+        "scripts/resolve_artifact.py",
         "scripts/normalize_shards.py",
         "scripts/build_report_values.py",
+        "scripts/report_pipeline.py",
         "scripts/validate_shards.py",
         "scripts/summarize_scan_plan.py",
         "scripts/measure_context.py",
@@ -62,6 +68,8 @@ def preflight(skill_root: Path, target: Path) -> dict[str, Any]:
     manifest_dimensions: list[str] = []
     template_paths = sorted((skill_root / "templates").glob("*.md"))
     contract_errors: list[dict[str, Any]] = []
+    tool_contract_errors: list[dict[str, Any]] = []
+    tool_contract_count = 0
 
     if not missing_resources:
         try:
@@ -110,6 +118,35 @@ def preflight(skill_root: Path, target: Path) -> dict[str, Any]:
                     )
             if contract_errors:
                 errors.append("invalid_template_contract")
+
+            tool_manifest = json.loads(
+                (skill_root / "references/tool-cli-contracts.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            contracts = tool_manifest.get("contracts", {})
+            tool_contract_count = len(contracts) if isinstance(contracts, dict) else 0
+            if not isinstance(contracts, dict):
+                tool_contract_errors.append({"reason": "contracts_not_object"})
+            else:
+                seen_scripts: set[str] = set()
+                for name, contract in contracts.items():
+                    if not isinstance(contract, dict):
+                        tool_contract_errors.append({"tool": name, "reason": "contract_not_object"})
+                        continue
+                    script = contract.get("script")
+                    if not isinstance(script, str) or not (skill_root / script).is_file():
+                        tool_contract_errors.append({"tool": name, "reason": "script_not_found"})
+                    elif script in seen_scripts:
+                        tool_contract_errors.append({"tool": name, "reason": "duplicate_script"})
+                    else:
+                        seen_scripts.add(script)
+                    if not contract.get("status_name"):
+                        tool_contract_errors.append({"tool": name, "reason": "missing_status_name"})
+                    if not contract.get("output_artifact_type"):
+                        tool_contract_errors.append({"tool": name, "reason": "missing_output_artifact_type"})
+            if tool_contract_errors:
+                errors.append("invalid_tool_contract")
         except ModuleNotFoundError:
             errors.append("missing_python_dependency")
         except Exception as exc:  # Convert environment/config faults to JSON.
@@ -128,11 +165,15 @@ def preflight(skill_root: Path, target: Path) -> dict[str, Any]:
         "errors": errors,
         "warnings": warnings,
         "contract_errors": contract_errors,
+        "tool_contract_count": tool_contract_count,
+        "tool_contract_errors": tool_contract_errors,
     }
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run Pi skill preflight checks.")
+    parser = CompactArgumentParser(
+        description="Run Pi skill preflight checks.", status_name="preflight"
+    )
     parser.add_argument("--target", type=Path, required=True)
     parser.add_argument("--output-json", type=Path)
     args = parser.parse_args(argv)
@@ -155,7 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         print(line, file=sys.stderr)
         return 5
     print(line)
-    return 2 if report["status"] == "warn" else 0
+    return 3 if report["status"] == "warn" else 0
 
 
 if __name__ == "__main__":

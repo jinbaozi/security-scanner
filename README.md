@@ -335,8 +335,9 @@ security-scanner/
 ├── scripts/
 │   ├── package_materializer.py
 │   ├── normalize_shards.py / validate_shards.py / summarize_scan_plan.py
-│   ├── resolve_scanners.py / safe_grep.py / content_compliance_probe.py
-│   ├── build_report_values.py / render_template.py / audit_render.py
+│   ├── resolve_scanners.py / resolve_artifact.py / safe_grep.py
+│   ├── content_compliance_probe.py / elf_hardening_probe.py / rpm_integrity_probe.py
+│   ├── build_report_values.py / render_template.py / audit_render.py / report_pipeline.py
 │   └── export_redline_spec.py / slice_redline_clauses.py
 ├── scanners/
 │   ├── __init__.py

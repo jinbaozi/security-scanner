@@ -1,10 +1,14 @@
 """Validate reconnaissance shard sizes without loading file lists into Pi."""
 from __future__ import annotations
 
-import argparse
 import json
 from pathlib import Path
 from typing import Any
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 MAX_SHARD_FILES = 50
 WARN_SHARD_FILES = 40
@@ -78,7 +82,9 @@ def validate_shards(scan_plan: dict[str, Any]) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Validate Scan Plan source shards.")
+    parser = CompactArgumentParser(
+        description="Validate Scan Plan source shards.", status_name="shard-validation"
+    )
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
@@ -103,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
         f"errors={len(report['errors'])} warnings={len(report['warnings'])} "
         f"output={args.output}"
     )
-    return {"pass": 0, "warn": 2, "fail": 3}[report["status"]]
+    return {"pass": 0, "warn": 3, "fail": 4}[report["status"]]
 
 
 if __name__ == "__main__":

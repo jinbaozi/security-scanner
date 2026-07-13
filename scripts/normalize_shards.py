@@ -2,12 +2,16 @@
 """Deterministically split Scan Plan source shard lists at 50 files."""
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import sys
 from pathlib import Path
 from typing import Any
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 MAX_FILES = 50
@@ -21,7 +25,9 @@ def atomic_write(path: Path, text: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Normalize Scan Plan shard sizes.")
+    parser = CompactArgumentParser(
+        description="Normalize Scan Plan shard sizes.", status_name="shard-normalize"
+    )
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--report-root", type=Path)

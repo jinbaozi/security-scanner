@@ -6,7 +6,6 @@ an isolated rpmbuild topdir so later phases scan final patched source trees.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import shutil
@@ -15,6 +14,11 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+
+if __package__:
+    from .cli_contract import CompactArgumentParser
+else:
+    from cli_contract import CompactArgumentParser
 
 
 Runner = Callable[..., "CommandResult"]
@@ -407,7 +411,10 @@ class PackageMaterializer:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Materialize SRPM/RPM inputs for security scanning.")
+    parser = CompactArgumentParser(
+        description="Materialize SRPM/RPM inputs for security scanning.",
+        status_name="materialize",
+    )
     parser.add_argument("target_path", type=Path, nargs="?")
     parser.add_argument("output_dir", type=Path, nargs="?")
     parser.add_argument("--target", dest="named_target", type=Path)
@@ -463,7 +470,7 @@ def main(argv: list[str] | None = None) -> int:
         print(_summary_line(result))
     else:
         print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result["status"] == "ready" else 2
+    return 0 if result["status"] == "ready" else 5
 
 
 if __name__ == "__main__":
