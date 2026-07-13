@@ -8,7 +8,7 @@ from typing import Any
 
 MAX_SHARD_FILES = 50
 WARN_SHARD_FILES = 40
-MAX_TOTAL_SHARDS = 16
+MAX_ACTIVE_SHARDS_PER_BATCH = 16
 
 
 def validate_shards(scan_plan: dict[str, Any]) -> dict[str, Any]:
@@ -16,6 +16,7 @@ def validate_shards(scan_plan: dict[str, Any]) -> dict[str, Any]:
     errors: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
     counts: list[int] = []
+    shard_ids: list[Any] = []
 
     if not isinstance(shards, list):
         errors.append({"reason": "source_shards_not_array"})
@@ -30,6 +31,7 @@ def validate_shards(scan_plan: dict[str, Any]) -> dict[str, Any]:
             files = shard.get("files")
             count = len(files) if isinstance(files, list) else -1
         shard_id = shard.get("id", index)
+        shard_ids.append(shard_id)
         if count < 0:
             errors.append({"shard": shard_id, "reason": "missing_file_count"})
             continue
@@ -43,7 +45,7 @@ def validate_shards(scan_plan: dict[str, Any]) -> dict[str, Any]:
                     "limit": MAX_SHARD_FILES,
                 }
             )
-        elif count > WARN_SHARD_FILES:
+        elif WARN_SHARD_FILES < count < MAX_SHARD_FILES:
             warnings.append(
                 {
                     "shard": shard_id,
@@ -53,14 +55,10 @@ def validate_shards(scan_plan: dict[str, Any]) -> dict[str, Any]:
                 }
             )
 
-    if len(shards) > MAX_TOTAL_SHARDS:
-        errors.append(
-            {
-                "reason": "total_shard_limit_exceeded",
-                "shard_count": len(shards),
-                "limit": MAX_TOTAL_SHARDS,
-            }
-        )
+    execution_batches = [
+        shard_ids[index : index + MAX_ACTIVE_SHARDS_PER_BATCH]
+        for index in range(0, len(shard_ids), MAX_ACTIVE_SHARDS_PER_BATCH)
+    ]
 
     status = "fail" if errors else ("warn" if warnings else "pass")
     return {
@@ -70,8 +68,10 @@ def validate_shards(scan_plan: dict[str, Any]) -> dict[str, Any]:
         "limits": {
             "max_shard_files": MAX_SHARD_FILES,
             "warn_shard_files": WARN_SHARD_FILES,
-            "max_total_shards": MAX_TOTAL_SHARDS,
+            "max_active_shards_per_batch": MAX_ACTIVE_SHARDS_PER_BATCH,
         },
+        "batch_count": len(execution_batches),
+        "execution_batches": execution_batches,
         "errors": errors,
         "warnings": warnings,
     }

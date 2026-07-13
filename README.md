@@ -333,9 +333,11 @@ security-scanner/
 ├── README.md
 ├── SKILL.md
 ├── scripts/
-│   ├── export_redline_spec.py
 │   ├── package_materializer.py
-│   └── slice_redline_clauses.py
+│   ├── normalize_shards.py / validate_shards.py / summarize_scan_plan.py
+│   ├── resolve_scanners.py / safe_grep.py / content_compliance_probe.py
+│   ├── build_report_values.py / render_template.py / audit_render.py
+│   └── export_redline_spec.py / slice_redline_clauses.py
 ├── scanners/
 │   ├── __init__.py
 │   ├── registry/

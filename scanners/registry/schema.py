@@ -18,7 +18,7 @@ class ConsumeSpec(BaseModel):
 
 class ReferenceSpec(BaseModel):
     path: str
-    scope: Literal["shared", "local"]
+    scope: Literal["shared", "local", "tool"]
 
 
 class SessionSpec(BaseModel):

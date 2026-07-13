@@ -17,9 +17,9 @@
 | Phase | 仅按需加载 | 主要 checkpoint |
 |------|------------|-----------------|
 | -1 依赖预检 | `references/dependency-check.md` | `pi-preflight.json`、依赖状态 |
-| -0 输入物化 | `scripts/package_materializer.py --help`；异常时读 orchestrator 的“Phase -0”小节 | `materialization-*.json` |
-| 0 Recon | `orchestration/reconnaissance.md`；`validate_shards.py`、`summarize_scan_plan.py` | `scan-plan.summary.json`、shard validation、路径 list 文件 |
-| 1/1.5 扫描 | registry API；当前维 `meta.yaml`、`scanner.md` 和声明 references | `findings/findings-<dim>.json` |
+| -0 输入物化 | 标准调用：`package_materializer.py --target "$TARGET_ROOT" --report-dir "$REPORT_ROOT"`；异常时读 orchestrator 的“Phase -0”小节 | `materialization-*.json` |
+| 0 Recon | `orchestration/reconnaissance.md`；`normalize_shards.py`、`validate_shards.py`、`summarize_scan_plan.py` | `scan-plan.summary.json`、shard validation、路径 list 文件 |
+| 1/1.5 扫描 | 调用 `resolve_scanners.py`；仅加载当前维 `meta.yaml`、`scanner.md` 和 scope 非 `tool` 的声明 references | `scanner-registry-plan.json`、`findings/findings-<dim>.json` |
 | 2 裁决 | `references/verdict-rules.md`、`references/finding-schema.md` | `findings-combined.json` |
 | 3 报告 | `orchestration/reporter.md`、manifest、当前模板；A3b 才读 redline spec/mapping | 综合 JSON/Markdown、13 维报告 |
 
@@ -40,7 +40,9 @@
 - 禁止递归启动 `pi`，禁止把其他维 scanner prompt 注入当前维。
 - 上游 finding 只通过 `ScanContext.consume(..., compact=True)` 注入；原始 finding 保留在磁盘和 ScanContext。
 - 单维 finding 上限 200；超限规则按需读取 `references/scanner-output-limits.md`，聚合审计必须记录 `truncated_count` 和 evidence 引用。
-- 模式搜索必须使用 `$SKILL_ROOT/scripts/safe_grep.py`；禁止执行会向终端返回全部命中的递归 grep。
+- 禁止对 `$SKILL_ROOT/scanners/registry` 目录调用 `read` 或 `cat *`；必须调用 `resolve_scanners.py --skill-root "$SKILL_ROOT" --profile "$SCAN_PROFILE" --output "$REPORT_ROOT/scanner-registry-plan.json"`。
+- 模式搜索必须使用 `$SKILL_ROOT/scripts/safe_grep.py`；路径列表模式使用 `--files-file ... --base-root ... --output ... --max-count 200`，禁止自行猜测参数或执行会向终端返回全部命中的递归 grep。
+- 内容合规维度只能调用 `content_compliance_probe.py` 加载本地规则；禁止在 prompt、shell 参数或模型输出中拼接规则原文，禁止读取 raw evidence 正文。
 
 ## 恢复与上下文保护
 
@@ -50,6 +52,6 @@
 - 每个 Phase 和维度完成后立即落盘 checkpoint，不依赖对话内存保存唯一状态。
 - 读取 JSON/报告前先检查字节数；优先读取紧凑摘要，必要时使用 `offset/limit` 分段。
 - 不把完整路径数组写入 Scan Plan 或模型上下文；路径只写 list 文件，Pi 只读不超过 64 KiB 的摘要。
-- 文件分片每组绝对上限 50 个；超过 16 片时分批串行，不得增大单片上限。
+- 文件分片每组绝对上限 50 个；先调用 `normalize_shards.py` 确定性拆分超限 shard，再调用 `validate_shards.py`。超过 16 片依据 `execution_batches` 分批串行，不得增大单片上限。
 - 工具失败只在终端输出一行分类，命令、退出码和截断 stderr 写审计 JSON。
-- Phase 3 使用 `$SKILL_ROOT/scripts/render_template.py` 和 `audit_render.py`；strict 缺必填字段返回 4，不打印 traceback。
+- Phase 3 先调用 `build_report_values.py` 生成完整 JSON values，再使用 `render_template.py` 和 `audit_render.py`；strict 缺必填字段返回 4，不得原样重试或打印 traceback。

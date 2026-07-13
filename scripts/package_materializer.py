@@ -408,8 +408,15 @@ class PackageMaterializer:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Materialize SRPM/RPM inputs for security scanning.")
-    parser.add_argument("target_path", type=Path)
-    parser.add_argument("output_dir", type=Path)
+    parser.add_argument("target_path", type=Path, nargs="?")
+    parser.add_argument("output_dir", type=Path, nargs="?")
+    parser.add_argument("--target", dest="named_target", type=Path)
+    parser.add_argument("--output-dir", dest="named_output_dir", type=Path)
+    parser.add_argument(
+        "--report-dir",
+        type=Path,
+        help="Use REPORT_DIR/materialized and default the result JSON under REPORT_DIR.",
+    )
     parser.add_argument(
         "--allow-builddep",
         action="store_true",
@@ -422,14 +429,34 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    if args.target_path and args.named_target and args.target_path.resolve() != args.named_target.resolve():
+        parser.error("positional target_path conflicts with --target")
+    target_path = args.named_target or args.target_path
+    if target_path is None:
+        parser.error("target_path or --target is required")
+
+    direct_output = args.named_output_dir or args.output_dir
+    if args.report_dir and direct_output:
+        parser.error("--report-dir conflicts with positional output_dir/--output-dir")
+    if args.report_dir:
+        output_dir = args.report_dir / "materialized"
+    elif direct_output:
+        output_dir = direct_output
+    else:
+        parser.error("output_dir, --output-dir, or --report-dir is required")
+
+    output_json = args.output_json
+    if output_json is None and args.report_dir:
+        output_json = args.report_dir / f"materialization-{_rpm_stem(target_path)}.json"
+
     result = PackageMaterializer().materialize(
-        args.target_path,
-        args.output_dir,
+        target_path,
+        output_dir,
         allow_builddep=args.allow_builddep,
     )
-    if args.output_json:
-        args.output_json.parent.mkdir(parents=True, exist_ok=True)
-        args.output_json.write_text(
+    if output_json:
+        output_json.parent.mkdir(parents=True, exist_ok=True)
+        output_json.write_text(
             json.dumps(result, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )

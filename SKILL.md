@@ -75,8 +75,8 @@ scan_profile 只影响 Phase 1 扫描调度，不影响 Phase 3 报告产物数�
 SKILL.md（本文件）-> orchestration/router.md（紧凑路由）
 ├── Phase -1 -> references/dependency-check.md
 ├── Phase -0 -> scripts/package_materializer.py（rpm2cpio/cpio/rpmbuild；可选 dnf/patch/tar）
-├── Phase 0  -> orchestration/reconnaissance.md + validate_shards.py + summarize_scan_plan.py
-├── Phase 1  -> scanners/registry + scanners/<dim>/{meta.yaml,scanner.md}
+├── Phase 0  -> orchestration/reconnaissance.md + normalize_shards.py + validate_shards.py + summarize_scan_plan.py
+├── Phase 1  -> resolve_scanners.py + scanners/<dim>/{meta.yaml,scanner.md}
 │              -> 仅 meta.references 声明的文件 + references/finding-schema.md
 ├── Phase 2  -> references/verdict-rules.md + references/finding-schema.md
 └── Phase 3  -> orchestration/reporter.md + templates/report-manifest.yaml
@@ -111,7 +111,9 @@ Pi 安全阈值与中断恢复：见 `references/agent-runtime-limits.md`、`ref
 - 模板占位符统一为 `[[UPPER_SNAKE_CASE]]` 双中括号格式（如 `[[COMPONENT_NAME]]`）。
 - **禁止使用 f-string 或 `.format()` 渲染模板**——`{}` 在模板里会与 f-string 冲突，未定义变量会触发 `NameError`。
 - 每个 Phase 边界必须调用 `$SKILL_ROOT/scripts/measure_context.py`；`risk=critical` 时停止模型注入并写 partial checkpoint。
-- Phase 1 模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py`，禁止把递归 grep 命中行直接写入终端上下文。
-- Phase 3 报告生成必须调用 `$SKILL_ROOT/scripts/render_template.py`，完成后必须调用 `$SKILL_ROOT/scripts/audit_render.py` 校验（详见 `references/render-audit.md` 的 A4 审计点）。
+- Phase 1 模式搜索必须调用 `$SKILL_ROOT/scripts/safe_grep.py`；路径清单使用 `--files-file/--base-root`，禁止把递归 grep 命中行直接写入终端上下文。
+- 禁止对 `scanners/registry` 目录调用 `read` 或 `cat *`；必须使用 `$SKILL_ROOT/scripts/resolve_scanners.py`。
+- 内容合规规则只允许由 `$SKILL_ROOT/scripts/content_compliance_probe.py` 在本地加载，规则原文和 raw evidence 不得注入模型。
+- Phase 3 报告生成必须先调用 `$SKILL_ROOT/scripts/build_report_values.py`，再调用 `$SKILL_ROOT/scripts/render_template.py`，完成后必须调用 `$SKILL_ROOT/scripts/audit_render.py` 校验（详见 `references/render-audit.md` 的 A4 审计点）。
 - 必填占位符缺失时 `--strict` 模式返回非零退出码；非 strict 模式下缺失保留为 `[[NAME]]` 字面量并写入 `*.missing.json` 供审计追溯。
 - 缺失必填占位符连续 2 次渲染仍失败时，报告状态必须记为 `degraded` 并在 `audit_log` 中保留追溯记录。

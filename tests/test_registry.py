@@ -146,7 +146,7 @@ def test_production_reference_paths_resolve_by_scope():
     for scanner in scanners.values():
         scanner_dir = scanner.scanner_md_path.parent
         for reference in scanner.meta.references:
-            if reference.scope == "local":
+            if reference.scope in {"local", "tool"}:
                 resolved = (scanner_dir / reference.path).resolve()
                 assert resolved.is_relative_to(scanner_dir.resolve())
             else:

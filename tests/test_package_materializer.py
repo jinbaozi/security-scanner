@@ -232,6 +232,22 @@ def test_source_tree_is_recorded_without_rpm_semantics(tmp_path):
     assert "未验证 RPM patch 语义" in result["audit_log"][0]
 
 
+def test_cli_accepts_named_target_and_report_dir_with_default_artifacts(tmp_path, capsys):
+    src = tmp_path / "src"
+    report_dir = tmp_path / "security-reports"
+    src.mkdir()
+
+    exit_code = main(["--target", str(src), "--report-dir", str(report_dir)])
+
+    output = report_dir / "materialization-src.json"
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    stdout_lines = capsys.readouterr().out.splitlines()
+    assert exit_code == 0
+    assert payload["materialized_root"] == str((report_dir / "materialized").resolve())
+    assert len(stdout_lines) == 1
+    assert not stdout_lines[0].lstrip().startswith("{")
+
+
 def test_cli_output_json_writes_full_result_and_prints_single_summary_line(tmp_path, capsys):
     src = tmp_path / "src"
     out = tmp_path / "out"

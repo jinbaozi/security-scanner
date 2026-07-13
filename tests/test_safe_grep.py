@@ -79,6 +79,41 @@ def test_safe_grep_translates_posix_character_classes_without_warning(tmp_path):
     assert report["translated_pattern"] == r"[\s][\d]+"
 
 
+def test_safe_grep_supports_file_lists_and_cli_aliases(tmp_path):
+    source_root = tmp_path / "src"
+    source_root.mkdir()
+    (source_root / "listed.txt").write_text("mail marker\n", encoding="utf-8")
+    (source_root / "ignored.txt").write_text("mail marker\n", encoding="utf-8")
+    files_file = tmp_path / "files.txt"
+    files_file.write_text("listed.txt\nmissing.txt\n", encoding="utf-8")
+    output = tmp_path / "matches.json"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(CLI),
+            "--pattern", "mail",
+            "--files-file", str(files_file),
+            "--base-root", str(source_root),
+            "--max-results", "10",
+            "--output-json", str(output),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["input_mode"] == "files_file"
+    assert report["listed_files"] == 2
+    assert report["scanned_files"] == 1
+    assert report["missing_files"] == 1
+    assert report["matched_lines"] == 1
+    assert report["samples"][0]["file"] == "listed.txt"
+
+
 def test_safe_grep_reports_invalid_pattern_without_traceback(tmp_path):
     output = tmp_path / "matches.json"
     result = subprocess.run(

@@ -210,6 +210,16 @@ def _read_yaml_simple(path: Path) -> dict[str, Any]:
     return values
 
 
+def _read_values_file(path: Path) -> dict[str, Any]:
+    text = path.read_text(encoding="utf-8")
+    if path.suffix.lower() == ".json" or text.lstrip().startswith("{"):
+        data = json.loads(text)
+        if not isinstance(data, dict):
+            raise ValueError("values JSON must be an object")
+        return data
+    return _read_yaml_simple(path)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Render a Security Compliance Scanner report template."
@@ -241,7 +251,29 @@ def main(argv: list[str] | None = None) -> int:
 
     template_str = args.template.read_text(encoding="utf-8")
     if args.values:
-        values = _read_yaml_simple(args.values)
+        try:
+            values = _read_values_file(args.values)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            sidecar = args.output.with_suffix(args.output.suffix + ".values.json")
+            sidecar.write_text(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "reason": "invalid_values",
+                        "values": str(args.values),
+                        "error_type": type(exc).__name__,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            print(
+                f"render status=failed reason=invalid_values sidecar={sidecar}",
+                file=sys.stderr,
+            )
+            return 4
     else:
         # Treat stdin as JSON if it looks like JSON, else blank
         data = sys.stdin.read().strip()

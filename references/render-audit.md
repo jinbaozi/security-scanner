@@ -36,7 +36,9 @@ Notes: [[AUDIT_NOTES]]
 
 ## 审计流程
 
-### Step 1: 调用 `scripts/render_template.py`
+### Step 1: 构建 values 并调用 `scripts/render_template.py`
+
+先使用 `scripts/build_report_values.py` 从 Scan Plan、聚合 findings 和基础元数据生成完整 JSON values。`render_template.py` 对 `.json` 或内容以 `{` 开头的 values 使用 JSON 对象解析；解析失败返回 `reason=invalid_values`。strict 缺失时只允许重建 values，不得原样重试。
 
 `SKILL_ROOT` 必须是已加载 `SKILL.md` 的父目录绝对路径，不能假设 Pi 当前工作目录是 skill 目录。Phase 3 必须调用：
 

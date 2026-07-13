@@ -139,15 +139,19 @@ grep -E "(^|/)(Dockerfile|docker-compose\.yml|docker-compose\.yaml)$" /tmp/recon
 4. 单个分片文件数的**绝对上限 50**；不得为减少 Agent 数增大该上限。
 5. 超过 16 个分片时分批串行调度，不得通过增大单片上限进行合并。
 
-生成 Scan Plan 后必须执行确定性校验，禁止仅由 Agent 目测：
+生成 Scan Plan 后必须先确定性拆分超限 shard，再执行校验，禁止仅由 Agent 目测或手工重写路径列表：
 
 ```bash
-python3 "$SKILL_ROOT/scripts/validate_shards.py" \
+python3 "$SKILL_ROOT/scripts/normalize_shards.py" \
   --input "$REPORT_ROOT/recon/scan-plan.json" \
+  --output "$REPORT_ROOT/recon/scan-plan.normalized.json" \
+  --report-root "$REPORT_ROOT"
+python3 "$SKILL_ROOT/scripts/validate_shards.py" \
+  --input "$REPORT_ROOT/recon/scan-plan.normalized.json" \
   --output "$REPORT_ROOT/recon/shard-validation.json"
 ```
 
-退出码 `0=PASS`、`2=WARN`、`3=FAIL`；FAIL 时重新分片，最多 2 次。
+退出码 `0=PASS`、`2=WARN`、`3=FAIL`；FAIL 时重新分片，最多 2 次。总 shard 数超过 16 不属于 FAIL，必须按 validation 的 `execution_batches`（每批最多 16）串行执行。
 
 ## Step 5: 生成 Scan Plan
 
@@ -188,7 +192,7 @@ Scan Plan 必须保持紧凑，完整路径写入换行分隔的 list 文件，J
 
 ```bash
 python3 "$SKILL_ROOT/scripts/summarize_scan_plan.py" \
-  --input "$REPORT_ROOT/recon/scan-plan.json" \
+  --input "$REPORT_ROOT/recon/scan-plan.normalized.json" \
   --output "$REPORT_ROOT/recon/scan-plan.summary.json" \
   --sample-size 50 --max-bytes 65536
 ```

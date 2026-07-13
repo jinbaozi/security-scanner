@@ -76,7 +76,7 @@ Phase -1、Phase -0 和 Phase 0 必须顺序执行，前一 Phase 完成后才�
 
 ### Phase -0：输入物化（Package Materialization）
 
-Phase -1 完成后、Recon 之前必须执行输入物化。Orchestrator 调用 `$SKILL_ROOT/scripts/package_materializer.py --output-json $REPORT_ROOT/materialization-{component_name}-{date}.json` 或等价逻辑，生成 materialization JSON 文件；Phase 0 只能消费该 JSON 中的 `source_roots`、`binary_roots` 和 `materialization` 状态，不得直接把 SRPM 外层解包目录当成源码树。终端只保留一行物化状态摘要。
+Phase -1 完成后、Recon 之前必须执行输入物化。Orchestrator 必须调用 `python3 "$SKILL_ROOT/scripts/package_materializer.py" --target "$TARGET_ROOT" --report-dir "$REPORT_ROOT"`（兼容接口可另加 `--output-json`），生成 materialization JSON 文件；Phase 0 只能消费该 JSON 中的 `source_roots`、`binary_roots` 和 `materialization` 状态，不得直接把 SRPM 外层解包目录当成源码树。终端只保留一行物化状态摘要。
 
 所有物化子进程强制超时：`rpm2cpio=120s`、`cpio=300s`、`rpmbuild=1800s`、`dnf=600s`。超时返回可审计退出码，不得抛出 traceback；materialization `command_log` 必须记录 `exit_code`、`timed_out`、`duration_seconds` 和截断后的 `stderr_summary`。调用 materializer 的 Pi bash 工具超时必须高于当前子进程上限。
 
@@ -107,11 +107,11 @@ materialization JSON 必须包含：
 }
 ```
 
-Phase 0 的 `target` 必须改为物化后的源码根和二进制根集合；`source_shards` 只能来自 `origin=source_prepped` 或 `origin=raw_directory` 的源码文件。SRPM 外层 `Source*.tar.*`、`Patch*` 和 `.spec` 只能作为物化证据，不得计入已扫描源码。Recon 完成后必须依次调用 `$SKILL_ROOT/scripts/validate_shards.py` 和 `$SKILL_ROOT/scripts/summarize_scan_plan.py`；Pi 只读取紧凑的 `scan-plan.summary.json` 与 shard validation，不读取完整路径列表。
+Phase 0 的 `target` 必须改为物化后的源码根和二进制根集合；`source_shards` 只能来自 `origin=source_prepped` 或 `origin=raw_directory` 的源码文件。SRPM 外层 `Source*.tar.*`、`Patch*` 和 `.spec` 只能作为物化证据，不得计入已扫描源码。Recon 完成后必须依次调用 `$SKILL_ROOT/scripts/normalize_shards.py`、`$SKILL_ROOT/scripts/validate_shards.py` 和 `$SKILL_ROOT/scripts/summarize_scan_plan.py`；单片超过 50 由 normalizer 确定性拆分，总片数超过 16 按 validation 的 `execution_batches` 串行调度；Pi 只读取紧凑的 `scan-plan.summary.json` 与 shard validation，不读取完整路径列表。
 
 ### Phase 1：注册表加载与拓扑调度
 
-Phase 1 通过目录发现调度，不枚举固定 scanner 路径。Orchestrator 必须先校验 `scan_profile`，再通过 `$SKILL_ROOT/scanners/registry/` 提供的 registry API 加载生产布局：调用 `discover_scanners(Path(SKILL_ROOT) / "scanners")` 发现 scanner 元数据和 prompt；取得 profile 允许维度集合；计算 `selected_scanners = discovered_scanners ∩ profile_dimensions`；调用 `selected_with_dependency_closure(discovered_scanners, selected_scanners)` 自动补齐 `meta.consumes` 的依赖闭包；对补齐后的 scanner 集合调用 `topological_order(...)` 生成依赖优先的执行顺序，并确认不存在循环依赖；随后初始化 `ScanContext()` 作为本次扫描中 scanner findings 的唯一交换上下文。若某个依赖维度因 profile、输入条件或工具不可用未执行，下游 scanner 必须记录 degraded context（包含依赖维度、原因和 fallback），但不阻断主维度扫描。
+Phase 1 通过目录发现调度，不枚举固定 scanner 路径。禁止对 `$SKILL_ROOT/scanners/registry/` 目录执行 `read` 或 `cat *`；Orchestrator 必须先校验 `scan_profile`，再调用 `$SKILL_ROOT/scripts/resolve_scanners.py --skill-root "$SKILL_ROOT" --profile "$SCAN_PROFILE" --output "$REPORT_ROOT/scanner-registry-plan.json"`，由该 CLI 使用 registry API 加载生产布局：调用 `discover_scanners(Path(SKILL_ROOT) / "scanners")` 发现 scanner 元数据和 prompt；取得 profile 允许维度集合；计算 `selected_scanners = discovered_scanners ∩ profile_dimensions`；调用 `selected_with_dependency_closure(discovered_scanners, selected_scanners)` 自动补齐 `meta.consumes` 的依赖闭包；对补齐后的 scanner 集合调用 `topological_order(...)` 生成依赖优先的执行顺序，并确认不存在循环依赖；随后初始化 `ScanContext()` 作为本次扫描中 scanner findings 的唯一交换上下文。若某个依赖维度因 profile、输入条件或工具不可用未执行，下游 scanner 必须记录 degraded context（包含依赖维度、原因和 fallback），但不阻断主维度扫描。
 
 调度状态必须区分：
 
@@ -247,7 +247,7 @@ ELF 专项检查：
 
 ### A4（渲染审计）
 
-- 完成后必须调用 `scripts/render_template.py` 渲染所有模板（仅依赖 `[[UPPER_SNAKE_CASE]]` 占位符），并调用 `scripts/audit_render.py` 扫描残留。详细说明见 `references/render-audit.md`。
+- 完成后必须先调用 `scripts/build_report_values.py` 生成完整 JSON values，再调用 `scripts/render_template.py` 渲染所有模板（仅依赖 `[[UPPER_SNAKE_CASE]]` 占位符），并调用 `scripts/audit_render.py` 扫描残留。详细说明见 `references/render-audit.md`。
 - 渲染输出中残留任何 `[[NAME]]` 占位符：必填缺失记 FAIL，可选 / 未知缺失记 WARN。必要信息全部写入 `*.missing.json` sidecar。
 - 与 A3 合并判定：A3 PASS + A4 warn 仍可发布为 `PASS + 渲染备注`；A3 PASS + A4 fail 需重渲（最多 2 次），仍失败则报告记为 `degraded`。
 
@@ -261,7 +261,7 @@ ELF 专项检查：
 ## Agent 派发约束
 
 - 每个 scanner 的独立或逻辑 session 只加载自己负责的 scanner 文件（见上方加载白名单）。
-- scanner session 上下文只包含自身规则、分配文件列表、`meta.references`、finding-schema、compact consumed findings。
+- scanner session 上下文只包含自身规则、分配文件列表、scope 为 `shared/local` 的 `meta.references`、finding-schema、compact consumed findings；scope=`tool` 的 reference 只能由本地脚本读取，禁止注入模型。
 - 单维 finding 输出上限 200；超限按 `references/scanner-output-limits.md` 聚合，保留原始 evidence 文件并在 audit_log 记录 `original_count`、`emitted_count`、`truncated_count` 和策略。
 - 单个分片不超过 50 个文件。
 - 每个维度最多 8 个并发 agent，总 agent 上限 16。

@@ -32,10 +32,10 @@ Content-Compliance Scanner Agent 负责对交付包中的 UI 字符串、资源�
   "severity": "medium",
   "confidence": "medium",
   "verdict": "needs_human",
-  "verdict_reasoning": "文案出现不允许的涉台称谓，需要人工合规审核。",
-  "detail": "疑似政治敏感表述不符合 redline 13.1.1。",
-  "suggestion": "按正式政治表述修订，并由内容合规负责人复核。",
-  "evidence": "label: \"台北,台湾\"",
+  "verdict_reasoning": "本地规则 CC-001 命中，需要人工合规审核。",
+  "detail": "疑似不规范表述不符合 redline 13.1.1。",
+  "suggestion": "按正式规范表述修订，并由内容合规负责人复核。",
+  "evidence": "见 evidence_ref；原始片段不注入模型上下文",
   "redline_clause": "13.1.1",
   "rl_ids": ["RL-230"]
 }
@@ -60,35 +60,29 @@ Redline 追溯约束：WARN/FAIL finding 必须优先从本维度 `references/re
 
 ## 执行步骤
 
-### Step 1: 加载参考文件
+### Step 1: 加载非敏感元数据
 
-读取：
+只读取 `references/redline-clauses.md` 与 `../../references/allowlists.md`。禁止把 `references/forbidden-terms.md` 正文读入模型；该文件仅由本地探针加载。
 
-- `references/forbidden-terms.md`
-- `references/redline-clauses.md`
-- `../../references/allowlists.md`
+### Step 2: 本地确定性文案扫描
 
-### Step 2: 文案与 UI 字符串扫描
-
-扫描 JSON/YAML/Properties/TS/JS/HTML/Markdown/文档资源中的禁词和错称：
+禁止在 prompt、shell 参数或模型输出中拼接规则原文。执行：
 
 ```bash
-grep -rnE "中华民国|Republic of China|ROC|台北,台湾|TAIPEI,\s*TAIWAN|台湾政府|两岸华语|台语|斯普拉特利群岛|中、港、台|中港台|中澳台" {text_and_resource_files}
-grep -rnE "香港(共和国|国家)|澳门(共和国|国家)|Taiwan\s*,\s*(China)?|Hong Kong\s*,\s*China\s*,\s*Taiwan" {text_and_resource_files}
+python3 "$SKILL_ROOT/scripts/content_compliance_probe.py" \
+  --rules "$SKILL_ROOT/scanners/content-compliance/references/forbidden-terms.md" \
+  --files-file "$REPORT_ROOT/recon/content-compliance-files.txt" \
+  --base-root "$SOURCE_ROOT" \
+  --output-summary "$REPORT_ROOT/findings/content-compliance-probe.json" \
+  --evidence-output "$REPORT_ROOT/evidence/content-compliance/raw-matches.jsonl" \
+  --max-results 200
 ```
 
-命中后输出 `check_item=political_sensitive_term` 或 `forbidden_geography_name`，默认 `status=WARN`、`verdict=needs_human`。
+模型只读取 compact summary 中的规则 ID、类别、路径、行号和计数；不得读取 `evidence_ref` 正文。命中默认映射为 `status=WARN`、`verdict=needs_human`。
 
-### Step 3: 地图资源存在性与命名检查
+### Step 3: 资源存在性检查
 
-识别地图、边界、地理数据资源：
-
-```bash
-grep -rnE "(map|geo|boundary|china|taiwan|hongkong|macau|spratly|diaoyu|南海|钓鱼岛|赤尾屿)" {resource_files}
-find {target} -type f \( -name "*.geojson" -o -name "*.shp" -o -name "*.mbtiles" -o -name "*map*" \) 2>/dev/null
-```
-
-发现地图资源但没有合规审核记录时，输出 `check_item=map_resource_presence`、`status=WARN`，说明需人工核验版图完整性。
+由 Recon 将地图、边界和地理数据资源路径写入同一个 content-compliance list 文件。本地探针按规则 ID 识别；模型不得重新生成包含规则原文的 grep 命令。发现相关资源但没有合规审核记录时，输出 `check_item=map_resource_presence`、`status=WARN`，说明需人工核验。
 
 ### Step 4: 图表/文档说明
 

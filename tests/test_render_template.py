@@ -55,6 +55,44 @@ def test_strict_render_accepts_zero_and_false():
     assert missing == []
 
 
+def test_render_cli_parses_json_values_file(tmp_path):
+    template_path = tmp_path / "template.md"
+    values_path = tmp_path / "values.json"
+    output_path = tmp_path / "report.md"
+    template_path.write_text(TEMPLATE, encoding="utf-8")
+    values_path.write_text(json.dumps({"NAME": "component", "COUNT": 0, "NOTE": "ok"}), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(RENDER_CLI), "--template", str(template_path), "--values", str(values_path), "--output", str(output_path), "--strict"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert "Name: component" in output_path.read_text(encoding="utf-8")
+
+
+def test_render_cli_rejects_invalid_json_values_without_traceback(tmp_path):
+    template_path = tmp_path / "template.md"
+    values_path = tmp_path / "values.json"
+    output_path = tmp_path / "report.md"
+    template_path.write_text(TEMPLATE, encoding="utf-8")
+    values_path.write_text("{invalid", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(RENDER_CLI), "--template", str(template_path), "--values", str(values_path), "--output", str(output_path), "--strict"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 4
+    assert "reason=invalid_values" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_strict_cli_returns_four_without_traceback_and_writes_audit_sidecar(tmp_path):
     template_path = tmp_path / "template.md"
     output_path = tmp_path / "report.md"

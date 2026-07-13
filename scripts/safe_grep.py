@@ -43,18 +43,25 @@ def search(
     max_count: int,
     max_bytes: int,
     per_file_cap: int,
+    paths: list[Path] | None = None,
+    listed_files: int = 0,
+    missing_files: int = 0,
+    outside_root_files: int = 0,
 ) -> dict[str, Any]:
     matched_lines = 0
     matched_files = 0
     unreadable_files = 0
+    scanned_files = 0
     samples: list[dict[str, Any]] = []
 
-    for path in sorted(root.rglob("*")):
+    candidates = sorted(paths) if paths is not None else sorted(root.rglob("*"))
+    for path in candidates:
         if not path.is_file() or path.is_symlink():
             continue
         if includes and not any(fnmatch.fnmatch(path.name, item) for item in includes):
             continue
         file_matches = 0
+        scanned_files += 1
         try:
             with path.open("r", encoding="utf-8", errors="replace") as stream:
                 for line_number, line in enumerate(stream, 1):
@@ -80,6 +87,11 @@ def search(
     report: dict[str, Any] = {
         "pattern": pattern.pattern,
         "root": str(root),
+        "input_mode": "files_file" if paths is not None else "root",
+        "listed_files": listed_files,
+        "scanned_files": scanned_files,
+        "missing_files": missing_files,
+        "outside_root_files": outside_root_files,
         "matched_files": matched_files,
         "matched_lines": matched_lines,
         "sample_count": len(samples),
@@ -109,18 +121,51 @@ def search(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a bounded recursive regex search.")
     parser.add_argument("--pattern", required=True)
-    parser.add_argument("--root", type=Path, required=True)
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument("--root", type=Path)
+    inputs.add_argument("--files-file", type=Path)
+    parser.add_argument("--base-root", type=Path)
     parser.add_argument("--include", default="*")
-    parser.add_argument("--max-count", type=int, default=200)
+    parser.add_argument("--max-count", "--max-results", dest="max_count", type=int, default=200)
     parser.add_argument("--max-bytes", type=int, default=32768)
     parser.add_argument("--per-file-cap", type=int, default=20)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", "--output-json", dest="output", type=Path, required=True)
     args = parser.parse_args(argv)
 
-    root = args.root.expanduser().resolve()
-    if not root.is_dir():
-        print("safe-grep status=blocked reason=root_not_directory", file=sys.stderr)
-        return 5
+    paths: list[Path] | None = None
+    listed_files = missing_files = outside_root_files = 0
+    if args.root:
+        root = args.root.expanduser().resolve()
+        if not root.is_dir():
+            print("safe-grep status=blocked reason=root_not_directory", file=sys.stderr)
+            return 5
+    else:
+        files_file = args.files_file.expanduser().resolve()
+        if not files_file.is_file():
+            print("safe-grep status=blocked reason=files_file_not_found", file=sys.stderr)
+            return 5
+        root = (args.base_root or files_file.parent).expanduser().resolve()
+        if not root.is_dir():
+            print("safe-grep status=blocked reason=base_root_not_directory", file=sys.stderr)
+            return 5
+        paths = []
+        seen: set[Path] = set()
+        for raw_line in files_file.read_text(encoding="utf-8", errors="replace").splitlines():
+            value = raw_line.strip()
+            if not value or value.startswith("#"):
+                continue
+            listed_files += 1
+            candidate = Path(value).expanduser()
+            candidate = (candidate if candidate.is_absolute() else root / candidate).resolve()
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            if not candidate.is_relative_to(root):
+                outside_root_files += 1
+            elif not candidate.is_file() or candidate.is_symlink():
+                missing_files += 1
+            else:
+                paths.append(candidate)
     max_bytes = max(256, args.max_bytes)
     try:
         translated_pattern = translate_posix_classes(args.pattern)
@@ -132,6 +177,10 @@ def main(argv: list[str] | None = None) -> int:
             max_count=max(0, args.max_count),
             max_bytes=max_bytes,
             per_file_cap=max(0, args.per_file_cap),
+            paths=paths,
+            listed_files=listed_files,
+            missing_files=missing_files,
+            outside_root_files=outside_root_files,
         )
     except (re.error, ValueError) as exc:
         print(
