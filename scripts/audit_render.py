@@ -29,6 +29,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from scripts.cli_contract import CompactArgumentParser
+from scripts.runtime_paths import SkillRootWriteForbidden, require_outside_skill_root
 from scripts.render_template import (
     PLACEHOLDER_PATTERN,
     collect_placeholders,
@@ -172,6 +173,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Return critical when residual count exceeds this limit.",
     )
     args = parser.parse_args(argv)
+    try:
+        args.output = require_outside_skill_root(args.output, _PROJECT_ROOT)
+    except SkillRootWriteForbidden:
+        print("render-audit status=blocked reason=skill_root_write_forbidden", file=sys.stderr)
+        return 5
 
     if args.max_residual > MAX_RESIDUAL_POLICY:
         report = _blocked(

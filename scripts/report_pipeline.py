@@ -17,11 +17,15 @@ if __package__:
     from .build_report_values import main as values_main
     from .cli_contract import CompactArgumentParser
     from .render_template import main as render_main
+    from .runtime_paths import SkillRootWriteForbidden, require_outside_skill_root
+    from .verify_skill_integrity import snapshot as integrity_snapshot, verify as integrity_verify
 else:
     from audit_render import main as audit_main
     from build_report_values import main as values_main
     from cli_contract import CompactArgumentParser
     from render_template import main as render_main
+    from runtime_paths import SkillRootWriteForbidden, require_outside_skill_root
+    from verify_skill_integrity import snapshot as integrity_snapshot, verify as integrity_verify
 
 
 def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
@@ -58,21 +62,34 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scan-plan", type=Path, required=True)
     parser.add_argument("--findings", type=Path, required=True)
     parser.add_argument("--dimension-statuses", type=Path, required=True)
+    parser.add_argument("--materialization", type=Path)
     parser.add_argument("--base-values", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
 
     skill_root = args.skill_root.expanduser().resolve()
-    report_root = args.report_root.expanduser().resolve()
+    bundled_skill_root = Path(__file__).resolve().parents[1]
+    if skill_root != bundled_skill_root:
+        print("report-pipeline status=blocked reason=skill_root_mismatch", file=sys.stderr)
+        return 5
+    try:
+        report_root = require_outside_skill_root(args.report_root, skill_root)
+        require_outside_skill_root(args.output, skill_root)
+    except SkillRootWriteForbidden:
+        print("report-pipeline status=blocked reason=skill_root_write_forbidden", file=sys.stderr)
+        return 5
     manifest_path = skill_root / "templates" / "report-manifest.yaml"
     required_inputs = (manifest_path, args.scan_plan, args.findings, args.dimension_statuses)
+    if args.materialization:
+        required_inputs += (args.materialization,)
     if any(not path.is_file() for path in required_inputs):
         print("report-pipeline status=blocked reason=input_not_found", file=sys.stderr)
         return 5
     try:
+        baseline = integrity_snapshot(skill_root)
         manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
         entries = _report_entries(manifest)
-    except (OSError, KeyError, TypeError, yaml.YAMLError):
+    except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError):
         print("report-pipeline status=failed reason=invalid_manifest", file=sys.stderr)
         return 4
 
@@ -86,6 +103,9 @@ def main(argv: list[str] | None = None) -> int:
         output_relative = Path(output_pattern)
         if output_relative.parts and output_relative.parts[0] == "security-reports":
             output_relative = Path(*output_relative.parts[1:])
+        if output_relative.is_absolute() or ".." in output_relative.parts:
+            print("report-pipeline status=failed reason=invalid_manifest_output", file=sys.stderr)
+            return 4
         rendered = report_root / output_relative
         values = report_root / "values" / f"{name}.json"
         audit = rendered.with_suffix(rendered.suffix + ".audit.json")
@@ -98,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if args.base_values:
             values_argv.extend(["--base-values", str(args.base_values)])
+        if args.materialization:
+            values_argv.extend(["--materialization", str(args.materialization)])
         values_code, values_status = _quiet_call(values_main, values_argv)
         render_code = audit_code = 5
         render_status = audit_status = "not_run"
@@ -126,10 +148,21 @@ def main(argv: list[str] | None = None) -> int:
         elif code == 3 and overall_code == 0:
             overall_code = 3
 
+    try:
+        integrity = integrity_verify(skill_root, baseline)
+    except (OSError, ValueError):
+        integrity = {
+            "artifact_type": "skill_integrity_verification", "schema_version": "1.0",
+            "status": "critical", "reason": "verification_failed",
+            "added": [], "removed": [], "changed": [],
+        }
+    if integrity["status"] != "pass":
+        overall_code = 6
     status = "ready" if overall_code == 0 else ("warn" if overall_code == 3 else "blocked")
     payload = {
         "artifact_type": "report_pipeline_result", "schema_version": "1.0",
         "status": status, "report_count": len(reports), "reports": reports,
+        "skill_integrity": integrity,
     }
     _atomic_write(args.output, payload)
     stream = sys.stderr if overall_code in {4, 5, 6} else sys.stdout

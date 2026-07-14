@@ -28,8 +28,10 @@ from typing import Any
 
 if __package__:
     from .cli_contract import CompactArgumentParser
+    from .runtime_paths import SkillRootWriteForbidden, require_outside_skill_root
 else:
     from cli_contract import CompactArgumentParser
+    from runtime_paths import SkillRootWriteForbidden, require_outside_skill_root
 
 
 # [[UPPER_SNAKE_CASE]] - safe delimiter; cannot collide with f-string syntax.
@@ -253,6 +255,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Write missing placeholders as JSON next to the output file.",
     )
     args = parser.parse_args(argv)
+    try:
+        args.output = require_outside_skill_root(args.output, Path(__file__).resolve().parents[1])
+    except SkillRootWriteForbidden:
+        print("render status=blocked reason=skill_root_write_forbidden", file=sys.stderr)
+        return 5
 
     try:
         template_str = args.template.read_text(encoding="utf-8")

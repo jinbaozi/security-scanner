@@ -13,8 +13,10 @@ from typing import Any
 
 if __package__:
     from .cli_contract import CompactArgumentParser
+    from .runtime_paths import SkillRootWriteForbidden, require_outside_skill_root
 else:
     from cli_contract import CompactArgumentParser
+    from runtime_paths import SkillRootWriteForbidden, require_outside_skill_root
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 if str(SKILL_ROOT) not in sys.path:
@@ -53,6 +55,8 @@ def preflight(skill_root: Path, target: Path) -> dict[str, Any]:
         "scripts/validate_shards.py",
         "scripts/summarize_scan_plan.py",
         "scripts/measure_context.py",
+        "scripts/runtime_paths.py",
+        "scripts/verify_skill_integrity.py",
         "references/agent-runtime-limits.md",
         "references/abort-recovery.md",
         "references/scanner-output-limits.md",
@@ -183,6 +187,11 @@ def main(argv: list[str] | None = None) -> int:
     if output is None:
         base = target if target.is_dir() else target.parent
         output = base / "security-reports" / "pi-preflight.json"
+    try:
+        output = require_outside_skill_root(output, SKILL_ROOT)
+    except SkillRootWriteForbidden:
+        print("preflight status=blocked reason=skill_root_write_forbidden", file=sys.stderr)
+        return 5
 
     report = preflight(SKILL_ROOT, target)
     output.parent.mkdir(parents=True, exist_ok=True)

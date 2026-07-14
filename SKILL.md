@@ -31,7 +31,8 @@ triggers:
 1. 已实际调用 `$SKILL_ROOT/scripts/report_pipeline.py`，且 `$REPORT_ROOT/report-pipeline.json` 存在；
 2. 已生成 **14 份 Markdown**：1 份综合报告 + `templates/report-manifest.yaml` 声明的 13 份维度独立详细报告；
 3. `report-pipeline.json` 中 `report_count == 14`，14 个 `rendered` 文件及对应审计文件均实际存在；
-4. pipeline 返回允许的成功/降级退出码，且 A3c 产物清单审计没有缺失报告。
+4. pipeline 返回允许的成功/降级退出码，且 A3c 产物清单审计没有缺失报告；
+5. Phase -1 建立的 SKILL 完整性基线在各 Phase 边界及最终校验均为 `pass`，不存在新增、删除或内容变化。
 
 任一条件不满足时，任务状态必须为 `INCOMPLETE`，不得宣告扫描完成，不得以 JSON 齐全、单份汇总报告或模型自行生成的 Markdown 替代上述完成条件。
 
@@ -105,6 +106,12 @@ Pi 安全阈值与中断恢复：见 `references/agent-runtime-limits.md`、`ref
 - 不得在激活时加载任意 `scanners/*/scanner.md` 或全部 templates。
 - scanner 的独立或逻辑 session 不得加载其他维 `scanner.md`、全量 findings、`redline-spec.md`。
 - 上游 findings 经 `ScanContext.consume(..., compact=True)` 注入 user message，不得写入 system prompt。
+
+## SKILL 只读执行边界（强制）
+
+扫描执行期间，`SKILL_ROOT 及其所有子路径均为只读输入`。LLM、subagent、scanner 和运行期脚本不得修改、创建、删除、重命名 `SKILL_ROOT` 下的任何文件或目录，不得在其中写入报告、缓存、checkpoint 或临时文件，也不得执行 `git add/commit/checkout/reset/clean`、`chmod/chown`、补丁应用、格式化或代码生成。
+
+所有运行产物只能写入 `REPORT_ROOT`，且 `REPORT_ROOT` 解析真实路径后不得等于或位于 `SKILL_ROOT` 内；扫描目标自身位于 `SKILL_ROOT` 时，必须改用 skill 外部报告目录，否则立即 `BLOCKED`。发现本 SKILL 缺陷时只能将问题记录到外部 `REPORT_ROOT` 并停止或降级，不得在扫描执行过程中就地修复。生产运行必须由 harness/容器以只读挂载或等效权限强制保护 `SKILL_ROOT`；完整性快照只作为额外检测门禁，不能替代只读文件系统。
 
 ## 异常处理总则
 

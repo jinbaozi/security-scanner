@@ -12,12 +12,18 @@
 
 终端每个 Phase 最多一行，最终最多八行。完整 JSON、文件清单、findings、报告正文及工具 stdout/stderr 只写入 `REPORT_ROOT`，不得回显或整文件读取。
 
+## SKILL 只读执行边界
+
+扫描期间，`SKILL_ROOT 及其所有子路径均为只读输入`。任何 LLM、subagent 或运行期工具都不得修改、创建、删除、重命名其中的文件，不得修改权限或运行 Git/补丁/格式化/代码生成命令。所有输出必须写入外部 `REPORT_ROOT`；`REPORT_ROOT` 的真实路径等于或位于 `SKILL_ROOT` 内时必须立即 `BLOCKED`，不得以临时文件、软链接或 `../` 绕过。发现 skill 缺陷只记录外部审计产物，不得修改本 SKILL。生产环境必须同时使用只读挂载或 harness 写入拒绝策略。
+
+Phase -1 使用 `verify_skill_integrity.py snapshot --skill-root "$SKILL_ROOT" --output "$REPORT_ROOT/skill-integrity-baseline.json"` 建立外部基线；每个 Phase 边界使用 `verify_skill_integrity.py verify --skill-root "$SKILL_ROOT" --baseline "$REPORT_ROOT/skill-integrity-baseline.json" --output "$REPORT_ROOT/skill-integrity-<phase>.json"` 校验。返回 6 时立即停止，且不得自动恢复或覆盖变化文件。完整性快照是检测门禁，不能替代文件系统只读保护。
+
 ## 按 Phase 加载
 
 | Phase | 仅按需加载 | 主要 checkpoint |
 |------|------------|-----------------|
 | -1 依赖预检 | `references/dependency-check.md` | `pi-preflight.json`、依赖状态 |
-| -0 输入物化 | 标准调用：`package_materializer.py --target "$TARGET_ROOT" --report-dir "$REPORT_ROOT"`；异常时读 orchestrator 的“Phase -0”小节 | `materialization-*.json` |
+| -0 输入物化 | 标准调用：`package_materializer.py --target "$TARGET_ROOT" --report-dir "$REPORT_ROOT" --output-json "$REPORT_ROOT/materialization.json"`；异常时读 orchestrator 的“Phase -0”小节 | `materialization.json` |
 | 0 Recon | `orchestration/reconnaissance.md`；`normalize_shards.py`、`validate_shards.py`、`summarize_scan_plan.py` | `scan-plan.summary.json`、shard validation、路径 list 文件 |
 | 1/1.5 扫描 | 调用 `resolve_scanners.py`；仅加载当前维 `meta.yaml`、`scanner.md` 和 scope 非 `tool` 的声明 references | `scanner-registry-plan.json`、`findings/findings-<dim>.json` |
 | 2 裁决 | `references/verdict-rules.md`、`references/finding-schema.md` | `findings-combined.json` |

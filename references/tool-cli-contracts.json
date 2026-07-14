@@ -111,11 +111,19 @@
       "input_artifact_type": "artifact_paths",
       "output_artifact_type": "context_measurement"
     },
+    "verify_skill_integrity": {
+      "script": "scripts/verify_skill_integrity.py",
+      "status_name": "skill-integrity",
+      "required_option_groups": [["snapshot", "verify"]],
+      "required_options": ["--skill-root", "--output"],
+      "optional_options": ["--baseline"],
+      "output_artifact_type": "skill_integrity_verification"
+    },
     "build_report_values": {
       "script": "scripts/build_report_values.py",
       "status_name": "report-values",
       "required_options": ["--template", "--component-name", "--target-path", "--scan-date", "--output"],
-      "optional_options": ["--scan-plan", "--findings", "--base-values", "--dimension-statuses"],
+      "optional_options": ["--scan-plan", "--findings", "--base-values", "--dimension-statuses", "--materialization"],
       "forbidden_options": ["--report-dir", "--component-version", "--overall-status", "--dimensions"],
       "output_artifact_type": "report_values"
     },
@@ -123,7 +131,7 @@
       "script": "scripts/report_pipeline.py",
       "status_name": "report-pipeline",
       "required_options": ["--skill-root", "--report-root", "--component-name", "--target-path", "--scan-date", "--scan-plan", "--findings", "--dimension-statuses", "--output"],
-      "optional_options": ["--base-values"],
+      "optional_options": ["--base-values", "--materialization"],
       "input_artifact_type": "report_inputs",
       "output_artifact_type": "report_pipeline_result"
     },

@@ -20,6 +20,7 @@ RUNTIME_TOOLS = {
     "elf_hardening_probe",
     "rpm_integrity_probe",
     "measure_context",
+    "verify_skill_integrity",
     "build_report_values",
     "report_pipeline",
     "render_template",

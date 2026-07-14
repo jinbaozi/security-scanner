@@ -76,7 +76,7 @@ Phase -1、Phase -0 和 Phase 0 必须顺序执行，前一 Phase 完成后才�
 
 ### Phase -0：输入物化（Package Materialization）
 
-Phase -1 完成后、Recon 之前必须执行输入物化。Orchestrator 必须调用 `python3 "$SKILL_ROOT/scripts/package_materializer.py" --target "$TARGET_ROOT" --report-dir "$REPORT_ROOT"`（兼容接口可另加 `--output-json`），生成 materialization JSON 文件；Phase 0 只能消费该 JSON 中的 `source_roots`、`binary_roots` 和 `materialization` 状态，不得直接把 SRPM 外层解包目录当成源码树。终端只保留一行物化状态摘要。
+Phase -1 完成后、Recon 之前必须执行输入物化。Orchestrator 必须调用 `python3 "$SKILL_ROOT/scripts/package_materializer.py" --target "$TARGET_ROOT" --report-dir "$REPORT_ROOT" --output-json "$REPORT_ROOT/materialization.json"`，生成稳定命名的 materialization JSON 文件；Phase 0 只能消费该 JSON 中的 `source_roots`、`binary_roots` 和 `materialization` 状态，不得直接把 SRPM 外层解包目录当成源码树。终端只保留一行物化状态摘要。
 
 所有物化子进程强制超时：`rpm2cpio=120s`、`cpio=300s`、`rpmbuild=1800s`、`dnf=600s`。超时返回可审计退出码，不得抛出 traceback；materialization `command_log` 必须记录 `exit_code`、`timed_out`、`duration_seconds` 和截断后的 `stderr_summary`。调用 materializer 的 Pi bash 工具超时必须高于当前子进程上限。
 

@@ -344,6 +344,7 @@ python3 "$SKILL_ROOT/scripts/report_pipeline.py" \
   --scan-plan "$REPORT_ROOT/recon/scan-plan.normalized.json" \
   --findings "$REPORT_ROOT/findings-combined.json" \
   --dimension-statuses "$REPORT_ROOT/dimension-statuses.json" \
+  --materialization "$REPORT_ROOT/materialization.json" \
   --base-values "$REPORT_ROOT/base-values.json" \
   --output "$REPORT_ROOT/report-pipeline.json"
 ```
@@ -360,6 +361,7 @@ python3 "$SKILL_ROOT/scripts/build_report_values.py" \
   --findings "$REPORT_ROOT/findings-combined.json" \
   --base-values "$REPORT_ROOT/base-values.json" \
   --dimension-statuses "$REPORT_ROOT/dimension-statuses.json" \
+  --materialization "$REPORT_ROOT/materialization.json" \
   --output "$REPORT_ROOT/report-values.json"
 ```
 

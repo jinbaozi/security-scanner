@@ -3,6 +3,10 @@ docs/superpowers/
 .superpowers/
 .worktrees/
 
+# Reviewed release inputs are deliberately staged locally and never committed.
+offline/vendor/*
+!offline/vendor/README.md
+
 # Python build artifacts
 __pycache__/
 *.pyc
